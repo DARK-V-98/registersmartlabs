@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BookOpen, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -33,9 +34,7 @@ const Login = () => {
               {/* Logo */}
               <div className="text-center mb-8">
                 <Link href="/" className="inline-flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
-                    <BookOpen className="w-6 h-6 text-primary-foreground" />
-                  </div>
+                  <Image src="/logo.png" alt="SmartLabs Logo" width={48} height={48} className="rounded-xl" />
                   <span className="font-display font-bold text-2xl text-primary">SmartLabs</span>
                 </Link>
                 <h1 className="font-display text-2xl font-bold mb-2">Welcome Back!</h1>

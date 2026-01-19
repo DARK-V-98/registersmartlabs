@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { BookOpen, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import Image from "next/image";
+import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -9,9 +10,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-accent-foreground" />
-              </div>
+              <Image src="/logo.png" alt="SmartLabs Logo" width={40} height={40} className="rounded-xl" />
               <span className="font-display font-bold text-xl">SmartLabs</span>
             </Link>
             <p className="text-primary-foreground/80 leading-relaxed">

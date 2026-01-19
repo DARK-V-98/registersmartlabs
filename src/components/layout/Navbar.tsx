@@ -4,8 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Calendar, BookOpen, User } from "lucide-react";
+import { Menu, X, Calendar, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 const navLinks = [
   { path: "/", label: "Home" },
@@ -24,9 +25,7 @@ const Navbar = () => {
         <nav className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <Image src="/logo.png" alt="SmartLabs Logo" width={40} height={40} className="rounded-xl" />
             <span className="font-display font-bold text-xl text-primary">
               SmartLabs
             </span>
