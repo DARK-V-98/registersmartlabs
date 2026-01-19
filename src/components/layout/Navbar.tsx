@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Calendar, User, LogOut, Shield } from "lucide-react";
+import { Menu, X, Calendar, User, LogOut, Shield, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useAuth } from "@/firebase";
@@ -72,6 +72,12 @@ const Navbar = () => {
                     Dashboard
                   </Button>
                 </Link>
+                <a href="https://www.smartlabs.lk" target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="font-medium">
+                    <ExternalLink className="w-4 h-4 mr-2"/>
+                    Main Site
+                  </Button>
+                </a>
                 <Button onClick={handleSignOut} variant="ghost">
                   <LogOut className="w-4 h-4 mr-2" />
                   Sign Out
@@ -84,6 +90,12 @@ const Navbar = () => {
                     Sign In
                   </Button>
                 </Link>
+                <a href="https://www.smartlabs.lk" target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" className="font-medium">
+                    <ExternalLink className="w-4 h-4 mr-2"/>
+                    Main Site
+                  </Button>
+                </a>
                 <Link href="/booking">
                   <Button className="btn-accent">
                     <Calendar className="w-4 h-4 mr-2" />
@@ -141,6 +153,12 @@ const Navbar = () => {
                         Dashboard
                       </Button>
                     </Link>
+                    <a href="https://www.smartlabs.lk" target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" className="w-full">
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Main Site
+                      </Button>
+                    </a>
                     <Button onClick={() => { handleSignOut(); setIsOpen(false); }} className="w-full">
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign Out
@@ -154,6 +172,12 @@ const Navbar = () => {
                         Sign In
                       </Button>
                     </Link>
+                    <a href="https://www.smartlabs.lk" target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" className="w-full">
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Main Site
+                      </Button>
+                    </a>
                     <Link href="/booking" onClick={() => setIsOpen(false)}>
                       <Button className="w-full btn-accent">
                         <Calendar className="w-4 h-4 mr-2" />
