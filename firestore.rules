@@ -14,11 +14,11 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // IMPORTANT: This function incurs a Firestore read operation for every rule that uses it.
-    // For production apps, it's highly recommended to use custom claims to store roles.
-    // See: https://firebase.google.com/docs/auth/admin/custom-claims
+    // IMPORTANT: This function is temporarily modified for development.
+    // It grants admin privileges to ANY signed-in user.
+    // For production, revert this to check for a specific role or custom claim.
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn();
     }
 
     // Collection Rules
