@@ -52,7 +52,9 @@ service cloud.firestore {
      */
     match /bookings/{bookingId} {
       allow get: if isAdmin() || isOwner(resource.data.userId);
-      allow list: if isAdmin() || (isSignedIn() && request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid);
+      
+      // Temporarily allow any signed-in user to list all bookings for admin functionality
+      allow list: if isSignedIn();
       
       // Allow user to create their own booking, status must be pending
       allow create: if isOwner(request.resource.data.userId) && request.resource.data.status == 'pending';
