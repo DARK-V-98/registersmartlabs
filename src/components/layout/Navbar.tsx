@@ -1,13 +1,15 @@
+
 'use client';
 
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Calendar, User, LogOut } from "lucide-react";
+import { Menu, X, Calendar, User, LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { useUser, useAuth } from "@/firebase";
+import { useAuth } from "@/firebase";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { signOut } from "firebase/auth";
 
 const navLinks = [
@@ -20,7 +22,7 @@ const navLinks = [
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
-  const { user, isUserLoading } = useUser();
+  const { user, profile, isLoading } = useUserProfile();
   const auth = useAuth();
   const router = useRouter();
 
@@ -51,10 +53,16 @@ const Navbar = () => {
                 {link.label}
               </Link>
             ))}
+             {profile?.role === 'admin' && (
+              <Link href="/admin" className="nav-link animated-underline flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Admin
+              </Link>
+            )}
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            {isUserLoading ? (
+            {isLoading ? (
               <div />
             ) : user ? (
               <>
@@ -119,6 +127,11 @@ const Navbar = () => {
                   {link.label}
                 </Link>
               ))}
+               {profile?.role === 'admin' && (
+                  <Link href="/admin" onClick={() => setIsOpen(false)} className="block py-3 px-4 rounded-xl hover:bg-secondary">
+                    Admin
+                  </Link>
+               )}
               <div className="pt-4 border-t border-border space-y-3">
                 {user ? (
                   <>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from "react";
@@ -12,21 +13,15 @@ import {
   Video, 
   MapPin, 
   Plus,
-  History,
-  Settings,
   LogOut,
   ChevronRight,
   X,
-  RefreshCw,
   User as UserIcon
 } from "lucide-react";
 import { useAuth, useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, Timestamp } from "firebase/firestore";
+import { collection, query, where, orderBy, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
-import { deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-
 
 interface Booking {
   id: string;
@@ -34,8 +29,8 @@ interface Booking {
   courseIcon: string;
   date: Timestamp;
   time: string;
-  type: 'online' | 'physical';
-  status: 'confirmed' | 'pending' | 'completed' | 'cancelled';
+  classType: 'online' | 'physical';
+  status: 'confirmed' | 'pending' | 'completed' | 'cancelled' | 'rejected';
 }
 
 const Dashboard = () => {
@@ -49,7 +44,8 @@ const Dashboard = () => {
   const bookingsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
-      collection(firestore, `users/${user.uid}/courseEnrollments`),
+      collection(firestore, 'bookings'),
+      where("userId", "==", user.uid),
       orderBy("date", "desc")
     );
   }, [user, firestore]);
@@ -61,14 +57,22 @@ const Dashboard = () => {
     router.push("/");
   };
 
-  const handleDeleteBooking = (bookingId: string) => {
+  const handleCancelBooking = async (bookingId: string) => {
     if (!user || !firestore) return;
-    const docRef = doc(firestore, `users/${user.uid}/courseEnrollments`, bookingId);
-    deleteDocumentNonBlocking(docRef);
-    toast({
-      title: "Booking Cancelled",
-      description: "Your booking has been cancelled.",
-    });
+    const docRef = doc(firestore, 'bookings', bookingId);
+    try {
+      await updateDoc(docRef, { status: 'cancelled' });
+      toast({
+        title: "Booking Cancelled",
+        description: "Your booking has been cancelled.",
+      });
+    } catch(e) {
+      toast({
+        variant: 'destructive',
+        title: "Error",
+        description: "Could not cancel booking.",
+      });
+    }
   }
 
   if (isUserLoading || bookingsLoading) {
@@ -81,8 +85,8 @@ const Dashboard = () => {
   }
 
   const now = new Date();
-  const upcomingBookings = bookings?.filter(b => b.date.toDate() >= now && b.status !== 'cancelled') || [];
-  const pastBookings = bookings?.filter(b => b.date.toDate() < now || b.status === 'cancelled') || [];
+  const upcomingBookings = bookings?.filter(b => b.date.toDate() >= now && b.status !== 'cancelled' && b.status !== 'rejected' && b.status !== 'completed') || [];
+  const pastBookings = bookings?.filter(b => b.date.toDate() < now || ['completed', 'cancelled', 'rejected'].includes(b.status)) || [];
 
   const displayedBookings = activeTab === "upcoming" ? upcomingBookings : pastBookings;
 
@@ -203,16 +207,16 @@ const Dashboard = () => {
 
                         <div className="flex items-center justify-between sm:justify-end flex-wrap gap-4 w-full sm:w-auto">
                           <div className="flex items-center gap-3">
-                            <span className={booking.type === "online" ? "badge-online" : "badge-physical"}>
-                              {booking.type === "online" ? <Video className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
-                              {booking.type === "online" ? "Online" : "Physical"}
+                            <span className={booking.classType === "online" ? "badge-online" : "badge-physical"}>
+                              {booking.classType === "online" ? <Video className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
+                              {booking.classType === "online" ? "Online" : "Physical"}
                             </span>
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                               booking.status === "confirmed"
                                 ? "bg-success/10 text-success"
                                 : booking.status === "pending"
                                 ? "bg-amber-100 text-amber-700"
-                                : booking.status === 'cancelled'
+                                : ['cancelled', 'rejected'].includes(booking.status)
                                 ? "bg-destructive/10 text-destructive"
                                 : "bg-secondary text-muted-foreground"
                             }`}>
@@ -221,15 +225,13 @@ const Dashboard = () => {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {activeTab === "upcoming" && booking.status !== 'cancelled' && (
+                            {booking.status === 'pending' && (
                               <div className="flex gap-2">
-                                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDeleteBooking(booking.id)}>
-                                  <X className="w-4 h-4" />
+                                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleCancelBooking(booking.id)}>
+                                  <X className="w-4 h-4 mr-1" /> Cancel
                                 </Button>
                               </div>
                             )}
-
-                            <ChevronRight className="w-5 h-5 text-muted-foreground" />
                           </div>
                         </div>
                       </div>

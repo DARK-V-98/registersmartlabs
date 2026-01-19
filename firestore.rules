@@ -1,174 +1,77 @@
-/**
- * Core Philosophy: This ruleset implements a hybrid security model. It secures user-specific
- * data (profiles, enrollments) under a strict ownership model, while allowing public read
- * access to shared application data like courses and their available dates.
- *
- * Data Structure: Data is segregated by its security requirements into distinct collections.
- * - /users/{userId}: Stores private user profile data. Each user's documents are
- *   sandboxed under their own unique user ID.
- * - /courses/{courseId}: A top-level collection for course information, intended to be
- *   publicly browsable.
- * - /users/{userId}/courseEnrollments: A subcollection storing a user's private course
- *   enrollments, ensuring only the owner can access their own enrollment history.
- *
- * Key Security Decisions:
- * - User Isolation: A user can only access data within their own document tree
- *   (e.g., /users/their-own-id/...). Direct access to other users' data is denied.
- * - No User Enumeration: Listing the top-level /users collection is disallowed to
- *   prevent malicious actors from discovering all users of the application.
- * - Public Content: The /courses collection and its subcollections are publicly readable by
- *   anyone, including unauthenticated users, to allow browsing of the course catalog.
- * - Write Protection: All write operations (create, update, delete) require user
- *   authentication. Writes to public content collections like /courses are currently
- *   disabled pending a clear definition of an administrative or content creator role.
- *
- * Denormalization for Authorization:
- * This ruleset relies on path-based security for all user-owned data. The user's UID is
- * part of the document path (e.g., /users/{userId}/...), which allows for simple, fast,
- * and cost-effective security rules that do not require extra database reads (`get` calls)
- * to verify ownership. For documents in these user-owned collections, we also enforce that
- * an internal `userId` field matches the `userId` in the path to ensure data integrity.
- *
- * Structural Segregation:
- * The separation of public data (/courses) from private data (/users) is a deliberate
- * design choice. This structure is more secure and performant, as it prevents accidental
- * exposure of private data and simplifies rules for list queries.
- */
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for reusable logic
-    // ===================================
+    // Helper functions
+    // =================
 
-    /**
-     * Checks if a user is authenticated.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * Checks if the currently authenticated user's UID matches the provided userId.
-     * This is the foundation of the user-ownership model.
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * Checks for ownership on an existing document. Used for safe updates and deletes.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
+    // IMPORTANT: This function incurs a Firestore read operation for every rule that uses it.
+    // For production apps, it's highly recommended to use custom claims to store roles.
+    // See: https://firebase.google.com/docs/auth/admin/custom-claims
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
-
-    /**
-     * Validates the data for a new user document creation.
-     * Ensures the user ID in the path matches the data and prevents self-promotion to 'admin'.
-     */
-    function canCreateUser(userId) {
-      let incomingData = request.resource.data;
-      return isOwner(userId)
-        && incomingData.id == userId
-        && incomingData.role == 'user';
-    }
-
-    /**
-     * Validates the data for a user document update.
-     * Prevents changing the user ID or role.
-     */
-    function canUpdateUser(userId) {
-      let incomingData = request.resource.data;
-      return isExistingOwner(userId)
-        && incomingData.id == resource.data.id
-        && incomingData.role == resource.data.role;
-    }
-
-    /**
-     * Validates a new course enrollment document.
-     * Enforces that the enrollment's userId field matches the owner's path.
-     */
-    function canCreateEnrollment(userId) {
-      let incomingData = request.resource.data;
-      return isOwner(userId)
-        && incomingData.userId == userId;
-    }
-
-    /**
-     * Validates an update to a course enrollment document.
-     * Enforces that the ownership link (userId) cannot be changed.
-     */
-    function canUpdateEnrollment(userId) {
-        let incomingData = request.resource.data;
-        return isExistingOwner(userId)
-            && incomingData.userId == resource.data.userId;
-    }
-
 
     // Collection Rules
     // ================
 
     /**
-     * @description Users can create their own profile, and read or update it. They cannot
-     *   delete their profile or see other users' profiles.
+     * @description User profile data. Users can read/update their own profile. Admins can read any profile.
      * @path /users/{userId}
-     * @allow (create) A new user (auth.uid: 'user_123') creating their own document at /users/user_123.
-     * @deny (get) A user ('user_abc') trying to read a document at /users/user_xyz.
-     * @principle Restricts access to a user's own data tree and prevents user enumeration.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if canCreateUser(userId);
-      allow update: if canUpdateUser(userId);
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin(); // Allow admins to list users
+      allow create: if isOwner(userId) && request.resource.data.role == 'user';
+      allow update: if isOwner(userId);
       allow delete: if false;
     }
 
     /**
-     * @description Courses are public and can be read by anyone. Writes are currently
-     *   disallowed for all users until an admin role is fully implemented.
+     * @description Course information, publicly readable.
      * @path /courses/{courseId}
-     * @allow (get) Any user (authenticated or not) reading a document at /courses/course_abc.
-     * @deny (create) An authenticated user trying to create a new course document.
-     * @principle Implements a public read-only pattern for globally accessible data.
      */
     match /courses/{courseId} {
-      allow get: if true;
-      allow list: if true;
-      // CRITICAL: Cannot implement owner-only writes. The 'Course' entity is missing an 'ownerId' or 'authorId' field.
-      allow create, update, delete: if false; // TODO: Add admin/owner validation once the schema is updated with an ownership field.
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Course dates are public and can be read by anyone. Writes are
-     *   disallowed for all users.
-     * @path /courses/{courseId}/courseDates/{courseDateId}
-     * @allow (list) Any user (authenticated or not) listing all documents under /courses/course_abc/courseDates.
-     * @deny (create) An authenticated user trying to create a new course date document.
-     * @principle Extends the public read-only pattern to subcollections of public data.
+     * @description Centralized bookings. Users create their own bookings with a 'pending' status.
+     * Admins can manage all bookings. Users can cancel their own bookings.
+     * @path /bookings/{bookingId}
      */
-    match /courses/{courseId}/courseDates/{courseDateId} {
-      allow get: if true;
-      allow list: if true;
-      // CRITICAL: Cannot implement owner-only writes. The 'CourseDate' entity is missing an 'ownerId' or 'authorId' field.
-      allow create, update, delete: if false; // TODO: Add admin/owner validation once the schema is updated with an ownership field.
+    match /bookings/{bookingId} {
+      allow get: if isAdmin() || isOwner(resource.data.userId);
+      allow list: if isAdmin() || (isSignedIn() && request.query.where.size() > 0 && request.query.where[0][0] == 'userId' && request.query.where[0][2] == request.auth.uid);
+      
+      // Allow user to create their own booking, status must be pending
+      allow create: if isOwner(request.resource.data.userId) && request.resource.data.status == 'pending';
+      
+      // Allow admin to update any booking.
+      // Allow user to update their own booking ONLY if they are cancelling it.
+      allow update: if isAdmin() || (isOwner(resource.data.userId) && request.resource.data.status == 'cancelled' && resource.data.status != 'cancelled');
+
+      allow delete: if isAdmin();
     }
 
     /**
-     * @description A user can manage their own course enrollments. They can create, view,
-     *   update, and delete their enrollments, but cannot access enrollments of other users.
-     * @path /users/{userId}/courseEnrollments/{enrollmentId}
-     * @allow (create) A user (auth.uid: 'user_123') creating an enrollment at /users/user_123/courseEnrollments/enroll_abc.
-     * @deny (get) A user ('user_abc') trying to read an enrollment at /users/user_xyz/courseEnrollments/enroll_123.
-     * @principle Enforces strict document ownership within a user's private subcollection.
+     * @description Global admin settings. Readable by all signed-in users, writable only by admins.
+     * @path /settings/admin
      */
-    match /users/{userId}/courseEnrollments/{enrollmentId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if canCreateEnrollment(userId);
-      allow update: if canUpdateEnrollment(userId);
-      allow delete: if isExistingOwner(userId);
+    match /settings/admin {
+      allow get: if isSignedIn();
+      allow create, update: if isAdmin();
+      allow delete: if false;
     }
   }
 }

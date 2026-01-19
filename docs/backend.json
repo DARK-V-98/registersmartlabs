@@ -56,73 +56,90 @@
         "description"
       ]
     },
-    "CourseDate": {
+    "Booking": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "CourseDate",
+      "title": "Booking",
       "type": "object",
-      "description": "Represents a specific date when a course is offered.",
+      "description": "Represents a user's booking for a course.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the course date."
-        },
-        "courseId": {
-          "type": "string",
-          "description": "Reference to Course. (Relationship: Course 1:N CourseDate)"
-        },
-        "date": {
-          "type": "string",
-          "description": "Date of the course offering.",
-          "format": "date-time"
-        },
-        "availableSlots": {
-          "type": "number",
-          "description": "Number of available slots for this course date."
-        }
-      },
-      "required": [
-        "id",
-        "courseId",
-        "date",
-        "availableSlots"
-      ]
-    },
-    "UserCourseEnrollment": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "UserCourseEnrollment",
-      "type": "object",
-      "description": "Represents a user's enrollment in a specific course date.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the enrollment record."
+          "description": "Unique identifier for the booking."
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N UserCourseEnrollment)"
+          "description": "Reference to User."
         },
-        "courseDateId": {
+        "courseId": {
+          "type": "string"
+        },
+        "courseName": {
+          "type": "string"
+        },
+        "courseIcon": {
+          "type": "string"
+        },
+        "date": {
           "type": "string",
-          "description": "Reference to CourseDate. (Relationship: CourseDate 1:N UserCourseEnrollment)"
+          "format": "date-time"
+        },
+        "time": {
+          "type": "string"
+        },
+        "classType": {
+          "type": "string",
+          "enum": ["online", "physical"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "rejected", "cancelled", "completed"]
         },
         "enrollmentDate": {
           "type": "string",
-          "description": "Date when the user enrolled in the course date.",
           "format": "date-time"
         }
       },
       "required": [
-        "id",
         "userId",
-        "courseDateId",
+        "courseId",
+        "courseName",
+        "date",
+        "time",
+        "classType",
+        "status",
         "enrollmentDate"
       ]
+    },
+    "AdminSettings": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminSettings",
+      "type": "object",
+      "description": "Stores global settings configurable by an admin.",
+      "properties": {
+        "bankDetails": {
+          "type": "string",
+          "description": "Bank account details for payments."
+        },
+        "whatsappNumber": {
+          "type": "string",
+          "description": "WhatsApp number for payment verification."
+        },
+        "disabledDates": {
+          "type": "array",
+          "description": "An array of dates (YYYY-MM-DD) that are unavailable for booking.",
+          "items": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
     }
   },
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "anonymous",
+      "google.com"
     ]
   },
   "firestore": {
@@ -134,7 +151,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user data. The `userId` parameter corresponds to the Firebase Auth UID. Includes 'role' for role-based access control.",
+          "description": "Stores user profile data, including their role for access control.",
           "params": [
             {
               "name": "userId",
@@ -150,7 +167,7 @@
           "schema": {
             "$ref": "#/backend/entities/Course"
           },
-          "description": "Stores course information.",
+          "description": "Stores course information. Publicly readable.",
           "params": [
             {
               "name": "courseId",
@@ -160,46 +177,33 @@
         }
       },
       {
-        "path": "/courses/{courseId}/courseDates/{courseDateId}",
+        "path": "/bookings/{bookingId}",
         "definition": {
-          "entityName": "CourseDate",
+          "entityName": "Booking",
           "schema": {
-            "$ref": "#/backend/entities/CourseDate"
+            "$ref": "#/backend/entities/Booking"
           },
-          "description": "Stores the available dates for a specific course.",
+          "description": "A centralized collection for all user bookings. Admins can manage all bookings, while users can only access their own.",
           "params": [
             {
-              "name": "courseId",
-              "description": "Unique identifier for the course."
-            },
-            {
-              "name": "courseDateId",
-              "description": "Unique identifier for the course date."
+              "name": "bookingId",
+              "description": "Unique identifier for the booking."
             }
           ]
         }
       },
       {
-        "path": "/users/{userId}/courseEnrollments/{enrollmentId}",
+        "path": "/settings/admin",
         "definition": {
-          "entityName": "UserCourseEnrollment",
+          "entityName": "AdminSettings",
           "schema": {
-            "$ref": "#/backend/entities/UserCourseEnrollment"
+            "$ref": "#/backend/entities/AdminSettings"
           },
-          "description": "Stores user enrollments for specific course dates. Path-based ownership ensures only the user can access their enrollment data.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The Firebase Auth UID of the user."
-            },
-            {
-              "name": "enrollmentId",
-              "description": "Unique identifier for the enrollment record."
-            }
-          ]
+          "description": "A single document to store global settings like payment info and disabled dates. Readable by users, writable only by admins.",
+          "params": []
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to support user authentication, course management, and enrollment features. It prioritizes authorization independence and simplifies security rules.  User data is stored under `/users/{userId}`. Courses are stored in a top-level `/courses` collection, and course dates are stored in a subcollection `/courses/{courseId}/courseDates`.  User enrollment data is stored in a subcollection `/users/{userId}/courseEnrollments`, ensuring clear ownership. This structure allows for efficient querying of a user's enrollments and easy enforcement of security rules based on user ID.  Authorization Independence is achieved because the `UserCourseEnrollment` documents do not require reading parent data to enforce access control. The path itself establishes ownership.  The structure supports QAPs by using structural segregation: each collection serves a distinct purpose with homogeneous security needs. Listing courses is always public, and listing enrollments requires knowledge of the `userId`, so the list operation is secure. Role-based access control (DBAC) is implemented by storing the user's role in the user document itself."
+    "reasoning": "The data structure is revised for administrative functionality. User-specific data remains in `/users/{userId}`. A top-level `/bookings` collection is introduced to allow admins to easily query and manage all enrollments, which is more efficient than nested subcollections. Security rules will grant admins broad access to `/bookings`, while users are restricted to their own documents. A single document at `/settings/admin` stores global configurations like payment details and disabled dates, making them easily accessible to the client-side while restricting write access to admins."
   }
 }
