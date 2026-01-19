@@ -21,19 +21,19 @@ const contactInfo = [
   {
     icon: Phone,
     title: "Phone",
-    value: "+1 (123) 456-7890",
-    link: "tel:+11234567890",
+    value: "076 691 4650 | 077 453 3233",
+    link: "tel:0766914650",
   },
   {
     icon: Mail,
     title: "Email",
-    value: "hello@smartlabs.edu",
-    link: "mailto:hello@smartlabs.edu",
+    value: "info@smartlabs.lk",
+    link: "mailto:info@smartlabs.lk",
   },
   {
     icon: MapPin,
     title: "Location",
-    value: "123 Education Street, Learning City, LC 12345",
+    value: "3rd Floor, No. 326, Jana Jaya Building, Rajagiriya",
     link: "#",
   },
   {
@@ -102,7 +102,7 @@ const Contact = () => {
                 <h2 className="font-display text-2xl font-bold mb-6">Send us a Message</h2>
                 
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="grid md:grid-cols-2 gap-5">
+                  <div className="grid sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
                       <Label htmlFor="name">Your Name</Label>
                       <Input
@@ -201,7 +201,7 @@ const Contact = () => {
                   to your questions about courses and bookings.
                 </p>
                 <a
-                  href="https://wa.me/11234567890"
+                  href="https://wa.me/94766914650"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -217,7 +217,7 @@ const Contact = () => {
                 <MapPin className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
                 <h3 className="font-display font-semibold mb-2">Visit Our Center</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  123 Education Street, Learning City, LC 12345
+                  3rd Floor, No. 326, Jana Jaya Building, Rajagiriya
                 </p>
                 <Button variant="outline">
                   Get Directions

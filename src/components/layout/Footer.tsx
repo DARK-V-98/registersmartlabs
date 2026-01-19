@@ -90,37 +90,32 @@ const Footer = () => {
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
                 <span className="text-primary-foreground/80">
-                  123 Education Street, Learning City, LC 12345
+                  3rd Floor, No. 326, Jana Jaya Building, Rajagiriya
                 </span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-accent flex-shrink-0" />
-                <a href="tel:+11234567890" className="text-primary-foreground/80 hover:text-accent transition-colors">
-                  +1 (123) 456-7890
-                </a>
+                <span className="text-primary-foreground/80">
+                  <a href="tel:0766914650" className="hover:text-accent transition-colors">076 691 4650</a> | <a href="tel:0774533233" className="hover:text-accent transition-colors">077 453 3233</a>
+                </span>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-accent flex-shrink-0" />
-                <a href="mailto:hello@smartlabs.edu" className="text-primary-foreground/80 hover:text-accent transition-colors">
-                  hello@smartlabs.edu
+                <a href="mailto:info@smartlabs.lk" className="text-primary-foreground/80 hover:text-accent transition-colors">
+                  info@smartlabs.lk
                 </a>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-primary-foreground/60 text-sm">
             © {new Date().getFullYear()} SmartLabs. All rights reserved.
           </p>
-          <div className="flex gap-6 text-sm">
-            <a href="#" className="text-primary-foreground/60 hover:text-accent transition-colors">
-              Privacy Policy
-            </a>
-            <a href="#" className="text-primary-foreground/60 hover:text-accent transition-colors">
-              Terms of Service
-            </a>
-          </div>
+          <p className="text-primary-foreground/60 text-sm">
+            Website Powered and Hosted by Esystemlk
+          </p>
         </div>
       </div>
     </footer>
