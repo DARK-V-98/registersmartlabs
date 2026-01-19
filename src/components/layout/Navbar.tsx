@@ -24,11 +24,8 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <nav className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center">
             <Image src="/logo.png" alt="SmartLabs Logo" width={40} height={40} className="rounded-xl" />
-            <span className="font-display font-bold text-xl text-primary">
-              SmartLabs
-            </span>
           </Link>
 
           {/* Desktop Navigation */}
