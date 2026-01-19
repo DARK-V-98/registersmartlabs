@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -53,6 +53,12 @@ function BookingContent() {
   const firestore = useFirestore();
   const { toast } = useToast();
   
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push("/login");
+    }
+  }, [isUserLoading, user, router]);
+
   const initialCourse = searchParams.get("course") || "pte";
   
   const [selectedCourse, setSelectedCourse] = useState(initialCourse);
@@ -141,8 +147,14 @@ function BookingContent() {
   const today = new Date();
   const isPrevMonthDisabled = year === today.getFullYear() && month === today.getMonth();
 
-  if (isUserLoading) {
-    return <div>Loading...</div>;
+  if (isUserLoading || !user) {
+    return (
+      <Layout>
+        <div className="flex min-h-screen items-center justify-center">
+          <p>Loading...</p>
+        </div>
+      </Layout>
+    );
   }
 
   return (
