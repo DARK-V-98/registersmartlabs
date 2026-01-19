@@ -3,7 +3,7 @@
 import { useState, useMemo, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { 
@@ -16,6 +16,9 @@ import {
   User,
   Calendar
 } from "lucide-react";
+import { useUser, useFirestore, addDocumentNonBlocking } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { collection, serverTimestamp } from "firebase/firestore";
 
 const courses = [
   { id: "pte", name: "PTE Academic", icon: "🎯" },
@@ -45,12 +48,17 @@ const getFirstDayOfMonth = (year: number, month: number) => {
 
 function BookingContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  
   const initialCourse = searchParams.get("course") || "pte";
   
   const [selectedCourse, setSelectedCourse] = useState(initialCourse);
   const [classType, setClassType] = useState<"online" | "physical">("online");
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [step, setStep] = useState(1);
 
@@ -63,14 +71,11 @@ function BookingContent() {
   const availableDates = useMemo(() => {
     const available = new Set<number>();
     const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const currentDay = today.getDate();
+    today.setHours(0,0,0,0);
 
     for (let i = 1; i <= daysInMonth; i++) {
-      if (year < currentYear || (year === currentYear && month < currentMonth) || (year === currentYear && month === currentMonth && i < currentDay)) {
-        continue;
-      }
+      const date = new Date(year, month, i);
+      if (date < today) continue;
       if (![3, 7, 12, 18, 25].includes(i)) {
         available.add(i);
       }
@@ -96,12 +101,38 @@ function BookingContent() {
 
   const handleDateSelect = (day: number) => {
     if (availableDates.has(day)) {
-      setSelectedDate(day);
+      setSelectedDate(new Date(year, month, day));
       setSelectedTime(null);
     }
   };
 
   const handleConfirmBooking = () => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Not logged in",
+        description: "You need to be logged in to book a class.",
+      });
+      router.push("/login");
+      return;
+    }
+    if (!firestore || !selectedDate || !selectedTime) return;
+
+    const enrollmentData = {
+      userId: user.uid,
+      courseId: selectedCourse,
+      courseName: courses.find(c => c.id === selectedCourse)?.name,
+      courseIcon: courses.find(c => c.id === selectedCourse)?.icon,
+      date: selectedDate,
+      time: selectedTime,
+      type: classType,
+      status: 'confirmed',
+      enrollmentDate: serverTimestamp(),
+    };
+
+    const collectionRef = collection(firestore, `users/${user.uid}/courseEnrollments`);
+    addDocumentNonBlocking(collectionRef, enrollmentData);
+    
     setStep(2);
   };
 
@@ -109,6 +140,10 @@ function BookingContent() {
   
   const today = new Date();
   const isPrevMonthDisabled = year === today.getFullYear() && month === today.getMonth();
+
+  if (isUserLoading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <Layout>
@@ -142,9 +177,7 @@ function BookingContent() {
                 className="max-w-5xl mx-auto"
               >
                 <div className="grid lg:grid-cols-3 gap-8">
-                  {/* Left Column - Course & Type Selection */}
                   <div className="space-y-6">
-                    {/* Course Selection */}
                     <div className="bg-white rounded-2xl p-6 border border-border">
                       <h3 className="font-display font-semibold mb-4">Select Course</h3>
                       <div className="space-y-3">
@@ -168,7 +201,6 @@ function BookingContent() {
                       </div>
                     </div>
 
-                    {/* Class Type */}
                     <div className="bg-white rounded-2xl p-6 border border-border">
                       <h3 className="font-display font-semibold mb-4">Class Type</h3>
                       <div className="grid grid-cols-2 gap-3">
@@ -198,7 +230,6 @@ function BookingContent() {
                     </div>
                   </div>
 
-                  {/* Middle Column - Calendar */}
                   <div className="bg-white rounded-2xl p-6 border border-border">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="font-display font-semibold">
@@ -221,7 +252,6 @@ function BookingContent() {
                       </div>
                     </div>
 
-                    {/* Calendar Grid */}
                     <div className="grid grid-cols-7 gap-2 mb-4">
                       {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                         <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
@@ -231,16 +261,14 @@ function BookingContent() {
                     </div>
 
                     <div className="grid grid-cols-7 gap-2">
-                      {/* Empty cells for days before first day of month */}
                       {Array.from({ length: firstDay }).map((_, i) => (
                         <div key={`empty-${i}`} />
                       ))}
 
-                      {/* Days of the month */}
                       {Array.from({ length: daysInMonth }).map((_, i) => {
                         const day = i + 1;
                         const isAvailable = availableDates.has(day);
-                        const isSelected = selectedDate === day;
+                        const isSelected = selectedDate?.getDate() === day && selectedDate?.getMonth() === month;
 
                         return (
                           <button
@@ -260,29 +288,12 @@ function BookingContent() {
                         );
                       })}
                     </div>
-
-                    {/* Legend */}
-                    <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mt-6 pt-4 border-t border-border text-sm">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-accent" />
-                        <span>Selected</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-secondary" />
-                        <span>Available</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded bg-muted" />
-                        <span>Unavailable</span>
-                      </div>
-                    </div>
                   </div>
 
-                  {/* Right Column - Time Slots */}
                   <div className="bg-white rounded-2xl p-6 border border-border">
                     <h3 className="font-display font-semibold mb-4">
                       {selectedDate ? (
-                        <>Available Times - {monthName} {selectedDate}</>
+                        <>Available Times - {monthName} {selectedDate.getDate()}</>
                       ) : (
                         "Select a Date First"
                       )}
@@ -325,7 +336,6 @@ function BookingContent() {
                       </div>
                     )}
 
-                    {/* Confirm Button */}
                     {selectedDate && selectedTime && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
@@ -338,7 +348,7 @@ function BookingContent() {
                             {selectedCourseData?.name} • {classType === "online" ? "Online" : "Physical"}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {monthName} {selectedDate}, {year} at {selectedTime}
+                            {monthName} {selectedDate.getDate()}, {year} at {selectedTime}
                           </p>
                         </div>
                         <Button 
@@ -366,7 +376,7 @@ function BookingContent() {
                   </div>
                   <h2 className="font-display text-3xl font-bold mb-2">Booking Confirmed!</h2>
                   <p className="text-muted-foreground mb-8">
-                    Your class has been successfully scheduled. Check your email for details.
+                    Your class has been successfully scheduled. Check your dashboard for details.
                   </p>
 
                   <div className="bg-secondary/50 rounded-2xl p-6 mb-8 text-left">
@@ -381,7 +391,7 @@ function BookingContent() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Date</p>
-                        <p className="font-semibold">{monthName} {selectedDate}, {year}</p>
+                        <p className="font-semibold">{monthName} {selectedDate?.getDate()}, {year}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Time</p>

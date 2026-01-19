@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Calendar, User } from "lucide-react";
+import { Menu, X, Calendar, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import { useUser, useAuth } from "@/firebase";
+import { signOut } from "firebase/auth";
 
 const navLinks = [
   { path: "/", label: "Home" },
@@ -18,17 +20,25 @@ const navLinks = [
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    if (auth) {
+      await signOut(auth);
+      router.push("/");
+    }
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-b border-border/50">
       <div className="container mx-auto px-4">
         <nav className="flex items-center justify-between h-20">
-          {/* Logo */}
-          <Link href="/" className="flex items-center">
-            <Image src="/logo.png" alt="SmartLabs Logo" width={80} height={80} className="rounded-xl" />
+          <Link href="/" className="flex items-center gap-3">
+            <Image src="/logo.png" alt="SmartLabs Logo" width={40} height={40} className="rounded-xl" />
           </Link>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
               <Link
@@ -43,22 +53,39 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/login">
-              <Button variant="ghost" className="font-medium">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/booking">
-              <Button className="btn-accent">
-                <Calendar className="w-4 h-4 mr-2" />
-                Book Now
-              </Button>
-            </Link>
+            {isUserLoading ? (
+              <div />
+            ) : user ? (
+              <>
+                <Link href="/dashboard">
+                  <Button variant="ghost" className="font-medium">
+                    <User className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </Button>
+                </Link>
+                <Button onClick={handleSignOut} variant="ghost">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" className="font-medium">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/booking">
+                  <Button className="btn-accent">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Book Now
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
-          {/* Mobile Menu Toggle */}
           <button
             className="md:hidden p-2 rounded-xl hover:bg-secondary transition-colors"
             onClick={() => setIsOpen(!isOpen)}
@@ -69,7 +96,6 @@ const Navbar = () => {
         </nav>
       </div>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -94,18 +120,35 @@ const Navbar = () => {
                 </Link>
               ))}
               <div className="pt-4 border-t border-border space-y-3">
-                <Link href="/login" onClick={() => setIsOpen(false)}>
-                  <Button variant="outline" className="w-full">
-                    <User className="w-4 h-4 mr-2" />
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/booking" onClick={() => setIsOpen(false)}>
-                  <Button className="w-full btn-accent">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Book Now
-                  </Button>
-                </Link>
+                {user ? (
+                  <>
+                    <Link href="/dashboard" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full">
+                        <User className="w-4 h-4 mr-2" />
+                        Dashboard
+                      </Button>
+                    </Link>
+                    <Button onClick={() => { handleSignOut(); setIsOpen(false); }} className="w-full">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login" onClick={() => setIsOpen(false)}>
+                      <Button variant="outline" className="w-full">
+                        <User className="w-4 h-4 mr-2" />
+                        Sign In
+                      </Button>
+                    </Link>
+                    <Link href="/booking" onClick={() => setIsOpen(false)}>
+                      <Button className="w-full btn-accent">
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Book Now
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
