@@ -19,9 +19,9 @@ import {
   CreditCard,
   MessageCircle,
 } from "lucide-react";
-import { useUser, useFirestore, addDocumentNonBlocking, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { useUser, useFirestore, addDocumentNonBlocking, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { collection, serverTimestamp, where, query, doc, Timestamp } from "firebase/firestore";
+import { collection, serverTimestamp, doc, Timestamp } from "firebase/firestore";
 import { format } from 'date-fns';
 
 const courses = [
@@ -35,16 +35,14 @@ const allTimeSlots = [
   "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", "06:00 PM",
 ];
 
-interface Booking {
-  id: string;
-  time: string;
-  date: Timestamp;
-}
-
 interface AdminSettings {
   bankDetails?: string;
   whatsappNumber?: string;
   disabledDates?: string[];
+}
+
+interface Schedule {
+  bookedSlots: string[];
 }
 
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -81,25 +79,16 @@ function BookingContent() {
     }
   }, [isUserLoading, user, router]);
 
-  const bookingsForSelectedDateQuery = useMemoFirebase(() => {
+  const scheduleRef = useMemoFirebase(() => {
     if (!firestore || !selectedDate) return null;
-    const startOfDay = new Date(selectedDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(selectedDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    
-    return query(
-      collection(firestore, 'bookings'),
-      where('date', '>=', startOfDay),
-      where('date', '<=', endOfDay),
-      where('status', '==', 'confirmed')
-    );
+    const dateString = format(selectedDate, 'yyyy-MM-dd');
+    return doc(firestore, 'schedules', dateString);
   }, [firestore, selectedDate]);
 
-  const { data: todaysBookings } = useCollection<Booking>(bookingsForSelectedDateQuery);
+  const { data: schedule } = useDoc<Schedule>(scheduleRef);
 
   const adminDisabledDates = useMemo(() => new Set(settings?.disabledDates || []), [settings]);
-  const bookedTimes = useMemo(() => new Set(todaysBookings?.map(b => b.time) || []), [todaysBookings]);
+  const bookedTimes = useMemo(() => new Set(schedule?.bookedSlots || []), [schedule]);
 
   const availableDates = useMemo(() => {
     const available = new Set<number>();

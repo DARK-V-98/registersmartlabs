@@ -2,13 +2,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { collection, query, orderBy, doc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, Clock, User, Check, X, Badge, FileText } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
+import { format } from 'date-fns';
 
 interface Booking {
   id: string;
@@ -35,23 +36,26 @@ const AdminBookingsPage = () => {
 
   const { data: bookings, isLoading } = useCollection<Booking>(bookingsQuery);
 
-  const handleStatusChange = async (bookingId: string, newStatus: 'confirmed' | 'rejected') => {
+  const handleStatusChange = (booking: Booking, newStatus: 'confirmed' | 'rejected') => {
     if (!firestore) return;
-    const bookingRef = doc(firestore, 'bookings', bookingId);
-    try {
-      await updateDoc(bookingRef, { status: newStatus });
-      toast({
-        title: 'Booking Updated',
-        description: `Booking has been ${newStatus}.`,
-      });
-    } catch (error) {
-      console.error('Error updating booking status:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: 'Could not update booking status.',
-      });
+    const bookingRef = doc(firestore, 'bookings', booking.id);
+    
+    updateDocumentNonBlocking(bookingRef, { status: newStatus });
+
+    if (newStatus === 'confirmed') {
+      const dateString = format(booking.date.toDate(), 'yyyy-MM-dd');
+      const scheduleRef = doc(firestore, 'schedules', dateString);
+      setDocumentNonBlocking(scheduleRef, {
+        bookedSlots: arrayUnion(booking.time)
+      }, { merge: true });
     }
+    // Note: No arrayRemove for 'rejected' here, as this UI only acts on 'pending' items,
+    // which wouldn't be in the schedule yet. Cancellation of confirmed items is handled elsewhere.
+
+    toast({
+      title: 'Booking Updated',
+      description: `Booking has been ${newStatus}.`,
+    });
   };
 
   const filteredBookings = bookings?.filter(b => {
@@ -108,10 +112,10 @@ const AdminBookingsPage = () => {
                   
                   {booking.status === 'pending' && (
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="text-success hover:border-success hover:bg-success/5 border-green-200" onClick={() => handleStatusChange(booking.id, 'confirmed')}>
+                      <Button size="sm" variant="outline" className="text-success hover:border-success hover:bg-success/5 border-green-200" onClick={() => handleStatusChange(booking, 'confirmed')}>
                         <Check className="w-4 h-4 mr-2"/> Accept
                       </Button>
-                      <Button size="sm" variant="outline" className="text-destructive hover:border-destructive hover:bg-destructive/5 border-red-200" onClick={() => handleStatusChange(booking.id, 'rejected')}>
+                      <Button size="sm" variant="outline" className="text-destructive hover:border-destructive hover:bg-destructive/5 border-red-200" onClick={() => handleStatusChange(booking, 'rejected')}>
                         <X className="w-4 h-4 mr-2"/> Reject
                       </Button>
                     </div>

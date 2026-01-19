@@ -18,10 +18,11 @@ import {
   X,
   User as UserIcon
 } from "lucide-react";
-import { useAuth, useCollection, useFirestore, useUser, useMemoFirebase } from "@/firebase";
-import { collection, query, where, orderBy, Timestamp, doc, updateDoc } from "firebase/firestore";
+import { useAuth, useCollection, useFirestore, useUser, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
+import { collection, query, where, orderBy, Timestamp, doc, arrayRemove } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 interface Booking {
   id: string;
@@ -53,26 +54,29 @@ const Dashboard = () => {
   const { data: bookings, isLoading: bookingsLoading } = useCollection<Booking>(bookingsQuery);
 
   const handleSignOut = async () => {
+    if (!auth) return;
     await signOut(auth);
     router.push("/");
   };
 
-  const handleCancelBooking = async (bookingId: string) => {
+  const handleCancelBooking = async (booking: Booking) => {
     if (!user || !firestore) return;
-    const docRef = doc(firestore, 'bookings', bookingId);
-    try {
-      await updateDoc(docRef, { status: 'cancelled' });
-      toast({
-        title: "Booking Cancelled",
-        description: "Your booking has been cancelled.",
-      });
-    } catch(e) {
-      toast({
-        variant: 'destructive',
-        title: "Error",
-        description: "Could not cancel booking.",
-      });
+    const docRef = doc(firestore, 'bookings', booking.id);
+    
+    updateDocumentNonBlocking(docRef, { status: 'cancelled' });
+
+    if (booking.status === 'confirmed') {
+      const dateString = format(booking.date.toDate(), 'yyyy-MM-dd');
+      const scheduleRef = doc(firestore, 'schedules', dateString);
+      setDocumentNonBlocking(scheduleRef, {
+        bookedSlots: arrayRemove(booking.time)
+      }, { merge: true });
     }
+    
+    toast({
+      title: "Booking Cancelled",
+      description: "Your booking has been cancelled.",
+    });
   }
 
   if (isUserLoading || bookingsLoading) {
@@ -225,9 +229,9 @@ const Dashboard = () => {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {booking.status === 'pending' && (
+                            {(booking.status === 'pending' || booking.status === 'confirmed') && (
                               <div className="flex gap-2">
-                                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleCancelBooking(booking.id)}>
+                                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleCancelBooking(booking)}>
                                   <X className="w-4 h-4 mr-1" /> Cancel
                                 </Button>
                               </div>

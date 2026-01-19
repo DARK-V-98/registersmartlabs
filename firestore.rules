@@ -73,5 +73,15 @@ service cloud.firestore {
       allow create, update: if isAdmin();
       allow delete: if false;
     }
+
+    /**
+     * @description Denormalized daily schedules for checking availability.
+     * Readable by any signed-in user, but only writable by admins.
+     * @path /schedules/{date}
+     */
+    match /schedules/{date} {
+      allow get: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
   }
 }

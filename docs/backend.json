@@ -133,6 +133,20 @@
           }
         }
       }
+    },
+    "Schedule": {
+      "title": "Schedule",
+      "type": "object",
+      "description": "Represents the booked time slots for a specific day.",
+      "properties": {
+        "bookedSlots": {
+          "type": "array",
+          "description": "An array of time slots that are booked for this day.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     }
   },
   "auth": {
@@ -202,8 +216,24 @@
           "description": "A single document to store global settings like payment info and disabled dates. Readable by users, writable only by admins.",
           "params": []
         }
+      },
+      {
+        "path": "/schedules/{date}",
+        "definition": {
+          "entityName": "Schedule",
+          "schema": {
+            "$ref": "#/backend/entities/Schedule"
+          },
+          "description": "Stores aggregated booking information for each day to show availability. Readable by users, writable only by admins.",
+          "params": [
+            {
+              "name": "date",
+              "description": "The date in YYYY-MM-DD format."
+            }
+          ]
+        }
       }
     ],
-    "reasoning": "The data structure is revised for administrative functionality. User-specific data remains in `/users/{userId}`. A top-level `/bookings` collection is introduced to allow admins to easily query and manage all enrollments, which is more efficient than nested subcollections. Security rules will grant admins broad access to `/bookings`, while users are restricted to their own documents. A single document at `/settings/admin` stores global configurations like payment details and disabled dates, making them easily accessible to the client-side while restricting write access to admins."
+    "reasoning": "The data structure is revised for administrative functionality. User-specific data remains in `/users/{userId}`. A top-level `/bookings` collection is introduced to allow admins to easily query and manage all enrollments, which is more efficient than nested subcollections. Security rules will grant admins broad access to `/bookings`, while users are restricted to their own documents. A single document at `/settings/admin` stores global configurations like payment details and disabled dates, making them easily accessible to the client-side while restricting write access to admins. A new `/schedules` collection will denormalize booking times to allow users to see availability without exposing other users' private data."
   }
 }
