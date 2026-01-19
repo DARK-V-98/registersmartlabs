@@ -2,37 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-/* SmartLabs Design System - Premium EdTech Platform */
+/* SmartLabs Design System - Light Blue Theme */
 
 @layer base {
   :root {
     /* Core Brand Colors */
     --background: 0 0% 100%;
-    --foreground: 215 25% 15%;
+    --foreground: 220 15% 25%;
 
-    /* Primary - Deep Professional Blue */
-    --primary: 210 60% 25%;
+    /* Primary - Vibrant Light Blue */
+    --primary: 210 85% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 210 55% 35%;
-    --primary-dark: 210 65% 18%;
+    --primary-light: 210 85% 65%;
+    --primary-dark: 210 85% 45%;
 
-    /* Accent - Warm Golden Yellow */
-    --accent: 45 95% 50%;
-    --accent-foreground: 215 25% 15%;
-    --accent-light: 45 95% 60%;
-    --accent-dark: 45 90% 42%;
+    /* Accent - Bright Complementary Blue */
+    --accent: 200 95% 58%;
+    --accent-foreground: 220 25% 10%;
+    --accent-light: 200 95% 68%;
+    --accent-dark: 200 95% 48%;
 
     /* Surface Colors */
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card-foreground: 220 15% 25%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 220 15% 25%;
 
     /* Secondary & Muted */
-    --secondary: 210 20% 96%;
-    --secondary-foreground: 215 25% 25%;
-    --muted: 210 15% 94%;
-    --muted-foreground: 215 15% 45%;
+    --secondary: 210 30% 96%;
+    --secondary-foreground: 220 15% 35%;
+    --muted: 210 25% 94%;
+    --muted-foreground: 210 15% 55%;
 
     /* Functional Colors */
     --destructive: 0 72% 51%;
@@ -42,8 +42,8 @@
 
     /* Borders & Inputs */
     --border: 210 20% 90%;
-    --input: 210 20% 92%;
-    --ring: 210 60% 25%;
+    --input: 210 25% 95%;
+    --ring: 210 85% 55%;
 
     --radius: 0.75rem;
 
@@ -52,9 +52,9 @@
     --glass-border: 0 0% 100% / 0.3;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(210 60% 25%), hsl(210 55% 35%));
-    --gradient-accent: linear-gradient(135deg, hsl(45 95% 50%), hsl(45 95% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(210 60% 25%), hsl(210 50% 40%));
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-light)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)), hsl(210 80% 65%));
     --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.9), hsl(0 0% 100% / 0.6));
 
     /* Shadows */
@@ -62,18 +62,18 @@
     --shadow-md: 0 4px 6px -1px hsl(210 20% 20% / 0.08), 0 2px 4px -2px hsl(210 20% 20% / 0.05);
     --shadow-lg: 0 10px 15px -3px hsl(210 20% 20% / 0.1), 0 4px 6px -4px hsl(210 20% 20% / 0.05);
     --shadow-xl: 0 20px 25px -5px hsl(210 20% 20% / 0.1), 0 8px 10px -6px hsl(210 20% 20% / 0.05);
-    --shadow-glow: 0 0 40px hsl(45 95% 50% / 0.3);
+    --shadow-glow: 0 0 40px hsl(var(--accent) / 0.3);
     --shadow-card: 0 4px 20px hsl(210 20% 20% / 0.08);
 
     /* Sidebar */
-    --sidebar-background: 210 60% 25%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 45 95% 50%;
-    --sidebar-primary-foreground: 215 25% 15%;
-    --sidebar-accent: 210 55% 35%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 50% 35%;
-    --sidebar-ring: 45 95% 50%;
+    --sidebar-background: hsl(var(--primary));
+    --sidebar-foreground: hsl(var(--primary-foreground));
+    --sidebar-primary: hsl(var(--accent));
+    --sidebar-primary-foreground: hsl(var(--accent-foreground));
+    --sidebar-accent: hsl(var(--primary-light));
+    --sidebar-accent-foreground: hsl(var(--primary-foreground));
+    --sidebar-border: hsl(var(--primary-dark));
+    --sidebar-ring: hsl(var(--accent));
   }
 }
 
