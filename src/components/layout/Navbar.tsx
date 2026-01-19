@@ -25,7 +25,7 @@ const Navbar = () => {
         <nav className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <Image src="/logo.png" alt="SmartLabs Logo" width={40} height={40} className="rounded-xl" />
+            <Image src="/logo.png" alt="SmartLabs Logo" width={80} height={80} className="rounded-xl" />
           </Link>
 
           {/* Desktop Navigation */}

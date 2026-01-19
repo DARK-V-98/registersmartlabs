@@ -1,0 +1,205 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user in the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user."
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user (e.g., 'user', 'admin'). Default is 'user'."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "displayName",
+        "role"
+      ]
+    },
+    "Course": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Course",
+      "type": "object",
+      "description": "Represents a course offered.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the course."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the course."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the course."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description"
+      ]
+    },
+    "CourseDate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CourseDate",
+      "type": "object",
+      "description": "Represents a specific date when a course is offered.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the course date."
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to Course. (Relationship: Course 1:N CourseDate)"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the course offering.",
+          "format": "date-time"
+        },
+        "availableSlots": {
+          "type": "number",
+          "description": "Number of available slots for this course date."
+        }
+      },
+      "required": [
+        "id",
+        "courseId",
+        "date",
+        "availableSlots"
+      ]
+    },
+    "UserCourseEnrollment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserCourseEnrollment",
+      "type": "object",
+      "description": "Represents a user's enrollment in a specific course date.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the enrollment record."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N UserCourseEnrollment)"
+        },
+        "courseDateId": {
+          "type": "string",
+          "description": "Reference to CourseDate. (Relationship: CourseDate 1:N UserCourseEnrollment)"
+        },
+        "enrollmentDate": {
+          "type": "string",
+          "description": "Date when the user enrolled in the course date.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "courseDateId",
+        "enrollmentDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user data. The `userId` parameter corresponds to the Firebase Auth UID. Includes 'role' for role-based access control.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}",
+        "definition": {
+          "entityName": "Course",
+          "schema": {
+            "$ref": "#/backend/entities/Course"
+          },
+          "description": "Stores course information.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "Unique identifier for the course."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/courseDates/{courseDateId}",
+        "definition": {
+          "entityName": "CourseDate",
+          "schema": {
+            "$ref": "#/backend/entities/CourseDate"
+          },
+          "description": "Stores the available dates for a specific course.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "Unique identifier for the course."
+            },
+            {
+              "name": "courseDateId",
+              "description": "Unique identifier for the course date."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/courseEnrollments/{enrollmentId}",
+        "definition": {
+          "entityName": "UserCourseEnrollment",
+          "schema": {
+            "$ref": "#/backend/entities/UserCourseEnrollment"
+          },
+          "description": "Stores user enrollments for specific course dates. Path-based ownership ensures only the user can access their enrollment data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The Firebase Auth UID of the user."
+            },
+            {
+              "name": "enrollmentId",
+              "description": "Unique identifier for the enrollment record."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support user authentication, course management, and enrollment features. It prioritizes authorization independence and simplifies security rules.  User data is stored under `/users/{userId}`. Courses are stored in a top-level `/courses` collection, and course dates are stored in a subcollection `/courses/{courseId}/courseDates`.  User enrollment data is stored in a subcollection `/users/{userId}/courseEnrollments`, ensuring clear ownership. This structure allows for efficient querying of a user's enrollments and easy enforcement of security rules based on user ID.  Authorization Independence is achieved because the `UserCourseEnrollment` documents do not require reading parent data to enforce access control. The path itself establishes ownership.  The structure supports QAPs by using structural segregation: each collection serves a distinct purpose with homogeneous security needs. Listing courses is always public, and listing enrollments requires knowledge of the `userId`, so the list operation is secure. Role-based access control (DBAC) is implemented by storing the user's role in the user document itself."
+  }
+}
