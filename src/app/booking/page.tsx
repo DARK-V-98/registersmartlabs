@@ -262,7 +262,7 @@ function BookingContent() {
                     </div>
 
                     {/* Legend */}
-                    <div className="flex items-center gap-6 mt-6 pt-4 border-t border-border text-sm">
+                    <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 mt-6 pt-4 border-t border-border text-sm">
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded bg-accent" />
                         <span>Selected</span>

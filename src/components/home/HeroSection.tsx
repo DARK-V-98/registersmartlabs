@@ -21,7 +21,7 @@ const HeroSection = () => {
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
-            className="space-y-8"
+            className="space-y-8 text-center lg:text-left"
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent-dark font-medium text-sm">
               <Star className="w-4 h-4 fill-accent text-accent" />
@@ -34,12 +34,12 @@ const HeroSection = () => {
               <span className="text-accent">One-on-One</span>
             </h1>
 
-            <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
+            <p className="text-lg text-muted-foreground max-w-lg leading-relaxed mx-auto lg:mx-0">
               Book personalized individual classes for PTE, IELTS, and CELPIP. 
               Choose online or physical sessions at times that work for you.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link href="/booking">
                 <Button size="lg" className="btn-accent text-lg px-8 py-6 group">
                   <Calendar className="w-5 h-5 mr-2" />
@@ -55,7 +55,7 @@ const HeroSection = () => {
             </div>
 
             {/* Trust indicators */}
-            <div className="flex items-center gap-8 pt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-8 pt-6">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                   <Users className="w-6 h-6 text-primary" />
@@ -82,7 +82,7 @@ const HeroSection = () => {
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative"
+            className="relative hidden lg:block"
           >
             <div className="relative">
               {/* Main Card */}

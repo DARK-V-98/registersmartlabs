@@ -204,41 +204,45 @@ const Dashboard = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          {/* Class Type Badge */}
-                          <span className={booking.type === "online" ? "badge-online" : "badge-physical"}>
-                            {booking.type === "online" ? (
-                              <Video className="w-3.5 h-3.5" />
-                            ) : (
-                              <MapPin className="w-3.5 h-3.5" />
+                        <div className="flex items-center justify-between sm:justify-end flex-wrap gap-4 w-full sm:w-auto">
+                          <div className="flex items-center gap-3">
+                            {/* Class Type Badge */}
+                            <span className={booking.type === "online" ? "badge-online" : "badge-physical"}>
+                              {booking.type === "online" ? (
+                                <Video className="w-3.5 h-3.5" />
+                              ) : (
+                                <MapPin className="w-3.5 h-3.5" />
+                              )}
+                              {booking.type === "online" ? "Online" : "Physical"}
+                            </span>
+
+                            {/* Status Badge */}
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              booking.status === "confirmed"
+                                ? "bg-success/10 text-success"
+                                : booking.status === "pending"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-secondary text-muted-foreground"
+                            }`}>
+                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {/* Actions */}
+                            {activeTab === "upcoming" && (
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="ghost" className="text-muted-foreground">
+                                  <RefreshCw className="w-4 h-4" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="text-destructive">
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
                             )}
-                            {booking.type === "online" ? "Online" : "Physical"}
-                          </span>
 
-                          {/* Status Badge */}
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            booking.status === "confirmed"
-                              ? "bg-success/10 text-success"
-                              : booking.status === "pending"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-secondary text-muted-foreground"
-                          }`}>
-                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                          </span>
-
-                          {/* Actions */}
-                          {activeTab === "upcoming" && (
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="ghost" className="text-muted-foreground">
-                                <RefreshCw className="w-4 h-4" />
-                              </Button>
-                              <Button size="sm" variant="ghost" className="text-destructive">
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          )}
-
-                          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                          </div>
                         </div>
                       </div>
                     </motion.div>

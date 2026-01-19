@@ -242,7 +242,7 @@ const Courses = () => {
                                 <GraduationCap className="w-5 h-5 text-primary" />
                                 Key Benefits
                               </h3>
-                              <ul className="grid grid-cols-2 gap-3">
+                              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {course.benefits.map((benefit, i) => (
                                   <li key={i} className="flex items-center gap-2 text-sm">
                                     <div className="w-2 h-2 rounded-full bg-accent" />
