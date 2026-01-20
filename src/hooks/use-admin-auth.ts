@@ -10,8 +10,10 @@ export function useAdminAuth() {
 
   useEffect(() => {
     if (!isLoading) {
-      if (!user || profile?.role !== 'admin') {
+      if (!user) {
         router.push('/login');
+      } else if (profile?.role !== 'admin' && profile?.role !== 'developer') {
+        router.push('/dashboard');
       }
     }
   }, [user, profile, isLoading, router]);

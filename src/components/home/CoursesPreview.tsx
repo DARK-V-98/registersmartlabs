@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, Clock, Users, Monitor, MapPin } from "lucide-react";
+import { PiArrowRight, PiClock, PiUsers, PiMonitor, PiMapPin } from "react-icons/pi";
 import { Button } from "@/components/ui/button";
 
 const courses = [
@@ -77,11 +77,11 @@ const CoursesPreview = () => {
                   </div>
                   <div className="flex gap-2">
                     <span className="badge-online">
-                      <Monitor className="w-3.5 h-3.5" />
+                      <PiMonitor className="w-3.5 h-3.5" />
                       Online
                     </span>
                     <span className="badge-physical">
-                      <MapPin className="w-3.5 h-3.5" />
+                      <PiMapPin className="w-3.5 h-3.5" />
                       Physical
                     </span>
                   </div>

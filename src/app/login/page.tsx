@@ -9,10 +9,18 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
-import { useAuth } from "@/firebase";
+import { 
+  PiEnvelope, 
+  PiLock, 
+  PiArrowRight, 
+  PiEye, 
+  PiEyeSlash 
+} from "react-icons/pi";
+import { useAuth, useFirestore, useUser } from "@/firebase";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -21,19 +29,63 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      router.push("/dashboard");
+    }
+  }, [user, isUserLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Check if user exists, if not create basic profile
+      if (firestore) {
+        const userRef = doc(firestore, "users", user.uid);
+        const userDoc = await getDoc(userRef);
+        
+        if (!userDoc.exists()) {
+          // Check for developer email
+          const isDeveloper = email === 'tikfese@gmail.com';
+
+          await setDoc(userRef, {
+            uid: user.uid,
+            name: user.displayName || email.split('@')[0],
+            email: user.email,
+            role: isDeveloper ? "developer" : "student",
+            createdAt: new Date(),
+          });
+          router.push("/dashboard");
+        } else {
+          // User exists, check role
+          const userData = userDoc.data();
+          
+          // Force update developer role if email matches
+          if (email === 'tikfese@gmail.com' && userData?.role !== 'developer') {
+            await updateDoc(userRef, {
+              role: 'developer'
+            });
+          }
+
+          // Redirect to dashboard for all, admins/developers use sidebar link
+          router.push("/dashboard");
+        }
+      } else {
+         router.push("/dashboard");
+      }
+
       toast({
         title: "Signed In",
         description: "Welcome back!",
       });
-      router.push("/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -49,12 +101,60 @@ const Login = () => {
     setIsLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if user exists, if not create basic profile
+      if (firestore) {
+        const userRef = doc(firestore, "users", user.uid);
+        const userDoc = await getDoc(userRef);
+        
+        if (!userDoc.exists()) {
+          // Check for developer email
+          const isDeveloper = user.email === 'tikfese@gmail.com';
+          
+          await setDoc(userRef, {
+            uid: user.uid,
+            name: user.displayName,
+              email: user.email,
+              role: isDeveloper ? "developer" : "user",
+              createdAt: new Date(),
+            });
+            
+            if (isDeveloper) {
+               // Developer can go to admin or dashboard, default to dashboard but with access
+               router.push("/dashboard"); 
+             } else {
+               router.push("/dashboard");
+             }
+         } else {
+             const userData = userDoc.data();
+             
+             // Force update developer role if email matches
+             if (user.email === 'tikfese@gmail.com' && userData?.role !== 'developer') {
+               await updateDoc(userRef, {
+                 role: 'developer'
+               });
+             }
+
+             if (userData?.role === 'admin' || userData?.role === 'developer' || user.email === 'tikfese@gmail.com') {
+                 // Developer/Admin can go to admin panel
+                 // User requirement: "manage both user and admin dashboards"
+                 // Let's redirect to dashboard initially so they see the user view, 
+                 // but have the link to admin.
+                 router.push("/dashboard");
+             } else {
+                 router.push("/dashboard");
+             }
+         }
+      } else {
+         router.push("/dashboard");
+      }
+
       toast({
         title: "Signed In",
         description: "Welcome to SmartLabs!",
       });
-      router.push("/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -89,7 +189,7 @@ const Login = () => {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <PiEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
@@ -133,7 +233,7 @@ const Login = () => {
 
                 <Button type="submit" size="lg" className="w-full btn-accent group" disabled={isLoading}>
                   {isLoading ? 'Signing In...' : 'Sign In'}
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <PiArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </form>
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import { PiEnvelopeSimple, PiPhone, PiMapPin, PiFacebookLogo, PiTwitterLogo, PiInstagramLogo, PiLinkedinLogo } from "react-icons/pi";
 
 const Footer = () => {
   return (
@@ -22,10 +22,10 @@ const Footer = () => {
                 <Facebook className="w-5 h-5" />
               </a>
               <a href="#" className="p-2 rounded-full bg-white/10 hover:bg-accent hover:text-accent-foreground transition-all">
-                <Twitter className="w-5 h-5" />
+                <PiTwitterLogo className="w-5 h-5" />
               </a>
               <a href="#" className="p-2 rounded-full bg-white/10 hover:bg-accent hover:text-accent-foreground transition-all">
-                <Instagram className="w-5 h-5" />
+                <PiInstagramLogo className="w-5 h-5" />
               </a>
               <a href="#" className="p-2 rounded-full bg-white/10 hover:bg-accent hover:text-accent-foreground transition-all">
                 <Linkedin className="w-5 h-5" />
@@ -93,7 +93,7 @@ const Footer = () => {
                 </span>
               </li>
               <li className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-accent flex-shrink-0" />
+                <PiPhone className="w-5 h-5 text-accent flex-shrink-0" />
                 <span className="text-primary-foreground/80">
                   <a href="tel:0766914650" className="hover:text-accent transition-colors">076 691 4650</a> | <a href="tel:0774533233" className="hover:text-accent transition-colors">077 453 3233</a>
                 </span>

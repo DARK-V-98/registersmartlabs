@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Calendar, ArrowRight, Star, Users, Award } from "lucide-react";
+import { PiCalendar, PiArrowRight, PiStar, PiUsers, PiMedal } from "react-icons/pi";
 import { Button } from "@/components/ui/button";
 
 const HeroSection = () => {
@@ -24,7 +24,7 @@ const HeroSection = () => {
             className="space-y-8 text-center lg:text-left"
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent-dark font-medium text-sm">
-              <Star className="w-4 h-4 fill-accent text-accent" />
+              <PiStar className="w-4 h-4 fill-accent text-accent" />
               Rated 4.9/5 by 2000+ Students
             </div>
 
@@ -42,9 +42,9 @@ const HeroSection = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link href="/booking">
                 <Button size="lg" className="btn-accent text-lg px-8 py-6 group">
-                  <Calendar className="w-5 h-5 mr-2" />
+                  <PiCalendar className="w-5 h-5 mr-2" />
                   Book Your Class
-                  <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <PiArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
               <Link href="/courses">
@@ -89,7 +89,7 @@ const HeroSection = () => {
               <div className="glass-card rounded-3xl p-8 space-y-6">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center">
-                    <Calendar className="w-8 h-8 text-primary-foreground" />
+                    <PiCalendar className="w-8 h-8 text-primary-foreground" />
                   </div>
                   <div>
                     <h3 className="font-display font-semibold text-xl">Easy Booking</h3>

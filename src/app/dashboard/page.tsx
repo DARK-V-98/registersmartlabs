@@ -1,267 +1,133 @@
-
 'use client';
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import Layout from "@/components/layout/Layout";
-import { Button } from "@/components/ui/button";
-import { 
-  Calendar, 
-  Clock, 
-  Video, 
-  MapPin, 
-  Plus,
-  LogOut,
-  ChevronRight,
-  X,
-  User as UserIcon
-} from "lucide-react";
-import { useAuth, useCollection, useFirestore, useUser, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
-import { collection, query, where, orderBy, Timestamp, doc, arrayRemove } from "firebase/firestore";
-import { signOut } from "firebase/auth";
-import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Booking } from '@/types';
+import Link from 'next/link';
+import { PiCalendarPlus, PiArrowRight, PiClock, PiCheckCircle } from 'react-icons/pi';
+import { format } from 'date-fns';
 
-interface Booking {
-  id: string;
-  courseName: string;
-  courseIcon: string;
-  date: Timestamp;
-  time: string;
-  classType: 'online' | 'physical';
-  status: 'confirmed' | 'pending' | 'completed' | 'cancelled' | 'rejected';
-}
-
-const Dashboard = () => {
-  const { user, isUserLoading } = useUser();
-  const auth = useAuth();
+export default function DashboardOverview() {
+  const { user } = useUser();
   const firestore = useFirestore();
-  const router = useRouter();
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
 
-  const bookingsQuery = useMemoFirebase(() => {
+  const recentBookingsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return query(
       collection(firestore, 'bookings'),
-      where("userId", "==", user.uid),
-      orderBy("date", "desc")
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc'),
+      limit(3)
     );
   }, [user, firestore]);
 
-  const { data: bookings, isLoading: bookingsLoading } = useCollection<Booking>(bookingsQuery);
+  const { data: bookings, isLoading } = useCollection<Booking>(recentBookingsQuery);
 
-  const handleSignOut = async () => {
-    if (!auth) return;
-    await signOut(auth);
-    router.push("/");
-  };
-
-  const handleCancelBooking = async (booking: Booking) => {
-    if (!user || !firestore) return;
-    const docRef = doc(firestore, 'bookings', booking.id);
-    
-    updateDocumentNonBlocking(docRef, { status: 'cancelled' });
-
-    if (booking.status === 'confirmed') {
-      const dateString = format(booking.date.toDate(), 'yyyy-MM-dd');
-      const scheduleRef = doc(firestore, 'schedules', dateString);
-      setDocumentNonBlocking(scheduleRef, {
-        bookedSlots: arrayRemove(booking.time)
-      }, { merge: true });
-    }
-    
-    toast({
-      title: "Booking Cancelled",
-      description: "Your booking has been cancelled.",
-    });
-  }
-
-  if (isUserLoading || bookingsLoading) {
-    return <Layout><div>Loading dashboard...</div></Layout>;
-  }
-
-  if (!user) {
-    router.push("/login");
-    return null;
-  }
-
-  const now = new Date();
-  const upcomingBookings = bookings?.filter(b => b.date.toDate() >= now && b.status !== 'cancelled' && b.status !== 'rejected' && b.status !== 'completed') || [];
-  const pastBookings = bookings?.filter(b => b.date.toDate() < now || ['completed', 'cancelled', 'rejected'].includes(b.status)) || [];
-
-  const displayedBookings = activeTab === "upcoming" ? upcomingBookings : pastBookings;
+  const upcomingBooking = bookings?.find(b => 
+    ['confirmed', 'payment_pending'].includes(b.bookingStatus) && 
+    new Date(b.date) >= new Date(new Date().setHours(0,0,0,0))
+  );
 
   return (
-    <Layout>
-      <section className="py-12 bg-secondary/30 min-h-screen">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-4 gap-8">
-            <div className="lg:col-span-1">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                className="bg-white rounded-2xl p-6 border border-border sticky top-24"
-              >
-                <div className="text-center pb-6 border-b border-border mb-6">
-                  <div className="w-20 h-20 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                    {user.displayName?.charAt(0).toUpperCase()}
-                  </div>
-                  <h3 className="font-display font-semibold text-lg">{user.displayName}</h3>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Welcome back, {user?.displayName?.split(' ')[0] || 'Student'}!</h1>
+        <p className="text-muted-foreground mt-2">Manage your classes and schedule upcoming sessions.</p>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Quick Action */}
+        <Card className="bg-primary text-primary-foreground border-none">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PiCalendarPlus className="w-6 h-6" /> Book a Session
+            </CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Ready to learn? Schedule your next class now.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/dashboard/book">
+              <Button variant="secondary" className="w-full font-semibold">
+                Start Booking <PiArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Next Session Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PiClock className="w-6 h-6" /> Next Session
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {upcomingBooking ? (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-bold text-lg">{upcomingBooking.courseName}</h3>
+                  <p className="text-muted-foreground">with {upcomingBooking.lecturerName}</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-secondary/50 rounded-xl p-4 text-center">
-                    <p className="font-display text-2xl font-bold text-primary">{upcomingBookings.length}</p>
-                    <p className="text-xs text-muted-foreground">Upcoming</p>
-                  </div>
-                  <div className="bg-secondary/50 rounded-xl p-4 text-center">
-                    <p className="font-display text-2xl font-bold text-accent-dark">{pastBookings.length}</p>
-                    <p className="text-xs text-muted-foreground">Past</p>
-                  </div>
+                <div className="flex items-center gap-2 text-sm">
+                   <div className="px-2 py-1 bg-secondary rounded text-secondary-foreground">
+                      {upcomingBooking.date}
+                   </div>
+                   <div className="px-2 py-1 bg-secondary rounded text-secondary-foreground">
+                      {upcomingBooking.time}
+                   </div>
                 </div>
-
-                <nav className="space-y-2">
-                  <button className="w-full flex items-center gap-3 p-3 rounded-xl bg-primary/10 text-primary font-medium">
-                    <Calendar className="w-5 h-5" />
-                    My Bookings
-                  </button>
-                  <button onClick={handleSignOut} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary transition-colors text-destructive">
-                    <LogOut className="w-5 h-5" />
-                    Sign Out
-                  </button>
-                </nav>
-              </motion.div>
-            </div>
-
-            <div className="lg:col-span-3">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                  <div>
-                    <h1 className="font-display text-3xl font-bold mb-2">My Bookings</h1>
-                    <p className="text-muted-foreground">Manage your scheduled classes</p>
-                  </div>
-                  <Link href="/booking">
-                    <Button className="btn-accent">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Book New Class
-                    </Button>
-                  </Link>
+                <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${upcomingBooking.bookingStatus === 'confirmed' ? 'bg-green-500' : 'bg-orange-500'}`} />
+                    <span className="capitalize text-sm font-medium">{upcomingBooking.bookingStatus.replace('_', ' ')}</span>
                 </div>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <p>No upcoming sessions scheduled.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-                <div className="flex gap-4 mb-6">
-                  <button
-                    onClick={() => setActiveTab("upcoming")}
-                    className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                      activeTab === "upcoming"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-white text-muted-foreground hover:bg-secondary"
-                    }`}
-                  >
-                    Upcoming ({upcomingBookings.length})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("past")}
-                    className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                      activeTab === "past"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-white text-muted-foreground hover:bg-secondary"
-                    }`}
-                  >
-                    Past Classes ({pastBookings.length})
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {displayedBookings.length > 0 ? displayedBookings.map((booking, index) => (
-                    <motion.div
-                      key={booking.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
-                      className="bg-white rounded-2xl p-6 border border-border hover:border-primary/30 hover:shadow-lg transition-all"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-14 h-14 rounded-xl bg-secondary flex items-center justify-center text-2xl">
-                            {booking.courseIcon}
-                          </div>
-                          <div>
-                            <h3 className="font-display font-semibold text-lg">{booking.courseName}</h3>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-4 h-4" />
-                                {booking.date.toDate().toLocaleDateString()}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-4 h-4" />
-                                {booking.time}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between sm:justify-end flex-wrap gap-4 w-full sm:w-auto">
-                          <div className="flex items-center gap-3">
-                            <span className={booking.classType === "online" ? "badge-online" : "badge-physical"}>
-                              {booking.classType === "online" ? <Video className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
-                              {booking.classType === "online" ? "Online" : "Physical"}
-                            </span>
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              booking.status === "confirmed"
-                                ? "bg-success/10 text-success"
-                                : booking.status === "pending"
-                                ? "bg-amber-100 text-amber-700"
-                                : ['cancelled', 'rejected'].includes(booking.status)
-                                ? "bg-destructive/10 text-destructive"
-                                : "bg-secondary text-muted-foreground"
-                            }`}>
-                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                              <div className="flex gap-2">
-                                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleCancelBooking(booking)}>
-                                  <X className="w-4 h-4 mr-1" /> Cancel
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )) : (
-                    <div className="bg-white rounded-2xl p-12 text-center border border-border">
-                        <Calendar className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-                        <h3 className="font-display text-xl font-semibold mb-2">No bookings yet</h3>
-                        <p className="text-muted-foreground mb-6">
-                          {activeTab === "upcoming"
-                            ? "You don't have any upcoming classes scheduled."
-                            : "You haven't completed any classes yet."}
-                        </p>
-                        <Link href="/booking">
-                          <Button className="btn-accent">Book Your First Class</Button>
-                        </Link>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            </div>
-          </div>
+      {/* Recent Activity */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Recent Activity</h2>
+            <Link href="/dashboard/bookings" className="text-sm text-primary hover:underline">View all</Link>
         </div>
-      </section>
-    </Layout>
+        
+        <div className="grid gap-4">
+            {bookings?.map(booking => (
+                <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg bg-card">
+                    <div className="flex items-center gap-4">
+                        <div className={`p-2 rounded-full ${booking.bookingStatus === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-secondary text-secondary-foreground'}`}>
+                            <PiCheckCircle className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <p className="font-medium">{booking.courseName}</p>
+                            <p className="text-sm text-muted-foreground">{booking.date} • {booking.time}</p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                         <span className={`text-xs px-2 py-1 rounded-full border ${
+                            booking.bookingStatus === 'confirmed' ? 'border-green-200 bg-green-50 text-green-700' : 
+                            booking.bookingStatus === 'payment_pending' ? 'border-orange-200 bg-orange-50 text-orange-700' : 
+                            'border-gray-200 bg-gray-50 text-gray-700'
+                         }`}>
+                            {booking.bookingStatus.replace('_', ' ')}
+                         </span>
+                    </div>
+                </div>
+            ))}
+             {bookings?.length === 0 && (
+                <p className="text-muted-foreground">No recent activity.</p>
+            )}
+        </div>
+      </div>
+    </div>
   );
-};
-
-export default Dashboard;
+}

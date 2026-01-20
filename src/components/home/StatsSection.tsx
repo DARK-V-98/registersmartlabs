@@ -1,29 +1,29 @@
 'use client';
 
 import { motion } from "framer-motion";
-import { Users, Award, Calendar, Star } from "lucide-react";
+import { PiUsers, PiMedal, PiCalendar, PiStar } from "react-icons/pi";
 
 const stats = [
   {
-    icon: Users,
+    icon: PiUsers,
     value: "5,000+",
     label: "Students Trained",
     color: "bg-primary",
   },
   {
-    icon: Award,
+    icon: PiMedal,
     value: "95%",
     label: "Success Rate",
     color: "bg-accent",
   },
   {
-    icon: Calendar,
+    icon: PiCalendar,
     value: "10,000+",
     label: "Classes Delivered",
     color: "bg-success",
   },
   {
-    icon: Star,
+    icon: PiStar,
     value: "4.9/5",
     label: "Student Rating",
     color: "bg-primary",

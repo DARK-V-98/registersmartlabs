@@ -8,7 +8,7 @@ export interface UserProfile {
   id: string;
   displayName: string;
   email: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'developer';
 }
 
 export function useUserProfile() {

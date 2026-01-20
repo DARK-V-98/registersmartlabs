@@ -5,7 +5,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Calendar, User, LogOut, Shield, ExternalLink } from "lucide-react";
+import { 
+  PiList, 
+  PiX, 
+  PiCalendar, 
+  PiUser, 
+  PiSignOut, 
+  PiShieldCheck, 
+  PiArrowSquareOut 
+} from "react-icons/pi";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useAuth } from "@/firebase";
@@ -55,7 +63,7 @@ const Navbar = () => {
             ))}
              {profile?.role === 'admin' && (
               <Link href="/admin" className="nav-link animated-underline flex items-center gap-2">
-                <Shield className="w-4 h-4" />
+                <PiShieldCheck className="w-4 h-4" />
                 Admin
               </Link>
             )}
@@ -68,18 +76,18 @@ const Navbar = () => {
               <>
                 <Link href="/dashboard">
                   <Button variant="ghost" className="font-medium">
-                    <User className="w-4 h-4 mr-2" />
+                    <PiUser className="w-4 h-4 mr-2" />
                     Dashboard
                   </Button>
                 </Link>
                 <a href="https://www.smartlabs.lk" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" className="font-medium">
-                    <ExternalLink className="w-4 h-4 mr-2"/>
+                    <PiArrowSquareOut className="w-4 h-4 mr-2"/>
                     Main Site
                   </Button>
                 </a>
                 <Button onClick={handleSignOut} variant="ghost">
-                  <LogOut className="w-4 h-4 mr-2" />
+                  <PiSignOut className="w-4 h-4 mr-2" />
                   Sign Out
                 </Button>
               </>
@@ -92,13 +100,13 @@ const Navbar = () => {
                 </Link>
                 <a href="https://www.smartlabs.lk" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" className="font-medium">
-                    <ExternalLink className="w-4 h-4 mr-2"/>
+                    <PiArrowSquareOut className="w-4 h-4 mr-2"/>
                     Main Site
                   </Button>
                 </a>
                 <Link href="/booking">
                   <Button className="btn-accent">
-                    <Calendar className="w-4 h-4 mr-2" />
+                    <PiCalendar className="w-4 h-4 mr-2" />
                     Book Now
                   </Button>
                 </Link>
@@ -111,7 +119,7 @@ const Navbar = () => {
             onClick={() => setIsOpen(!isOpen)}
             aria-label="Toggle menu"
           >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isOpen ? <PiX className="w-6 h-6" /> : <PiList className="w-6 h-6" />}
           </button>
         </nav>
       </div>

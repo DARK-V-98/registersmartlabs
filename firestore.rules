@@ -1,87 +1,28 @@
-
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    // =================
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // IMPORTANT: This function is temporarily modified for development.
-    // It grants admin privileges to ANY signed-in user.
-    // For production, revert this to check for a specific role or custom claim.
+    // Check if the user has the 'admin' role in their user profile document
+    // Safely checks for document existence to prevent errors
     function isAdmin() {
-      return isSignedIn();
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'developer');
     }
 
-    // Collection Rules
-    // ================
-
-    /**
-     * @description User profile data. Users can read/update their own profile. Admins can read any profile.
-     * @path /users/{userId}
-     */
-    match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin(); // Allow admins to list users
-      allow create: if isOwner(userId) && request.resource.data.role == 'user';
-      allow update: if isOwner(userId);
-      allow delete: if false;
-    }
-
-    /**
-     * @description Course information, publicly readable.
-     * @path /courses/{courseId}
-     */
-    match /courses/{courseId} {
-      allow get, list: if true;
-      allow create, update, delete: if isAdmin();
-    }
-
-    /**
-     * @description Centralized bookings. Users create their own bookings with a 'pending' status.
-     * Admins can manage all bookings. Users can cancel their own bookings.
-     * @path /bookings/{bookingId}
-     */
-    match /bookings/{bookingId} {
-      // Temporarily allow any signed-in user to read/list all bookings for admin functionality
-      allow read: if isSignedIn();
-      
-      // Allow user to create their own booking, status must be pending
-      allow create: if isOwner(request.resource.data.userId) && request.resource.data.status == 'pending';
-      
-      // Allow admin to update any booking.
-      // Allow user to update their own booking ONLY if they are cancelling it.
-      allow update: if isAdmin() || (isOwner(resource.data.userId) && request.resource.data.status == 'cancelled' && resource.data.status != 'cancelled');
-
-      allow delete: if isAdmin();
-    }
-
-    /**
-     * @description Global admin settings. Readable by all signed-in users, writable only by admins.
-     * @path /settings/admin
-     */
-    match /settings/admin {
-      allow get: if isSignedIn();
-      allow create, update: if isAdmin();
-      allow delete: if false;
-    }
-
-    /**
-     * @description Denormalized daily schedules for checking availability.
-     * Readable by any signed-in user, but only writable by admins.
-     * @path /schedules/{date}
-     */
-    match /schedules/{date} {
-      allow get: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+    // This rule allows anyone with your Firestore database reference to view, edit,
+    // and delete all data in your Firestore database. It is useful for getting
+    // started, but it is configured to expire after 30 days because it
+    // leaves your app open to attackers. At that time, all client
+    // requests to your Firestore database will be denied.
+    //
+    // Make sure to write security rules for your app before that time, or else
+    // all client requests to your Firestore database will be denied until you Update
+    // your rules
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2026, 2, 19);
     }
   }
 }

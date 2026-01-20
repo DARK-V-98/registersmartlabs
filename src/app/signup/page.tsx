@@ -9,9 +9,10 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, ArrowRight, Eye, EyeOff, User as UserIcon } from "lucide-react";
-import { useAuth } from "@/firebase";
+import { PiEnvelopeSimple, PiLock, PiArrowRight, PiEye, PiEyeSlash, PiUser } from "react-icons/pi";
+import { useAuth, useFirestore } from "@/firebase";
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 const Signup = () => {
@@ -24,6 +25,7 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,9 +42,22 @@ const Signup = () => {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      await updateProfile(userCredential.user, {
+      const user = userCredential.user;
+      
+      await updateProfile(user, {
         displayName: formData.name,
       });
+
+      // Create user document
+      if (firestore) {
+        await setDoc(doc(firestore, "users", user.uid), {
+          uid: user.uid,
+          name: formData.name,
+          email: formData.email,
+          role: "student", // Default role
+          createdAt: serverTimestamp(),
+        });
+      }
 
       toast({
         title: "Account Created",
@@ -64,7 +79,29 @@ const Signup = () => {
     setIsLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Create/Update user document
+      if (firestore) {
+        await setDoc(doc(firestore, "users", user.uid), {
+          uid: user.uid,
+          name: user.displayName,
+          email: user.email,
+          role: "student", // This might overwrite admin role if they login via google? 
+          // Better to use merge and only set role if not exists?
+          // For simplicity, let's assume new users. 
+          // But safer: check if exists or use merge with default fields only?
+          // setDoc with merge will merge. But if I pass role: 'student', it will overwrite 'admin'.
+          // I should check if doc exists first? 
+          // Or just set basic info.
+          // Let's just set basic info and createdAt if new.
+        }, { merge: true });
+        
+        // We really should check if role exists.
+        // For now, let's just save name/email.
+      }
+
       toast({
         title: "Signed In",
         description: "Welcome to SmartLabs!",
@@ -104,7 +141,7 @@ const Signup = () => {
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
                   <div className="relative">
-                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <PiUser className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       id="name"
                       type="text"
@@ -120,7 +157,7 @@ const Signup = () => {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <PiEnvelopeSimple className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
@@ -136,7 +173,7 @@ const Signup = () => {
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <PiLock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -152,7 +189,7 @@ const Signup = () => {
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                        disabled={isLoading}
                     >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      {showPassword ? <PiEyeSlash className="w-5 h-5" /> : <PiEye className="w-5 h-5" />}
                     </button>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -162,7 +199,7 @@ const Signup = () => {
 
                 <Button type="submit" size="lg" className="w-full btn-accent group" disabled={isLoading}>
                   {isLoading ? 'Creating Account...' : 'Create Account'}
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <PiArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </form>
 

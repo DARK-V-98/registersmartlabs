@@ -1,0 +1,101 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { 
+  PiSquaresFour, 
+  PiCalendarPlus, 
+  PiCalendarCheck, 
+  PiUser, 
+  PiSignOut,
+  PiShieldCheck
+} from 'react-icons/pi';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/firebase/provider';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+
+const sidebarItems = [
+  {
+    title: 'Overview',
+    href: '/dashboard',
+    icon: PiSquaresFour,
+  },
+  {
+    title: 'Book a Session',
+    href: '/dashboard/book',
+    icon: PiCalendarPlus,
+  },
+  {
+    title: 'My Bookings',
+    href: '/dashboard/bookings',
+    icon: PiCalendarCheck,
+  },
+  {
+    title: 'Profile',
+    href: '/dashboard/profile',
+    icon: PiUser,
+  },
+];
+
+export function DashboardSidebar() {
+  const pathname = usePathname();
+  const auth = useAuth();
+  const router = useRouter();
+  const { profile } = useUserProfile();
+
+  const handleLogout = async () => {
+    if (auth) {
+      await signOut(auth);
+      router.push('/login');
+    }
+  };
+
+  return (
+    <div className="flex h-full flex-col border-r bg-card px-3 py-4">
+      <div className="mb-10 flex items-center px-3">
+        <h2 className="text-xl font-bold tracking-tight">Student Portal</h2>
+      </div>
+      <div className="flex-1 space-y-1">
+        <nav className="grid items-start gap-2">
+          {sidebarItems.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={index}
+                href={item.href}
+              >
+                <span
+                  className={cn(
+                    "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
+                    pathname === item.href ? "bg-accent text-accent-foreground" : "transparent"
+                  )}
+                >
+                  <Icon className="mr-2 h-4 w-4" />
+                  <span>{item.title}</span>
+                </span>
+              </Link>
+            );
+          })}
+          
+          {(profile?.role === 'admin' || profile?.role === 'developer') && (
+             <Link href="/admin">
+                <span className="group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground text-amber-600 font-bold mt-4 border border-amber-200 bg-amber-50">
+                  <PiShieldCheck className="mr-2 h-4 w-4" />
+                  <span>Admin Panel</span>
+                </span>
+             </Link>
+          )}
+        </nav>
+      </div>
+      <div className="mt-auto">
+        <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50" onClick={handleLogout}>
+          <PiSignOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
+      </div>
+    </div>
+  );
+}

@@ -1,26 +1,26 @@
 'use client';
 
 import { motion } from "framer-motion";
-import { UserPlus, BookOpen, CalendarCheck, GraduationCap } from "lucide-react";
+import { PiUserPlus, PiBookOpen, PiCalendarCheck, PiGraduationCap } from "react-icons/pi";
 
 const steps = [
   {
-    icon: UserPlus,
+    icon: PiUserPlus,
     title: "Create Account",
     description: "Sign up in seconds with your email or social accounts",
   },
   {
-    icon: BookOpen,
+    icon: PiBookOpen,
     title: "Choose Course",
     description: "Select from PTE, IELTS, or CELPIP based on your goals",
   },
   {
-    icon: CalendarCheck,
+    icon: PiCalendarCheck,
     title: "Book a Slot",
     description: "Pick your preferred date, time, and class type",
   },
   {
-    icon: GraduationCap,
+    icon: PiGraduationCap,
     title: "Start Learning",
     description: "Join your 1-on-1 session and achieve your target score",
   },

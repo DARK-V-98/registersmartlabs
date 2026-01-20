@@ -7,11 +7,26 @@ import { usePathname } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
 import Layout from '@/components/layout/Layout';
 import { cn } from '@/lib/utils';
-import { BookMarked, Settings, Users } from 'lucide-react';
+import { 
+  PiBookmarks, 
+  PiGear, 
+  PiUsers, 
+  PiStudent, 
+  PiCalendar, 
+  PiCreditCard, 
+  PiSquaresFour, 
+  PiChalkboardTeacher 
+} from 'react-icons/pi';
 
 const navLinks = [
-  { href: '/admin', label: 'Bookings', icon: BookMarked },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
+  { href: '/admin', label: 'Dashboard', icon: PiSquaresFour },
+  { href: '/admin/courses', label: 'Courses', icon: PiStudent },
+  { href: '/admin/lecturers', label: 'Lecturers', icon: PiChalkboardTeacher },
+  { href: '/admin/schedules', label: 'Schedules', icon: PiCalendar },
+  { href: '/admin/bookings', label: 'Bookings', icon: PiBookmarks },
+  { href: '/admin/payments', label: 'Payments', icon: PiCreditCard },
+  { href: '/admin/users', label: 'Users', icon: PiUsers },
+  { href: '/admin/settings', label: 'Settings', icon: PiGear },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -28,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!profile || profile.role !== 'admin') {
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'developer')) {
     return (
        <Layout>
         <div className="flex min-h-screen items-center justify-center">

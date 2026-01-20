@@ -6,23 +6,11 @@ import { collection, query, orderBy, doc, arrayUnion, arrayRemove } from 'fireba
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Check, X, Badge, FileText } from 'lucide-react';
+import { PiCalendar, PiClock, PiCheck, PiX, PiFileText } from 'react-icons/pi';
 import type { Timestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { useUserProfile } from '@/hooks/useUserProfile';
-
-interface Booking {
-  id: string;
-  courseName: string;
-  courseIcon: string;
-  date: Timestamp;
-  time: string;
-  classType: 'online' | 'physical';
-  status: 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
-  userId: string;
-  // We'll fetch user details separately
-  user?: { displayName: string; email: string };
-}
+import { Booking } from '@/types';
 
 const AdminBookingsPage = () => {
   const firestore = useFirestore();
@@ -43,11 +31,14 @@ const AdminBookingsPage = () => {
     if (!firestore) return;
     const bookingRef = doc(firestore, 'bookings', booking.id);
     
-    updateDocumentNonBlocking(bookingRef, { status: newStatus });
+    // @ts-ignore - Booking status type mismatch between local/global? No, using global.
+    updateDocumentNonBlocking(bookingRef, { bookingStatus: newStatus });
 
     if (newStatus === 'confirmed') {
-      const dateString = format(booking.date.toDate(), 'yyyy-MM-dd');
-      const scheduleRef = doc(firestore, 'schedules', dateString);
+      const dateString = booking.date; // It's a string YYYY-MM-DD
+      // Construct composite ID matching creation logic: courseId_lecturerId_date
+      const scheduleId = `${booking.courseId}_${booking.lecturerId}_${dateString}`;
+      const scheduleRef = doc(firestore, 'schedules', scheduleId);
       setDocumentNonBlocking(scheduleRef, {
         bookedSlots: arrayUnion(booking.time)
       }, { merge: true });
@@ -62,7 +53,7 @@ const AdminBookingsPage = () => {
   };
 
   const filteredBookings = bookings?.filter(b => {
-    if (filter === 'pending') return b.status === 'pending';
+    if (filter === 'pending') return b.bookingStatus === 'payment_pending' || b.bookingStatus === 'created'; // payment_pending is the main one
     return true;
   });
 
@@ -92,35 +83,35 @@ const AdminBookingsPage = () => {
                   <div className="md:col-span-2 space-y-4">
                      <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center text-2xl">
-                            {booking.courseIcon}
+                            🎓
                         </div>
                         <div>
                             <h3 className="font-semibold text-lg">{booking.courseName}</h3>
-                            <p className="text-sm text-muted-foreground">User ID: {booking.userId}</p>
+                            <p className="text-sm text-muted-foreground">User: {booking.userName || booking.userId}</p>
                         </div>
                      </div>
                     <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {booking.date.toDate().toLocaleDateString()}</span>
-                      <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {booking.time}</span>
-                      <span className="flex items-center gap-1.5 capitalize"><FileText className="w-4 h-4" /> {booking.classType}</span>
+                      <span className="flex items-center gap-1.5"><PiCalendar className="w-4 h-4" /> {booking.date}</span>
+                      <span className="flex items-center gap-1.5"><PiClock className="w-4 h-4" /> {booking.time}</span>
+                      <span className="flex items-center gap-1.5 capitalize"><PiFileText className="w-4 h-4" /> {booking.classType || 'online'}</span>
                     </div>
                   </div>
 
                   <div className="flex flex-col items-start md:items-end justify-between gap-4">
                     <Badge className={
-                        booking.status === 'confirmed' ? 'bg-success/10 text-success' :
-                        booking.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-                        booking.status === 'rejected' || booking.status === 'cancelled' ? 'bg-destructive/10 text-destructive' :
+                        booking.bookingStatus === 'confirmed' ? 'bg-success/10 text-success' :
+                        booking.bookingStatus === 'payment_pending' ? 'bg-amber-100 text-amber-800' :
+                        booking.bookingStatus === 'rejected' || booking.bookingStatus === 'cancelled' ? 'bg-destructive/10 text-destructive' :
                         'bg-secondary'
-                    }>{booking.status}</Badge>
+                    }>{booking.bookingStatus.replace('_', ' ')}</Badge>
                     
-                    {booking.status === 'pending' && (
+                    {booking.bookingStatus === 'payment_pending' && (
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" className="text-success hover:border-success hover:bg-success/5 border-green-200" onClick={() => handleStatusChange(booking, 'confirmed')}>
-                          <Check className="w-4 h-4 mr-2"/> Accept
+                          <PiCheck className="w-4 h-4 mr-2"/> Accept
                         </Button>
                         <Button size="sm" variant="outline" className="text-destructive hover:border-destructive hover:bg-destructive/5 border-red-200" onClick={() => handleStatusChange(booking, 'rejected')}>
-                          <X className="w-4 h-4 mr-2"/> Reject
+                          <PiX className="w-4 h-4 mr-2"/> Reject
                         </Button>
                       </div>
                     )}
