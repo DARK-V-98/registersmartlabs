@@ -26,7 +26,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Lecturer, Course } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { PiSpinner, PiPlus, PiPencilSimple } from 'react-icons/pi';
+import { Loader2, Plus, Pencil } from 'lucide-react';
 
 export default function LecturersPage() {
   const firestore = useFirestore();
@@ -110,7 +110,7 @@ export default function LecturersPage() {
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button><PiPlus className="mr-2 h-4 w-4" /> Add Lecturer</Button>
+            <Button><Plus className="mr-2 h-4 w-4" /> Add Lecturer</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -140,7 +140,7 @@ export default function LecturersPage() {
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading && <PiSpinner className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingLecturer ? 'Update' : 'Create'}
                 </Button>
               </DialogFooter>
@@ -155,7 +155,7 @@ export default function LecturersPage() {
         </CardHeader>
         <CardContent>
           {isLecturersLoading ? (
-            <div className="flex justify-center p-4"><PiSpinner className="animate-spin" /></div>
+            <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
           ) : (
             <Table>
               <TableHeader>
@@ -183,7 +183,7 @@ export default function LecturersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(lecturer)}>
-                        <PiPencilSimple className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>

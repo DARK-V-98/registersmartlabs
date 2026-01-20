@@ -9,7 +9,7 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PiEnvelopeSimple, PiLock, PiArrowRight, PiEye, PiEyeSlash, PiUser } from "react-icons/pi";
+import { Mail, Lock, ArrowRight, Eye, EyeOff, User } from "lucide-react";
 import { useAuth, useFirestore } from "@/firebase";
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -141,7 +141,7 @@ const Signup = () => {
                 <div className="space-y-2">
                   <Label htmlFor="name">Full Name</Label>
                   <div className="relative">
-                    <PiUser className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       id="name"
                       type="text"
@@ -157,7 +157,7 @@ const Signup = () => {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
-                    <PiEnvelopeSimple className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
@@ -173,7 +173,7 @@ const Signup = () => {
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
-                    <PiLock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -189,7 +189,7 @@ const Signup = () => {
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                        disabled={isLoading}
                     >
-                      {showPassword ? <PiEyeSlash className="w-5 h-5" /> : <PiEye className="w-5 h-5" />}
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -199,7 +199,7 @@ const Signup = () => {
 
                 <Button type="submit" size="lg" className="w-full btn-accent group" disabled={isLoading}>
                   {isLoading ? 'Creating Account...' : 'Create Account'}
-                  <PiArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </form>
 

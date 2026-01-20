@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PiSpinner } from 'react-icons/pi';
+import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface UserData {
@@ -43,7 +43,7 @@ export default function AdminUsersPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center p-8"><PiSpinner className="animate-spin" /></div>
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
           ) : (
             <Table>
               <TableHeader>

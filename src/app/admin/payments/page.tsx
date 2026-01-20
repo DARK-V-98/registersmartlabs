@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { PiSpinner, PiCheckCircle, PiXCircle, PiEye, PiArrowSquareOut } from 'react-icons/pi';
+import { Loader2, CheckCircle, XCircle, Eye, ExternalLink } from 'lucide-react';
 import { Booking } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -81,7 +81,7 @@ export default function AdminPaymentsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center p-8"><PiSpinner className="animate-spin" /></div>
+            <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
           ) : (
             <Table>
               <TableHeader>
@@ -109,7 +109,7 @@ export default function AdminPaymentsPage() {
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm" className="gap-2">
-                            <PiEye className="h-4 w-4" /> View Details
+                            <Eye className="h-4 w-4" /> View Details
                           </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -167,7 +167,7 @@ export default function AdminPaymentsPage() {
                                     <div className="flex justify-end">
                                         <a href={booking.receiptUrl} target="_blank" rel="noopener noreferrer">
                                             <Button variant="secondary" size="sm">
-                                                <PiArrowSquareOut className="mr-2 h-4 w-4" /> Open Original
+                                                <ExternalLink className="mr-2 h-4 w-4" /> Open Original
                                             </Button>
                                         </a>
                                     </div>
@@ -191,7 +191,7 @@ export default function AdminPaymentsPage() {
                           onClick={() => handleVerify(booking.id, 'approve')}
                           disabled={!!processingId}
                         >
-                          {processingId === booking.id ? <PiSpinner className="h-4 w-4 animate-spin" /> : <PiCheckCircle className="h-4 w-4" />}
+                          {processingId === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                         </Button>
                         <Button 
                           size="sm" 
@@ -199,7 +199,7 @@ export default function AdminPaymentsPage() {
                           onClick={() => handleVerify(booking.id, 'reject')}
                           disabled={!!processingId}
                         >
-                          {processingId === booking.id ? <PiSpinner className="h-4 w-4 animate-spin" /> : <PiXCircle className="h-4 w-4" />}
+                          {processingId === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
                         </Button>
                       </div>
                     </TableCell>

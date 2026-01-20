@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { PiSpinner } from 'react-icons/pi';
+import { Loader2 } from 'lucide-react';
 import { Booking } from '@/types';
 
 const getStatusColor = (status: string) => {
@@ -61,7 +61,7 @@ export default function MyBookingsPage() {
   });
 
   if (isLoading) {
-    return <div className="flex justify-center p-8"><PiSpinner className="animate-spin" /></div>;
+    return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
   }
 
   return (

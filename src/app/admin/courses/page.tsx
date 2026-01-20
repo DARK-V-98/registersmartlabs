@@ -26,7 +26,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Course } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { PiSpinner, PiPlus, PiPencilSimple } from 'react-icons/pi';
+import { Loader2, Plus, Pencil } from 'lucide-react';
 
 export default function CoursesPage() {
   const firestore = useFirestore();
@@ -99,7 +99,7 @@ export default function CoursesPage() {
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button><PiPlus className="mr-2 h-4 w-4" /> Add Course</Button>
+            <Button><Plus className="mr-2 h-4 w-4" /> Add Course</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
@@ -120,7 +120,7 @@ export default function CoursesPage() {
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading && <PiSpinner className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingCourse ? 'Update' : 'Create'}
                 </Button>
               </DialogFooter>
@@ -135,7 +135,7 @@ export default function CoursesPage() {
         </CardHeader>
         <CardContent>
           {isCoursesLoading ? (
-            <div className="flex justify-center p-4"><PiSpinner className="animate-spin" /></div>
+            <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
           ) : (
             <Table>
               <TableHeader>
@@ -158,7 +158,7 @@ export default function CoursesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(course)}>
-                        <PiPencilSimple className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>

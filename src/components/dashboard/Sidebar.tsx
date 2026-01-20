@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { 
-  PiSquaresFour, 
-  PiCalendarPlus, 
-  PiCalendarCheck, 
-  PiUser, 
-  PiSignOut,
-  PiShieldCheck
-} from 'react-icons/pi';
+  LayoutGrid, 
+  CalendarPlus, 
+  CalendarCheck, 
+  User, 
+  LogOut,
+  ShieldCheck
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/firebase/provider';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -21,22 +21,22 @@ const sidebarItems = [
   {
     title: 'Overview',
     href: '/dashboard',
-    icon: PiSquaresFour,
+    icon: LayoutGrid,
   },
   {
     title: 'Book a Session',
     href: '/dashboard/book',
-    icon: PiCalendarPlus,
+    icon: CalendarPlus,
   },
   {
     title: 'My Bookings',
     href: '/dashboard/bookings',
-    icon: PiCalendarCheck,
+    icon: CalendarCheck,
   },
   {
     title: 'Profile',
     href: '/dashboard/profile',
-    icon: PiUser,
+    icon: User,
   },
 ];
 
@@ -83,7 +83,7 @@ export function DashboardSidebar() {
           {(profile?.role === 'admin' || profile?.role === 'developer') && (
              <Link href="/admin">
                 <span className="group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground text-amber-600 font-bold mt-4 border border-amber-200 bg-amber-50">
-                  <PiShieldCheck className="mr-2 h-4 w-4" />
+                  <ShieldCheck className="mr-2 h-4 w-4" />
                   <span>Admin Panel</span>
                 </span>
              </Link>
@@ -92,7 +92,7 @@ export function DashboardSidebar() {
       </div>
       <div className="mt-auto">
         <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50" onClick={handleLogout}>
-          <PiSignOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2 h-4 w-4" />
           Logout
         </Button>
       </div>

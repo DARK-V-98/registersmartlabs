@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { PiArrowSquareOut, PiWrench } from 'react-icons/pi';
+import { ExternalLink, Wrench } from 'lucide-react';
 
 const DevelopmentNotification = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -41,7 +41,7 @@ const DevelopmentNotification = () => {
         <div className="flex flex-col gap-3 pt-4">
             <a href="https://www.smartlabs.lk" target="_blank" rel="noopener noreferrer">
                 <Button className="w-full btn-accent">
-                    <PiArrowSquareOut className="mr-2 h-4 w-4" />
+                    <ExternalLink className="mr-2 h-4 w-4" />
                     Visit Main Site
                 </Button>
             </a>

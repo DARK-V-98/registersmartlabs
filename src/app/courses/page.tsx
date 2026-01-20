@@ -6,21 +6,22 @@ import Link from "next/link";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { 
-  PiCaretDown, 
-  PiArrowRight, 
-  PiClock, 
-  PiUsers, 
-  PiMonitor, 
-  PiMapPin,
-  PiTarget,
-  PiCheckCircle,
-  PiBookOpen,
-  PiGraduationCap,
-  PiMicrophone,
-  PiPenNib,
-  PiHeadphones,
-  PiFileText
-} from "react-icons/pi";
+  ChevronDown, 
+  ArrowRight, 
+  Clock, 
+  Users, 
+  Monitor, 
+  MapPin,
+  Target,
+  CheckCircle,
+  CheckCircle2,
+  BookOpen,
+  GraduationCap,
+  Mic,
+  PenTool,
+  Headphones,
+  FileText
+} from "lucide-react";
 
 const courses = [
   {
@@ -45,9 +46,9 @@ const courses = [
       "Fair and unbiased computer scoring"
     ],
     structure: [
-      { name: "Speaking & Writing", duration: "54-67 min", icon: PiMicrophone },
-      { name: "Reading", duration: "29-30 min", icon: PiFileText },
-      { name: "Listening", duration: "30-43 min", icon: PiHeadphones },
+      { name: "Speaking & Writing", duration: "54-67 min", icon: Mic },
+      { name: "Reading", duration: "29-30 min", icon: FileText },
+      { name: "Listening", duration: "30-43 min", icon: Headphones },
     ],
     duration: "60 min/class",
     students: "1,200+",
@@ -75,10 +76,10 @@ const courses = [
       "Human examiner for speaking test"
     ],
     structure: [
-      { name: "Listening", duration: "30 min", icon: PiHeadphones },
-      { name: "Reading", duration: "60 min", icon: PiBookOpen },
-      { name: "Writing", duration: "60 min", icon: PiPenNib },
-      { name: "Speaking", duration: "11-14 min", icon: PiMicrophone },
+      { name: "Listening", duration: "30 min", icon: Headphones },
+      { name: "Reading", duration: "60 min", icon: BookOpen },
+      { name: "Writing", duration: "60 min", icon: PenTool },
+      { name: "Speaking", duration: "11-14 min", icon: Mic },
     ],
     duration: "60 min/class",
     students: "2,100+",
@@ -187,7 +188,7 @@ const Courses = () => {
                         Physical
                       </span>
                     </div>
-                    <PiCaretDown 
+                    <ChevronDown 
                       className={`w-6 h-6 text-muted-foreground transition-transform ${
                         expandedCourse === course.id ? "rotate-180" : ""
                       }`} 

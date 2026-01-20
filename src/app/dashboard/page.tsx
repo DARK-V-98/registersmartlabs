@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Booking } from '@/types';
 import Link from 'next/link';
-import { PiCalendarPlus, PiArrowRight, PiClock, PiCheckCircle } from 'react-icons/pi';
+import { CalendarPlus, ArrowRight, Clock, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function DashboardOverview() {
@@ -42,7 +42,7 @@ export default function DashboardOverview() {
         <Card className="bg-primary text-primary-foreground border-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <PiCalendarPlus className="w-6 h-6" /> Book a Session
+              <CalendarPlus className="w-6 h-6" /> Book a Session
             </CardTitle>
             <CardDescription className="text-primary-foreground/80">
               Ready to learn? Schedule your next class now.
@@ -51,7 +51,7 @@ export default function DashboardOverview() {
           <CardContent>
             <Link href="/dashboard/book">
               <Button variant="secondary" className="w-full font-semibold">
-                Start Booking <PiArrowRight className="ml-2 w-4 h-4" />
+                Start Booking <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
             </Link>
           </CardContent>
@@ -61,7 +61,7 @@ export default function DashboardOverview() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <PiClock className="w-6 h-6" /> Next Session
+              <Clock className="w-6 h-6" /> Next Session
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -105,7 +105,7 @@ export default function DashboardOverview() {
                 <div key={booking.id} className="flex items-center justify-between p-4 border rounded-lg bg-card">
                     <div className="flex items-center gap-4">
                         <div className={`p-2 rounded-full ${booking.bookingStatus === 'confirmed' ? 'bg-green-100 text-green-600' : 'bg-secondary text-secondary-foreground'}`}>
-                            <PiCheckCircle className="w-5 h-5" />
+                            <CheckCircle className="w-5 h-5" />
                         </div>
                         <div>
                             <p className="font-medium">{booking.courseName}</p>

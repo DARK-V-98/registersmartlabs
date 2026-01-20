@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { PiShieldCheck } from 'react-icons/pi';
+import { ShieldCheck } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user } = useUser();
@@ -23,7 +23,7 @@ export default function ProfilePage() {
         {(profile?.role === 'admin' || profile?.role === 'developer') && (
            <Link href="/admin">
              <Button variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800">
-               <PiShieldCheck className="mr-2 h-4 w-4" />
+               <ShieldCheck className="mr-2 h-4 w-4" />
                Access Admin Panel
              </Button>
            </Link>

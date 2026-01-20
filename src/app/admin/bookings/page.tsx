@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Booking } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { PiSpinner, PiEye, PiCheck, PiX, PiProhibit } from 'react-icons/pi';
+import { Loader2, Eye, Check, X } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AdminBookingsPage() {
@@ -82,7 +82,7 @@ export default function AdminBookingsPage() {
         <Card className="mt-4">
           <CardContent className="p-0">
             {isBookingsLoading ? (
-               <div className="flex justify-center p-8"><PiSpinner className="animate-spin" /></div>
+               <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
             ) : (
               <Table>
                 <TableHeader>
@@ -162,14 +162,14 @@ export default function AdminBookingsPage() {
                                 onClick={() => handleUpdateStatus(booking.id, 'rejected', 'rejected')}
                                 disabled={isLoading}
                               >
-                                <PiX className="w-4 h-4 mr-2" /> Reject
+                                <X className="w-4 h-4 mr-2" /> Reject
                               </Button>
                               <Button 
                                 className="bg-green-600 hover:bg-green-700" 
                                 onClick={() => handleUpdateStatus(booking.id, 'confirmed', 'confirmed')}
                                 disabled={isLoading}
                               >
-                                <PiCheck className="w-4 h-4 mr-2" /> Confirm Payment
+                                <Check className="w-4 h-4 mr-2" /> Confirm Payment
                               </Button>
                             </DialogFooter>
                           </DialogContent>

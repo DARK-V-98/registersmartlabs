@@ -17,7 +17,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Course, Lecturer } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { PiSpinner, PiPlus, PiTrash } from 'react-icons/pi';
+import { Loader2, Plus, Trash } from 'lucide-react';
 import { format, eachDayOfInterval, getDay, isSameDay, addDays } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 
@@ -313,7 +313,7 @@ export default function SchedulesPage() {
                       </span>
                     </div>
                     <Button className="w-full" onClick={handleSaveSchedule} disabled={isLoading || selectedSlots.length === 0}>
-                      {isLoading && <PiSpinner className="mr-2 h-4 w-4 animate-spin" />}
+                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Save Schedule
                     </Button>
                  </div>

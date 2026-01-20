@@ -10,12 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
-  PiEnvelope, 
-  PiLock, 
-  PiArrowRight, 
-  PiEye, 
-  PiEyeSlash 
-} from "react-icons/pi";
+  Mail, 
+  Lock, 
+  ArrowRight, 
+  Eye, 
+  EyeOff 
+} from "lucide-react";
 import { useAuth, useFirestore, useUser } from "@/firebase";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
@@ -189,7 +189,7 @@ const Login = () => {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
-                    <PiEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
@@ -233,7 +233,7 @@ const Login = () => {
 
                 <Button type="submit" size="lg" className="w-full btn-accent group" disabled={isLoading}>
                   {isLoading ? 'Signing In...' : 'Sign In'}
-                  <PiArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </form>
 

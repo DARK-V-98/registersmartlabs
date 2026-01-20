@@ -8,36 +8,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { 
-  PiEnvelopeSimple, 
-  PiPhone, 
-  PiMapPin, 
-  PiPaperPlaneRight,
-  PiChatCircleText,
-  PiClock
-} from "react-icons/pi";
+  Mail, 
+  Phone, 
+  MapPin, 
+  Send,
+  MessageCircle,
+  Clock
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const contactInfo = [
   {
-    icon: PiPhone,
+    icon: Phone,
     title: "Phone",
     value: "076 691 4650 | 077 453 3233",
     link: "tel:0766914650",
   },
   {
-    icon: PiEnvelopeSimple,
+    icon: Mail,
     title: "Email",
     value: "info@smartlabs.lk",
     link: "mailto:info@smartlabs.lk",
   },
   {
-    icon: PiMapPin,
+    icon: MapPin,
     title: "Location",
     value: "3rd Floor, No. 326, Jana Jaya Building, Rajagiriya",
     link: "#",
   },
   {
-    icon: PiClock,
+    icon: Clock,
     title: "Hours",
     value: "Mon - Sat: 9:00 AM - 8:00 PM",
     link: "#",
@@ -153,7 +153,7 @@ const Contact = () => {
                   </div>
 
                   <Button type="submit" size="lg" className="w-full btn-accent group">
-                    <PiPaperPlaneRight className="w-4 h-4 mr-2" />
+                    <Send className="w-4 h-4 mr-2" />
                     Send Message
                   </Button>
                 </form>
@@ -189,7 +189,7 @@ const Contact = () => {
               <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-8 text-white">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
-                    <PiChatCircleText className="w-7 h-7" />
+                    <MessageCircle className="w-7 h-7" />
                   </div>
                   <div>
                     <h3 className="font-display text-xl font-semibold">Chat on WhatsApp</h3>

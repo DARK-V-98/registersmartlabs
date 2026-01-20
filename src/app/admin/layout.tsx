@@ -8,25 +8,25 @@ import { useAdminAuth } from '@/hooks/use-admin-auth';
 import Layout from '@/components/layout/Layout';
 import { cn } from '@/lib/utils';
 import { 
-  PiBookmarks, 
-  PiGear, 
-  PiUsers, 
-  PiStudent, 
-  PiCalendar, 
-  PiCreditCard, 
-  PiSquaresFour, 
-  PiChalkboardTeacher 
-} from 'react-icons/pi';
+  Bookmark, 
+  Settings, 
+  Users, 
+  GraduationCap, 
+  Calendar, 
+  CreditCard, 
+  LayoutGrid, 
+  Presentation 
+} from 'lucide-react';
 
 const navLinks = [
-  { href: '/admin', label: 'Dashboard', icon: PiSquaresFour },
-  { href: '/admin/courses', label: 'Courses', icon: PiStudent },
-  { href: '/admin/lecturers', label: 'Lecturers', icon: PiChalkboardTeacher },
-  { href: '/admin/schedules', label: 'Schedules', icon: PiCalendar },
-  { href: '/admin/bookings', label: 'Bookings', icon: PiBookmarks },
-  { href: '/admin/payments', label: 'Payments', icon: PiCreditCard },
-  { href: '/admin/users', label: 'Users', icon: PiUsers },
-  { href: '/admin/settings', label: 'Settings', icon: PiGear },
+  { href: '/admin', label: 'Dashboard', icon: LayoutGrid },
+  { href: '/admin/courses', label: 'Courses', icon: GraduationCap },
+  { href: '/admin/lecturers', label: 'Lecturers', icon: Presentation },
+  { href: '/admin/schedules', label: 'Schedules', icon: Calendar },
+  { href: '/admin/bookings', label: 'Bookings', icon: Bookmark },
+  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
+  { href: '/admin/users', label: 'Users', icon: Users },
+  { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

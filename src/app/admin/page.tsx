@@ -6,11 +6,13 @@ import { collection, query, orderBy, doc, arrayUnion, arrayRemove } from 'fireba
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { PiCalendar, PiClock, PiCheck, PiX, PiFileText } from 'react-icons/pi';
+import { Calendar, Clock, Check, X, FileText } from 'lucide-react';
 import type { Timestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Booking } from '@/types';
+import { Badge } from '@/components/ui/badge';
+
 
 const AdminBookingsPage = () => {
   const firestore = useFirestore();
@@ -91,9 +93,9 @@ const AdminBookingsPage = () => {
                         </div>
                      </div>
                     <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5"><PiCalendar className="w-4 h-4" /> {booking.date}</span>
-                      <span className="flex items-center gap-1.5"><PiClock className="w-4 h-4" /> {booking.time}</span>
-                      <span className="flex items-center gap-1.5 capitalize"><PiFileText className="w-4 h-4" /> {booking.classType || 'online'}</span>
+                      <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {booking.date}</span>
+                      <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {booking.time}</span>
+                      <span className="flex items-center gap-1.5 capitalize"><FileText className="w-4 h-4" /> {booking.classType || 'online'}</span>
                     </div>
                   </div>
 
@@ -108,10 +110,10 @@ const AdminBookingsPage = () => {
                     {booking.bookingStatus === 'payment_pending' && (
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" className="text-success hover:border-success hover:bg-success/5 border-green-200" onClick={() => handleStatusChange(booking, 'confirmed')}>
-                          <PiCheck className="w-4 h-4 mr-2"/> Accept
+                          <Check className="w-4 h-4 mr-2"/> Accept
                         </Button>
                         <Button size="sm" variant="outline" className="text-destructive hover:border-destructive hover:bg-destructive/5 border-red-200" onClick={() => handleStatusChange(booking, 'rejected')}>
-                          <PiX className="w-4 h-4 mr-2"/> Reject
+                          <X className="w-4 h-4 mr-2"/> Reject
                         </Button>
                       </div>
                     )}

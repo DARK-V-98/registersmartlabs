@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { PiSpinner, PiCheckCircle, PiCreditCard, PiCaretLeft, PiCaretRight, PiUser } from 'react-icons/pi';
+import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { Course, Lecturer, Schedule } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -183,7 +183,7 @@ export default function BookingPage() {
                 "w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold text-sm transition-colors",
                 step >= s.id ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground bg-background"
               )}>
-                {step > s.id ? <PiCheckCircle className="w-5 h-5" /> : s.id}
+                {step > s.id ? <CheckCircle className="w-5 h-5" /> : s.id}
               </div>
               <span className="text-xs font-medium hidden sm:block">{s.title}</span>
             </div>
@@ -263,7 +263,7 @@ export default function BookingPage() {
                       )}
                     >
                       <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
-                        <PiUser className="h-6 w-6" />
+                        <User className="h-6 w-6" />
                       </div>
                       <div>
                         <h3 className="font-bold">{lecturer.name}</h3>
@@ -356,7 +356,7 @@ export default function BookingPage() {
 
                 <div className="space-y-4">
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                    <h4 className="font-semibold text-blue-900 mb-2 flex items-center"><PiCreditCard className="w-4 h-4 mr-2"/> Bank Transfer Details</h4>
+                    <h4 className="font-semibold text-blue-900 mb-2 flex items-center"><CreditCard className="w-4 h-4 mr-2"/> Bank Transfer Details</h4>
                     <p className="text-sm text-blue-800">Bank: Commercial Bank</p>
                     <p className="text-sm text-blue-800">Account No: 1234567890</p>
                     <p className="text-sm text-blue-800">Account Name: SmartLabs Institute</p>
@@ -374,7 +374,7 @@ export default function BookingPage() {
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-8 pt-4 border-t">
             <Button variant="outline" onClick={handleBack} disabled={step === 1 || loading}>
-              <PiCaretLeft className="w-4 h-4 mr-2" /> Back
+              <ChevronLeft className="w-4 h-4 mr-2" /> Back
             </Button>
             
             {step < 5 ? (
@@ -384,11 +384,11 @@ export default function BookingPage() {
                 (step === 3 && !selectedLecturer) ||
                 (step === 4 && (!selectedDate || !selectedTime))
               }>
-                Continue <PiCaretRight className="w-4 h-4 ml-2" />
+                Continue <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
             ) : (
               <Button onClick={handleSubmit} disabled={!receiptFile || loading}>
-                {loading && <PiSpinner className="w-4 h-4 mr-2 animate-spin" />}
+                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Submit Booking
               </Button>
             )}

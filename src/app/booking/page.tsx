@@ -8,17 +8,17 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { 
-  PiCaretLeft, 
-  PiCaretRight, 
-  PiMonitor, 
-  PiMapPin,
-  PiCheckCircle,
-  PiClock,
-  PiUser,
-  PiCalendar,
-  PiCreditCard,
-  PiChatCircleText,
-} from "react-icons/pi";
+  ChevronLeft, 
+  ChevronRight, 
+  Monitor, 
+  MapPin,
+  CheckCircle,
+  Clock,
+  User,
+  Calendar,
+  CreditCard,
+  MessageCircle,
+} from "lucide-react";
 import { useUser, useFirestore, addDocumentNonBlocking, useDoc, useMemoFirebase } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { collection, serverTimestamp, doc, Timestamp } from "firebase/firestore";
@@ -196,7 +196,7 @@ function BookingContent() {
                             className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-3 ${selectedCourse === course.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
                             <span className="text-2xl">{course.icon}</span>
                             <span className="font-medium">{course.name}</span>
-                            {selectedCourse === course.id && <PiCheckCircle className="w-5 h-5 text-primary ml-auto" />}
+                            {selectedCourse === course.id && <CheckCircle className="w-5 h-5 text-primary ml-auto" />}
                           </button>
                         ))}
                       </div>
@@ -206,11 +206,11 @@ function BookingContent() {
                       <h3 className="font-display font-semibold mb-4">2. Class Type</h3>
                       <div className="grid grid-cols-2 gap-3">
                         <button onClick={() => setClassType("online")} className={`p-4 rounded-xl border-2 transition-all ${classType === "online" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
-                          <PiMonitor className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+                          <Monitor className="w-6 h-6 mx-auto mb-2 text-blue-600" />
                           <p className="font-medium text-sm">Online</p>
                         </button>
                         <button onClick={() => setClassType("physical")} className={`p-4 rounded-xl border-2 transition-all ${classType === "physical" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
-                          <PiMapPin className="w-6 h-6 mx-auto mb-2 text-amber-600" />
+                          <MapPin className="w-6 h-6 mx-auto mb-2 text-amber-600" />
                           <p className="font-medium text-sm">Physical</p>
                         </button>
                       </div>
@@ -222,10 +222,10 @@ function BookingContent() {
                       <h3 className="font-display font-semibold">3. {monthName} {year}</h3>
                       <div className="flex gap-2">
                         <button onClick={prevMonth} disabled={isPrevMonthDisabled} className="p-2 rounded-lg hover:bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                          <PiCaretLeft className="w-5 h-5" />
+                          <ChevronLeft className="w-5 h-5" />
                         </button>
                         <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-secondary transition-colors">
-                          <PiCaretRight className="w-5 h-5" />
+                          <ChevronRight className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
@@ -278,7 +278,7 @@ function BookingContent() {
                     ) : (
                       <div className="h-64 flex items-center justify-center text-muted-foreground">
                         <div className="text-center">
-                          <PiCalendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                          <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
                           <p>Select a date to view slots</p>
                         </div>
                       </div>
@@ -290,7 +290,7 @@ function BookingContent() {
               <motion.div key="confirmation" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-2xl mx-auto">
                 <div className="bg-white rounded-3xl p-8 text-center border border-border shadow-xl">
                   <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-                    <PiCreditCard className="w-10 h-10 text-primary" />
+                    <CreditCard className="w-10 h-10 text-primary" />
                   </div>
                   <h2 className="font-display text-3xl font-bold mb-2">Booking Pending</h2>
                   <p className="text-muted-foreground mb-8">
@@ -313,7 +313,7 @@ function BookingContent() {
                      <div className="bg-white p-4 rounded-lg">
                         <p className="text-sm font-semibold">WhatsApp Number:</p>
                         <a href={`https://wa.me/${settings?.whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-2">
-                          <PiChatCircleText className="w-4 h-4"/> {settings?.whatsappNumber || 'Not available'}
+                          <MessageCircle className="w-4 h-4"/> {settings?.whatsappNumber || 'Not available'}
                         </a>
                      </div>
                   </div>
@@ -321,7 +321,7 @@ function BookingContent() {
                   <div className="flex gap-4">
                     <Link href="/dashboard" className="flex-1">
                       <Button variant="outline" className="w-full">
-                        <PiUser className="w-4 h-4 mr-2" />
+                        <User className="w-4 h-4 mr-2" />
                         View My Bookings
                       </Button>
                     </Link>
