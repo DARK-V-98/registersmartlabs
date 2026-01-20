@@ -143,13 +143,29 @@ export default function AdminBookingsPage() {
                               <div className="space-y-2">
                                 <h3 className="font-semibold">Payment Receipt</h3>
                                 {booking.receiptUrl ? (
-                                  <div className="relative h-64 w-full border rounded-md overflow-hidden">
-                                    <Image 
-                                      src={booking.receiptUrl} 
-                                      alt="Receipt" 
-                                      fill 
-                                      className="object-contain"
-                                    />
+                                  <div>
+                                    {booking.receiptType?.startsWith('image/') ? (
+                                      <div className="relative h-64 w-full border rounded-md overflow-hidden">
+                                        <Image 
+                                          src={booking.receiptUrl} 
+                                          alt="Receipt" 
+                                          fill 
+                                          className="object-contain"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className="h-64 w-full border rounded-md flex flex-col items-center justify-center bg-secondary text-center p-4">
+                                        <p className="text-sm font-medium">Receipt Uploaded</p>
+                                        <p className="text-xs text-muted-foreground mb-2">
+                                          {booking.receiptType === 'application/pdf' ? 'PDF Document' : 'Unsupported file type'}
+                                        </p>
+                                        <a href={booking.receiptUrl} target="_blank" rel="noopener noreferrer">
+                                          <Button variant="link" size="sm">
+                                            View File
+                                          </Button>
+                                        </a>
+                                      </div>
+                                    )}
                                   </div>
                                 ) : (
                                   <p className="text-muted-foreground">No receipt uploaded.</p>

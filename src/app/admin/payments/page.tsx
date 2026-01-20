@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Loader2, CheckCircle, XCircle, Eye, ExternalLink } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Eye, ExternalLink, FileText } from 'lucide-react';
 import { Booking } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -156,6 +156,7 @@ export default function AdminPaymentsPage() {
                               <h3 className="font-semibold mb-2">Payment Receipt</h3>
                               {booking.receiptUrl ? (
                                 <div className="space-y-4">
+                                  {booking.receiptType?.startsWith('image/') ? (
                                     <div className="relative w-full h-[400px] border rounded-lg overflow-hidden bg-black/5">
                                       <Image 
                                         src={booking.receiptUrl} 
@@ -164,13 +165,25 @@ export default function AdminPaymentsPage() {
                                         className="object-contain"
                                       />
                                     </div>
-                                    <div className="flex justify-end">
-                                        <a href={booking.receiptUrl} target="_blank" rel="noopener noreferrer">
-                                            <Button variant="secondary" size="sm">
-                                                <ExternalLink className="mr-2 h-4 w-4" /> Open Original
-                                            </Button>
-                                        </a>
+                                  ) : booking.receiptType === 'application/pdf' ? (
+                                    <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
+                                        <FileText className="w-16 h-16 text-red-500 mb-4" />
+                                        <p className="font-semibold">PDF Document</p>
+                                        <p className="text-sm">Click "Open Original" to view.</p>
                                     </div>
+                                  ) : (
+                                    <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
+                                        <span className="text-4xl mb-2">📄</span>
+                                        <p>Receipt uploaded (unsupported preview)</p>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-end">
+                                    <a href={booking.receiptUrl} target="_blank" rel="noopener noreferrer">
+                                      <Button variant="secondary" size="sm">
+                                        <ExternalLink className="mr-2 h-4 w-4" /> Open Original
+                                      </Button>
+                                    </a>
+                                  </div>
                                 </div>
                               ) : (
                                  <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">

@@ -45,5 +45,6 @@ export interface Booking {
   paymentStatus: 'pending' | 'confirmed' | 'rejected';
   bookingStatus: 'created' | 'payment_pending' | 'confirmed' | 'rejected' | 'cancelled';
   receiptUrl?: string;
+  receiptType?: string;
   createdAt?: any; // Firestore Timestamp
 }

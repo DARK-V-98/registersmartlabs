@@ -116,11 +116,6 @@ export default function BookingPage() {
 
     setLoading(true);
     try {
-      // 1. Upload Receipt
-      // Generate a unique ID for the booking first or use auto-id?
-      // Better to upload first then create doc, or create doc then update with URL.
-      // Let's create doc ref first.
-      
       const bookingData = {
         userId: user.uid,
         userName: user.displayName || user.email?.split('@')[0] || 'Student',
@@ -147,13 +142,15 @@ export default function BookingPage() {
 
       // 2. Upload Image
       if (storage) {
-        const storageRef = ref(storage, `payments/${user.uid}/${bookingId}.jpg`);
+        const fileExtension = receiptFile.name.split('.').pop();
+        const storageRef = ref(storage, `payments/${user.uid}/${bookingId}.${fileExtension}`);
         await uploadBytes(storageRef, receiptFile);
         const downloadUrl = await getDownloadURL(storageRef);
 
-        // 3. Update Booking with Receipt URL
+        // 3. Update Booking with Receipt URL and type
         await updateDoc(doc(firestore, 'bookings', bookingId), {
-            receiptUrl: downloadUrl
+            receiptUrl: downloadUrl,
+            receiptType: receiptFile.type
         });
       }
 
