@@ -1,15 +1,8 @@
-
 'use client';
 
 import { useUser, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
-
-export interface UserProfile {
-  id: string;
-  displayName: string;
-  email: string;
-  role: 'user' | 'admin' | 'developer';
-}
+import { UserProfile } from '@/types';
 
 export function useUserProfile() {
   const { user, isUserLoading: isAuthLoading } = useUser();

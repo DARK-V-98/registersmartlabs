@@ -2,7 +2,9 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: 'user' | 'admin' | 'developer';
+  role: 'student' | 'admin' | 'developer';
+  status?: 'active' | 'suspended';
+  createdAt?: any;
 }
 
 export interface Course {

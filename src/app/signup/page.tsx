@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Mail, Lock, ArrowRight, Eye, EyeOff, User } from "lucide-react";
 import { useAuth, useFirestore } from "@/firebase";
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 const Signup = () => {
@@ -55,6 +55,7 @@ const Signup = () => {
           name: formData.name,
           email: formData.email,
           role: "student", // Default role
+          status: "active", // Default status
           createdAt: serverTimestamp(),
         });
       }
@@ -82,24 +83,20 @@ const Signup = () => {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Create/Update user document
       if (firestore) {
-        await setDoc(doc(firestore, "users", user.uid), {
-          uid: user.uid,
-          name: user.displayName,
-          email: user.email,
-          role: "student", // This might overwrite admin role if they login via google? 
-          // Better to use merge and only set role if not exists?
-          // For simplicity, let's assume new users. 
-          // But safer: check if exists or use merge with default fields only?
-          // setDoc with merge will merge. But if I pass role: 'student', it will overwrite 'admin'.
-          // I should check if doc exists first? 
-          // Or just set basic info.
-          // Let's just set basic info and createdAt if new.
-        }, { merge: true });
-        
-        // We really should check if role exists.
-        // For now, let's just save name/email.
+        const userRef = doc(firestore, "users", user.uid);
+        const userDoc = await getDoc(userRef);
+
+        if (!userDoc.exists()) {
+           await setDoc(userRef, {
+            uid: user.uid,
+            name: user.displayName,
+            email: user.email,
+            role: "student",
+            status: "active",
+            createdAt: serverTimestamp(),
+          });
+        }
       }
 
       toast({

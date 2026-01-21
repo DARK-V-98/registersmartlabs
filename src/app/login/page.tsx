@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
@@ -17,8 +17,8 @@ import {
   EyeOff 
 } from "lucide-react";
 import { useAuth, useFirestore, useUser } from "@/firebase";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
 
@@ -28,16 +28,62 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const auth = useAuth();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
+  const redirect = searchParams.get('redirect') || '/dashboard';
 
   useEffect(() => {
     if (!isUserLoading && user) {
-      router.push("/dashboard");
+      router.push(redirect);
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, router, redirect]);
+
+  const handleSuccessfulLogin = async (user: any) => {
+    if (!firestore) {
+      router.push(redirect);
+      return;
+    }
+    
+    const userRef = doc(firestore, "users", user.uid);
+    const userDoc = await getDoc(userRef);
+
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      if (userData.status === 'suspended') {
+        await signOut(auth);
+        toast({
+          variant: "destructive",
+          title: "Account Suspended",
+          description: "Your account has been suspended. Please contact support.",
+        });
+        setIsLoading(false);
+        return;
+      }
+      // Force update developer role if email matches
+      if (user.email === 'tikfese@gmail.com' && userData?.role !== 'developer') {
+        await updateDoc(userRef, { role: 'developer' });
+      }
+    } else {
+      const isDeveloper = user.email === 'tikfese@gmail.com';
+      await setDoc(userRef, {
+        uid: user.uid,
+        name: user.displayName || user.email.split('@')[0],
+        email: user.email,
+        role: isDeveloper ? "developer" : "student",
+        status: 'active',
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    router.push(redirect);
+    toast({
+      title: "Signed In",
+      description: "Welcome back!",
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,47 +91,7 @@ const Login = () => {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Check if user exists, if not create basic profile
-      if (firestore) {
-        const userRef = doc(firestore, "users", user.uid);
-        const userDoc = await getDoc(userRef);
-        
-        if (!userDoc.exists()) {
-          // Check for developer email
-          const isDeveloper = email === 'tikfese@gmail.com';
-
-          await setDoc(userRef, {
-            uid: user.uid,
-            name: user.displayName || email.split('@')[0],
-            email: user.email,
-            role: isDeveloper ? "developer" : "student",
-            createdAt: new Date(),
-          });
-          router.push("/dashboard");
-        } else {
-          // User exists, check role
-          const userData = userDoc.data();
-          
-          // Force update developer role if email matches
-          if (email === 'tikfese@gmail.com' && userData?.role !== 'developer') {
-            await updateDoc(userRef, {
-              role: 'developer'
-            });
-          }
-
-          // Redirect to dashboard for all, admins/developers use sidebar link
-          router.push("/dashboard");
-        }
-      } else {
-         router.push("/dashboard");
-      }
-
-      toast({
-        title: "Signed In",
-        description: "Welcome back!",
-      });
+      await handleSuccessfulLogin(userCredential.user);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -102,59 +108,7 @@ const Login = () => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // Check if user exists, if not create basic profile
-      if (firestore) {
-        const userRef = doc(firestore, "users", user.uid);
-        const userDoc = await getDoc(userRef);
-        
-        if (!userDoc.exists()) {
-          // Check for developer email
-          const isDeveloper = user.email === 'tikfese@gmail.com';
-          
-          await setDoc(userRef, {
-            uid: user.uid,
-            name: user.displayName,
-              email: user.email,
-              role: isDeveloper ? "developer" : "user",
-              createdAt: new Date(),
-            });
-            
-            if (isDeveloper) {
-               // Developer can go to admin or dashboard, default to dashboard but with access
-               router.push("/dashboard"); 
-             } else {
-               router.push("/dashboard");
-             }
-         } else {
-             const userData = userDoc.data();
-             
-             // Force update developer role if email matches
-             if (user.email === 'tikfese@gmail.com' && userData?.role !== 'developer') {
-               await updateDoc(userRef, {
-                 role: 'developer'
-               });
-             }
-
-             if (userData?.role === 'admin' || userData?.role === 'developer' || user.email === 'tikfese@gmail.com') {
-                 // Developer/Admin can go to admin panel
-                 // User requirement: "manage both user and admin dashboards"
-                 // Let's redirect to dashboard initially so they see the user view, 
-                 // but have the link to admin.
-                 router.push("/dashboard");
-             } else {
-                 router.push("/dashboard");
-             }
-         }
-      } else {
-         router.push("/dashboard");
-      }
-
-      toast({
-        title: "Signed In",
-        description: "Welcome to SmartLabs!",
-      });
+      await handleSuccessfulLogin(result.user);
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -165,6 +119,16 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+  if (isUserLoading || user) {
+    return (
+       <Layout showFooter={false}>
+         <div className="flex min-h-screen items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+         </div>
+       </Layout>
+    );
+  }
 
   return (
     <Layout showFooter={false}>

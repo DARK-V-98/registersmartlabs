@@ -1,22 +1,24 @@
-
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/use-admin-auth';
-import Layout from '@/components/layout/Layout';
 import { cn } from '@/lib/utils';
-import { 
-  Bookmark, 
-  Settings, 
-  Users, 
-  GraduationCap, 
-  Calendar, 
-  CreditCard, 
-  LayoutGrid, 
-  Presentation 
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import {
+  Bookmark,
+  Settings,
+  Users,
+  GraduationCap,
+  Calendar,
+  CreditCard,
+  LayoutGrid,
+  Presentation,
+  PanelLeft,
 } from 'lucide-react';
+import Image from 'next/image';
 
 const navLinks = [
   { href: '/admin', label: 'Dashboard', icon: LayoutGrid },
@@ -29,60 +31,77 @@ const navLinks = [
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
+function AdminNav() {
+  const pathname = usePathname();
+  return (
+    <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+      <div className="flex items-center gap-3 px-3 py-4 mb-4">
+        <Image src="/logo.png" alt="SmartLabs Logo" width={32} height={32} className="rounded-lg" />
+        <h2 className="text-xl font-bold tracking-tight">Admin Panel</h2>
+      </div>
+      {navLinks.map((link) => (
+        <Link
+          key={link.href}
+          href={link.href}
+          className={cn(
+            'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+            pathname === link.href && 'bg-muted text-primary'
+          )}
+        >
+          <link.icon className="h-4 w-4" />
+          {link.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isLoading, profile } = useAdminAuth();
-  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 
   if (isLoading) {
     return (
-      <Layout>
-        <div className="flex min-h-screen items-center justify-center">
-          <p>Verifying admin access...</p>
-        </div>
-      </Layout>
+      <div className="flex min-h-screen items-center justify-center">
+        <p>Verifying admin access...</p>
+      </div>
     );
   }
 
   if (!profile || (profile.role !== 'admin' && profile.role !== 'developer')) {
     return (
-       <Layout>
-        <div className="flex min-h-screen items-center justify-center">
-          <p>Access Denied.</p>
-        </div>
-      </Layout>
+      <div className="flex min-h-screen items-center justify-center">
+        <p>Access Denied.</p>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="font-display text-3xl font-bold mb-8">Admin Dashboard</h1>
-        <div className="grid lg:grid-cols-4 gap-8">
-          <aside className="lg:col-span-1">
-            <nav className="sticky top-24 bg-white p-4 rounded-xl border border-border">
-              <ul className="space-y-2">
-                {navLinks.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className={cn(
-                        'flex items-center gap-3 p-3 rounded-lg transition-colors',
-                        pathname === link.href
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'hover:bg-secondary'
-                      )}
-                    >
-                      <link.icon className="w-5 h-5" />
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          </aside>
-          <main className="lg:col-span-3">{children}</main>
+    <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+      <div className="hidden border-r bg-muted/40 md:block">
+        <div className="flex h-full max-h-screen flex-col gap-2">
+          <div className="flex-1">
+            <AdminNav />
+          </div>
         </div>
       </div>
-    </Layout>
+      <div className="flex flex-col">
+        <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+                <PanelLeft className="h-5 w-5" />
+                <span className="sr-only">Toggle navigation menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="flex flex-col" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <AdminNav />
+            </SheetContent>
+          </Sheet>
+          <div className="w-full flex-1">{/* Can add search or other header items here */}</div>
+        </header>
+        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">{children}</main>
+      </div>
+    </div>
   );
 }

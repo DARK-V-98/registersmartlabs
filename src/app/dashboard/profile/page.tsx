@@ -1,6 +1,5 @@
 'use client';
 
-import { useUser } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
@@ -8,13 +7,16 @@ import { Input } from '@/components/ui/input';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Loader2 } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { user } = useUser();
-  const { profile } = useUserProfile();
+  const { user, profile, isLoading } = useUserProfile();
 
-  if (!user) return null;
+  if (isLoading) {
+    return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
+  }
+
+  if (!user || !profile) return null;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -38,10 +40,10 @@ export default function ProfilePage() {
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20">
               <AvatarImage src={user.photoURL || ''} />
-              <AvatarFallback className="text-lg">{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+              <AvatarFallback className="text-lg">{profile.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="text-xl font-semibold">{user.displayName || 'User'}</h3>
+              <h3 className="text-xl font-semibold">{profile.name || 'User'}</h3>
               <p className="text-muted-foreground">{user.email}</p>
             </div>
           </div>
@@ -49,7 +51,7 @@ export default function ProfilePage() {
           <div className="grid gap-4">
             <div className="space-y-2">
               <Label>Full Name</Label>
-              <Input value={user.displayName || ''} disabled />
+              <Input value={profile.name || ''} disabled />
             </div>
             <div className="space-y-2">
               <Label>Email Address</Label>

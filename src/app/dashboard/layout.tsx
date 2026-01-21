@@ -3,14 +3,12 @@
 import { DashboardSidebar } from '@/components/dashboard/Sidebar';
 import { useUser } from '@/firebase/provider';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import Layout from '@/components/layout/Layout'; // Assuming this is the main site layout (Header/Footer)
-// Actually, usually dashboards have their own layout. Let's see. 
-// If I use Layout, I get the main Navbar. 
-// The user might want a dedicated dashboard experience. 
-// Let's stick to a clean dashboard layout without the main landing page Navbar/Footer, 
-// or maybe keep the Footer but replace the Navbar.
-// For now, I will create a standalone layout with the Sidebar.
+import { useEffect, useState } from 'react';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { PanelLeft } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
 
 export default function DashboardLayout({
   children,
@@ -19,6 +17,7 @@ export default function DashboardLayout({
 }) {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -35,17 +34,38 @@ export default function DashboardLayout({
   }
 
   if (!user) {
-    return null; 
+    return null;
   }
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="hidden w-64 md:block">
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <aside className="fixed inset-y-0 left-0 z-10 hidden w-60 flex-col border-r bg-background sm:flex">
         <DashboardSidebar />
       </aside>
-      <main className="flex-1 bg-secondary/10 p-4 md:p-8 overflow-y-auto h-screen">
-        {children}
-      </main>
+      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-60">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <Button size="icon" variant="outline" className="sm:hidden">
+                <PanelLeft className="h-5 w-5" />
+                <span className="sr-only">Toggle Menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="sm:max-w-xs" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <DashboardSidebar />
+            </SheetContent>
+          </Sheet>
+          <div className="sm:hidden">
+            <Link href="/" className="flex items-center gap-3">
+              <Image src="/logo.png" alt="SmartLabs Logo" width={32} height={32} className="rounded-lg" />
+              <span className="font-bold">SmartLabs</span>
+            </Link>
+          </div>
+        </header>
+        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 bg-muted/40">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
