@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Booking } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, Check, X, AlertTriangle } from 'lucide-react';
+import { Loader2, Eye, Check, X, AlertTriangle, ExternalLink, FileText } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AdminBookingsPage() {
@@ -143,51 +143,94 @@ export default function AdminBookingsPage() {
                               Review
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                               <DialogTitle>Booking Details</DialogTitle>
                             </DialogHeader>
-                            <div className="grid md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <h3 className="font-semibold">Course Details</h3>
-                                <p>Course: {booking.courseName}</p>
-                                <p>Lecturer: {booking.lecturerName}</p>
-                                <p>Date: {booking.date} @ {booking.time}</p>
-                                <p>Price: LKR {booking.price}</p>
-                              </div>
-                              <div className="space-y-2">
-                                <h3 className="font-semibold">Payment Receipt</h3>
-                                {booking.receiptUrl ? (
-                                  <div>
-                                    {booking.receiptType?.startsWith('image/') ? (
-                                      <div className="relative h-64 w-full border rounded-md overflow-hidden">
-                                        <Image 
-                                          src={booking.receiptUrl} 
-                                          alt="Receipt" 
-                                          fill 
-                                          className="object-contain"
-                                        />
-                                      </div>
-                                    ) : (
-                                      <div className="h-64 w-full border rounded-md flex flex-col items-center justify-center bg-secondary text-center p-4">
-                                        <p className="text-sm font-medium">Receipt Uploaded</p>
-                                        <p className="text-xs text-muted-foreground mb-2">
-                                          {booking.receiptType === 'application/pdf' ? 'PDF Document' : 'Unsupported file type'}
-                                        </p>
-                                        <a href={booking.receiptUrl} target="_blank" rel="noopener noreferrer">
-                                          <Button variant="link" size="sm">
-                                            View File
-                                          </Button>
-                                        </a>
-                                      </div>
-                                    )}
+                            <div className="grid md:grid-cols-2 gap-6 mt-4">
+                                <div>
+                                <h3 className="font-semibold mb-2">Booking & Student Details</h3>
+                                <Card className="bg-secondary/10 border-primary/20">
+                                <CardContent className="p-6 space-y-4">
+                                  <div className="flex justify-between items-center border-b pb-2">
+                                    <span className="font-semibold">Student:</span>
+                                    <span className="text-right">{booking.userName || 'Unknown'}<br/><span className="text-xs text-muted-foreground">{booking.userId}</span></span>
                                   </div>
+                                  <div className="flex justify-between items-center border-b pb-2">
+                                    <span className="font-semibold">Course:</span>
+                                    <span>{booking.courseName}</span>
+                                  </div>
+                                   <div className="flex justify-between items-center border-b pb-2">
+                                    <span className="font-semibold">Lecturer:</span>
+                                    <span>{booking.lecturerName}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center border-b pb-2">
+                                    <span className="font-semibold">Class Type:</span>
+                                    <span className="capitalize">{booking.classType || 'Online'}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center border-b pb-2">
+                                    <span className="font-semibold">Date & Time:</span>
+                                    <span>{booking.date} @ {booking.time}</span>
+                                  </div>
+                                   <div className="flex justify-between items-center border-b pb-2">
+                                      <span className="font-semibold">Booking Status:</span>
+                                      <Badge variant={getStatusVariant(booking.bookingStatus)} className={booking.bookingStatus === 'cancellation_requested' ? 'bg-yellow-400 text-yellow-900' : ''}>
+                                          {booking.bookingStatus.replace('_', ' ')}
+                                      </Badge>
+                                  </div>
+                                  <div className="flex justify-between items-center border-b pb-2">
+                                      <span className="font-semibold">Payment Status:</span>
+                                      <span className="capitalize">{booking.paymentStatus?.replace('_', ' ')}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-xl font-bold pt-2">
+                                    <span>Amount:</span>
+                                    <span className="text-primary">LKR {booking.price}</span>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                                </div>
+                                <div>
+                                <h3 className="font-semibold mb-2">Payment Receipt</h3>
+                                {booking.receiptUrl ? (
+                                    <div className="space-y-4">
+                                    {booking.receiptType?.startsWith('image/') ? (
+                                        <div className="relative w-full h-[400px] border rounded-lg overflow-hidden bg-black/5">
+                                        <Image 
+                                            src={booking.receiptUrl} 
+                                            alt="Receipt" 
+                                            fill 
+                                            className="object-contain"
+                                        />
+                                        </div>
+                                    ) : booking.receiptType === 'application/pdf' ? (
+                                        <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
+                                            <FileText className="w-16 h-16 text-red-500 mb-4" />
+                                            <p className="font-semibold">PDF Document</p>
+                                            <p className="text-sm">Click "Open Original" to view.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
+                                            <span className="text-4xl mb-2">📄</span>
+                                            <p>Receipt uploaded (unsupported preview)</p>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-end">
+                                        <a href={booking.receiptUrl} target="_blank" rel="noopener noreferrer">
+                                        <Button variant="secondary" size="sm">
+                                            <ExternalLink className="mr-2 h-4 w-4" /> Open Original
+                                        </Button>
+                                        </a>
+                                    </div>
+                                    </div>
                                 ) : (
-                                  <p className="text-muted-foreground">No receipt uploaded.</p>
+                                    <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
+                                    <span className="text-4xl mb-2">📄</span>
+                                    <p>No receipt uploaded</p>
+                                    </div>
                                 )}
-                              </div>
+                                </div>
                             </div>
-                            <DialogFooter className="gap-2 sm:justify-between">
+                            <DialogFooter className="gap-2 sm:justify-between pt-6">
                              {booking.bookingStatus === 'cancellation_requested' ? (
                                <div className="w-full flex justify-between">
                                   <Button variant="outline" onClick={() => handleUpdateStatus(booking.id, 'confirmed', 'paid')} disabled={isLoading}>Deny Request</Button>
