@@ -13,7 +13,7 @@ const TermsPage = () => {
             
             <div className="prose prose-lg max-w-none">
               <p>
-                Please read these Terms of Service ("Terms", "Terms of Service") carefully before using the SmartLabs website (the "Service") operated by SmartLabs ("us", "we", or "our").
+                Please read these Terms of Service ("Terms", "Terms of Service") carefully before using the smartlabs website (the "Service") operated by smartlabs ("us", "we", or "our").
               </p>
 
               <h2 className="font-display text-2xl font-bold mt-8 mb-4">1. Acceptance of Terms</h2>
@@ -33,12 +33,12 @@ const TermsPage = () => {
 
               <h2 className="font-display text-2xl font-bold mt-8 mb-4">4. User Conduct</h2>
               <p>
-                You agree not to use the Service for any unlawful purpose or any purpose prohibited under this clause. You agree not to use the Service in any way that could damage the Service, the services, or the general business of SmartLabs.
+                You agree not to use the Service for any unlawful purpose or any purpose prohibited under this clause. You agree not to use the Service in any way that could damage the Service, the services, or the general business of smartlabs.
               </p>
 
               <h2 className="font-display text-2xl font-bold mt-8 mb-4">5. Limitation of Liability</h2>
               <p>
-                In no event shall SmartLabs, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the Service.
+                In no event shall smartlabs, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any indirect, incidental, special, consequential or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the Service.
               </p>
 
               <h2 className="font-display text-2xl font-bold mt-8 mb-4">6. Governing Law</h2>

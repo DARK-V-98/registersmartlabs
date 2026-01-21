@@ -13,7 +13,7 @@ const PrivacyPage = () => {
             
             <div className="prose prose-lg max-w-none">
               <p>
-                SmartLabs ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and services.
+                smartlabs ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and services.
               </p>
               
               <h2 className="font-display text-2xl font-bold mt-8 mb-4">Information We Collect</h2>

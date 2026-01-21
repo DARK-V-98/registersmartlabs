@@ -57,8 +57,8 @@ export default function DashboardLayout({
           </Sheet>
           <div className="sm:hidden">
             <Link href="/" className="flex items-center gap-3">
-              <Image src="/logo.png" alt="SmartLabs Logo" width={32} height={32} className="rounded-lg" />
-              <span className="font-bold">SmartLabs</span>
+              <Image src="/logo.png" alt="smartlabs Logo" width={32} height={32} className="rounded-lg" />
+              <span className="font-bold">smartlabs</span>
             </Link>
           </div>
         </header>

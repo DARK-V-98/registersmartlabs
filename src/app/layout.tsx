@@ -3,7 +3,7 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: 'SmartLabs',
+  title: 'smartlabs',
   description: 'Your trusted partner for achieving excellence in English proficiency tests.',
 };
 

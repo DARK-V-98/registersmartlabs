@@ -62,7 +62,7 @@ const Signup = () => {
 
       toast({
         title: "Account Created",
-        description: "Welcome to SmartLabs!",
+        description: "Welcome to smartlabs!",
       });
       router.push("/dashboard");
     } catch (error: any) {
@@ -101,7 +101,7 @@ const Signup = () => {
 
       toast({
         title: "Signed In",
-        description: "Welcome to SmartLabs!",
+        description: "Welcome to smartlabs!",
       });
       router.push("/dashboard");
     } catch (error: any) {
@@ -128,7 +128,7 @@ const Signup = () => {
             >
               <div className="text-center mb-8">
                 <Link href="/" className="inline-flex items-center gap-3 mb-6">
-                  <Image src="/logo.png" alt="SmartLabs Logo" width={48} height={48} className="rounded-xl" />
+                  <Image src="/logo.png" alt="smartlabs Logo" width={48} height={48} className="rounded-xl" />
                 </Link>
                 <h1 className="font-display text-2xl font-bold mb-2">Create Account</h1>
                 <p className="text-muted-foreground">Start your journey to exam success</p>

@@ -10,8 +10,8 @@ const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-3">
-              <Image src="/logo.png" alt="SmartLabs Logo" width={40} height={40} className="rounded-xl" />
-              <span className="font-display font-bold text-xl">SmartLabs</span>
+              <Image src="/logo.png" alt="smartlabs Logo" width={40} height={40} className="rounded-xl" />
+              <span className="font-display font-bold text-xl">smartlabs</span>
             </Link>
             <p className="text-primary-foreground/80 leading-relaxed">
               Your trusted partner for achieving excellence in English proficiency tests. 
@@ -120,7 +120,7 @@ const Footer = () => {
 
         <div className="mt-12 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-primary-foreground/60 text-sm">
-            © {new Date().getFullYear()} SmartLabs. All rights reserved.
+            © {new Date().getFullYear()} smartlabs. All rights reserved.
           </p>
           <p className="text-primary-foreground/60 text-sm">
             Website Powered and Hosted by Esystemlk
