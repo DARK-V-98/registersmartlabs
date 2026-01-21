@@ -147,6 +147,31 @@
           }
         }
       }
+    },
+    "Message": {
+      "title": "Message",
+      "type": "object",
+      "description": "Represents a chat message within a booking.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The content of the message."
+        },
+        "senderId": {
+          "type": "string",
+          "description": "The UID of the user who sent the message."
+        },
+        "senderName": {
+          "type": "string",
+          "description": "The display name of the sender."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the message was sent."
+        }
+      },
+      "required": ["text", "senderId", "senderName", "createdAt"]
     }
   },
   "auth": {
@@ -207,6 +232,26 @@
         }
       },
       {
+        "path": "/bookings/{bookingId}/messages/{messageId}",
+        "definition": {
+          "entityName": "Message",
+          "schema": {
+            "$ref": "#/backend/entities/Message"
+          },
+          "description": "A subcollection for chat messages related to a specific booking. Accessible by the user and admins.",
+          "params": [
+            {
+              "name": "bookingId",
+              "description": "Unique identifier for the booking."
+            },
+            {
+              "name": "messageId",
+              "description": "Unique identifier for the message."
+            }
+          ]
+        }
+      },
+      {
         "path": "/settings/admin",
         "definition": {
           "entityName": "AdminSettings",
@@ -234,6 +279,6 @@
         }
       }
     ],
-    "reasoning": "The data structure is revised for administrative functionality. User-specific data remains in `/users/{userId}`. A top-level `/bookings` collection is introduced to allow admins to easily query and manage all enrollments, which is more efficient than nested subcollections. Security rules will grant admins broad access to `/bookings`, while users are restricted to their own documents. A single document at `/settings/admin` stores global configurations like payment details and disabled dates, making them easily accessible to the client-side while restricting write access to admins. A new `/schedules` collection will denormalize booking times to allow users to see availability without exposing other users' private data."
+    "reasoning": "The data structure is revised for administrative functionality. User-specific data remains in `/users/{userId}`. A top-level `/bookings` collection is introduced to allow admins to easily query and manage all enrollments, which is more efficient than nested subcollections. A `messages` subcollection has been added to each booking to support real-time chat. Security rules will grant admins broad access to `/bookings`, while users are restricted to their own documents. A single document at `/settings/admin` stores global configurations like payment details and disabled dates, making them easily accessible to the client-side while restricting write access to admins. A new `/schedules` collection will denormalize booking times to allow users to see availability without exposing other users' private data."
   }
 }

@@ -22,7 +22,7 @@ import { signOut } from "firebase/auth";
 const navLinks = [
   { path: "/", label: "Home" },
   { path: "/courses", label: "Courses" },
-  { path: "/booking", label: "Book a Class" },
+  { path: "/dashboard/book", label: "Book a Class" },
   { path: "/contact", label: "Contact" },
 ];
 
@@ -103,7 +103,7 @@ const Navbar = () => {
                     Main Site
                   </Button>
                 </a>
-                <Link href="/booking">
+                <Link href="/dashboard/book">
                   <Button className="btn-accent">
                     <Calendar className="w-4 h-4 mr-2" />
                     Book Now
@@ -185,7 +185,7 @@ const Navbar = () => {
                         Main Site
                       </Button>
                     </a>
-                    <Link href="/booking" onClick={() => setIsOpen(false)}>
+                    <Link href="/dashboard/book" onClick={() => setIsOpen(false)}>
                       <Button className="w-full btn-accent">
                         <Calendar className="w-4 h-4 mr-2" />
                         Book Now

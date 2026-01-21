@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useFirestore, useCollection, updateDocumentNonBlocking, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, doc, where } from 'firebase/firestore';
+import { useState, useRef, useEffect } from 'react';
+import { useFirestore, useCollection, updateDocumentNonBlocking, addDocumentNonBlocking, useMemoFirebase } from '@/firebase';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { collection, query, orderBy, doc, where, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -24,10 +26,83 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Booking } from '@/types';
+import { Booking, Message } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, Check, X, AlertTriangle, ExternalLink, FileText } from 'lucide-react';
+import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send } from 'lucide-react';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+
+function ChatInterface({ bookingId }: { bookingId: string }) {
+    const firestore = useFirestore();
+    const { profile } = useUserProfile(); // Admin's profile
+    const [newMessage, setNewMessage] = useState('');
+    const [isSending, setIsSending] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const messagesQuery = useMemoFirebase(() => {
+        if (!firestore || !bookingId) return null;
+        return query(collection(firestore, 'bookings', bookingId, 'messages'), orderBy('createdAt', 'asc'));
+    }, [firestore, bookingId]);
+    
+    const { data: messages } = useCollection<Message>(messagesQuery);
+    
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    const handleSendMessage = async () => {
+        if (!newMessage.trim() || !profile || !firestore) return;
+        setIsSending(true);
+        try {
+            await addDocumentNonBlocking(collection(firestore, 'bookings', bookingId, 'messages'), {
+                text: newMessage,
+                senderId: profile.id,
+                senderName: 'Admin Support', // Consistent name for admin
+                createdAt: Timestamp.now(),
+            });
+            setNewMessage('');
+        } catch (error) {
+            console.error("Error sending message:", error);
+        } finally {
+            setIsSending(false);
+        }
+    };
+    
+    return (
+        <div className="flex flex-col h-[500px]">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/50 rounded-lg">
+                {messages?.map(msg => (
+                    <div key={msg.id} className={cn("flex items-end gap-2", msg.senderName === 'Admin Support' ? 'justify-end' : 'justify-start')}>
+                        <div className={cn(
+                            "max-w-xs md:max-w-md p-3 rounded-2xl", 
+                            msg.senderName === 'Admin Support' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-background border rounded-bl-none'
+                        )}>
+                            <p className="text-sm">{msg.text}</p>
+                            <p className="text-xs opacity-70 mt-1">{msg.createdAt?.toDate ? format(msg.createdAt.toDate(), 'p') : ''}</p>
+                        </div>
+                    </div>
+                ))}
+                 {messages?.length === 0 && (
+                    <div className="text-center text-muted-foreground pt-10">No messages yet.</div>
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+            <div className="mt-4 flex gap-2">
+                <Input 
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    placeholder="Type a message..."
+                    disabled={isSending}
+                />
+                <Button onClick={handleSendMessage} disabled={isSending || !newMessage.trim()}>
+                    {isSending ? <Loader2 className="animate-spin" /> : <Send />}
+                </Button>
+            </div>
+        </div>
+    );
+}
 
 export default function AdminBookingsPage() {
   const firestore = useFirestore();
@@ -61,7 +136,8 @@ export default function AdminBookingsPage() {
         paymentStatus: paymentStatus
       });
       toast({ title: `Booking ${status}` });
-      setIsDialogOpen(false);
+      // Keep dialog open if you are just interacting, close on final actions.
+      // setIsDialogOpen(false); 
     } catch (error) {
       toast({ title: 'Error updating booking', variant: 'destructive' });
     } finally {
@@ -143,93 +219,102 @@ export default function AdminBookingsPage() {
                               Review
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                          <DialogContent className="max-w-4xl">
                             <DialogHeader>
-                              <DialogTitle>Booking Details</DialogTitle>
+                              <DialogTitle>Review Booking: {selectedBooking?.id}</DialogTitle>
                             </DialogHeader>
-                            <div className="grid md:grid-cols-2 gap-6 mt-4">
-                                <div>
-                                <h3 className="font-semibold mb-2">Booking & Student Details</h3>
-                                <Card className="bg-secondary/10 border-primary/20">
-                                <CardContent className="p-6 space-y-4">
-                                  <div className="flex justify-between items-center border-b pb-2">
-                                    <span className="font-semibold">Student:</span>
-                                    <span className="text-right">{booking.userName || 'Unknown'}<br/><span className="text-xs text-muted-foreground">{booking.userId}</span></span>
-                                  </div>
-                                  <div className="flex justify-between items-center border-b pb-2">
-                                    <span className="font-semibold">Course:</span>
-                                    <span>{booking.courseName}</span>
-                                  </div>
-                                   <div className="flex justify-between items-center border-b pb-2">
-                                    <span className="font-semibold">Lecturer:</span>
-                                    <span>{booking.lecturerName}</span>
-                                  </div>
-                                  <div className="flex justify-between items-center border-b pb-2">
-                                    <span className="font-semibold">Class Type:</span>
-                                    <span className="capitalize">{booking.classType || 'Online'}</span>
-                                  </div>
-                                  <div className="flex justify-between items-center border-b pb-2">
-                                    <span className="font-semibold">Date & Time:</span>
-                                    <span>{booking.date} @ {booking.time}</span>
-                                  </div>
-                                   <div className="flex justify-between items-center border-b pb-2">
-                                      <span className="font-semibold">Booking Status:</span>
-                                      <Badge variant={getStatusVariant(booking.bookingStatus)} className={booking.bookingStatus === 'cancellation_requested' ? 'bg-yellow-400 text-yellow-900' : ''}>
-                                          {booking.bookingStatus?.replace('_', ' ') || 'Unknown'}
-                                      </Badge>
-                                  </div>
-                                  <div className="flex justify-between items-center border-b pb-2">
-                                      <span className="font-semibold">Payment Status:</span>
-                                      <span className="capitalize">{booking.paymentStatus?.replace('_', ' ')}</span>
-                                  </div>
-                                  <div className="flex justify-between items-center text-xl font-bold pt-2">
-                                    <span>Amount:</span>
-                                    <span className="text-primary">LKR {booking.price}</span>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                                </div>
-                                <div>
-                                <h3 className="font-semibold mb-2">Payment Receipt</h3>
-                                {booking.receiptUrl ? (
-                                    <div className="space-y-4">
-                                    {booking.receiptType?.startsWith('image/') ? (
-                                        <div className="relative w-full h-[400px] border rounded-lg overflow-hidden bg-black/5">
-                                        <Image 
-                                            src={booking.receiptUrl} 
-                                            alt="Receipt" 
-                                            fill 
-                                            className="object-contain"
-                                        />
+                            {selectedBooking && (
+                                <Tabs defaultValue="details">
+                                <TabsList className="grid w-full grid-cols-3">
+                                    <TabsTrigger value="details">Details</TabsTrigger>
+                                    <TabsTrigger value="payment">Payment</TabsTrigger>
+                                    <TabsTrigger value="chat">Chat</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="details" className="pt-4">
+                                     <Card className="bg-secondary/10 border-primary/20">
+                                        <CardContent className="p-6 space-y-4">
+                                        <div className="flex justify-between items-center border-b pb-2">
+                                            <span className="font-semibold">Student:</span>
+                                            <span className="text-right">{booking.userName || 'Unknown'}<br/><span className="text-xs text-muted-foreground">{booking.userId}</span></span>
                                         </div>
-                                    ) : booking.receiptType === 'application/pdf' ? (
-                                        <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
-                                            <FileText className="w-16 h-16 text-red-500 mb-4" />
-                                            <p className="font-semibold">PDF Document</p>
-                                            <p className="text-sm">Click "Open Original" to view.</p>
+                                        <div className="flex justify-between items-center border-b pb-2">
+                                            <span className="font-semibold">Course:</span>
+                                            <span>{booking.courseName}</span>
                                         </div>
-                                    ) : (
-                                        <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
+                                        <div className="flex justify-between items-center border-b pb-2">
+                                            <span className="font-semibold">Lecturer:</span>
+                                            <span>{booking.lecturerName}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center border-b pb-2">
+                                            <span className="font-semibold">Class Type:</span>
+                                            <span className="capitalize">{booking.classType || 'Online'}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center border-b pb-2">
+                                            <span className="font-semibold">Date & Time:</span>
+                                            <span>{booking.date} @ {booking.time}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center border-b pb-2">
+                                            <span className="font-semibold">Booking Status:</span>
+                                            <Badge variant={getStatusVariant(booking.bookingStatus)} className={booking.bookingStatus === 'cancellation_requested' ? 'bg-yellow-400 text-yellow-900' : ''}>
+                                                {booking.bookingStatus?.replace('_', ' ') || 'Unknown'}
+                                            </Badge>
+                                        </div>
+                                        <div className="flex justify-between items-center border-b pb-2">
+                                            <span className="font-semibold">Payment Status:</span>
+                                            <span className="capitalize">{booking.paymentStatus?.replace('_', ' ')}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xl font-bold pt-2">
+                                            <span>Amount:</span>
+                                            <span className="text-primary">LKR {booking.price}</span>
+                                        </div>
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                                <TabsContent value="payment" className="pt-4">
+                                     <h3 className="font-semibold mb-2">Payment Receipt</h3>
+                                        {booking.receiptUrl ? (
+                                            <div className="space-y-4">
+                                            {booking.receiptType?.startsWith('image/') ? (
+                                                <div className="relative w-full h-[400px] border rounded-lg overflow-hidden bg-black/5">
+                                                <Image 
+                                                    src={booking.receiptUrl} 
+                                                    alt="Receipt" 
+                                                    fill 
+                                                    style={{ objectFit: 'contain' }}
+                                                />
+                                                </div>
+                                            ) : booking.receiptType === 'application/pdf' ? (
+                                                <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
+                                                    <FileText className="w-16 h-16 text-red-500 mb-4" />
+                                                    <p className="font-semibold">PDF Document</p>
+                                                    <p className="text-sm">Click "Open Original" to view.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
+                                                    <span className="text-4xl mb-2">📄</span>
+                                                    <p>Receipt uploaded (unsupported preview)</p>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-end">
+                                                <a href={booking.receiptUrl} target="_blank" rel="noopener noreferrer">
+                                                <Button variant="secondary" size="sm">
+                                                    <ExternalLink className="mr-2 h-4 w-4" /> Open Original
+                                                </Button>
+                                                </a>
+                                            </div>
+                                            </div>
+                                        ) : (
+                                            <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
                                             <span className="text-4xl mb-2">📄</span>
-                                            <p>Receipt uploaded (unsupported preview)</p>
-                                        </div>
-                                    )}
-                                    <div className="flex justify-end">
-                                        <a href={booking.receiptUrl} target="_blank" rel="noopener noreferrer">
-                                        <Button variant="secondary" size="sm">
-                                            <ExternalLink className="mr-2 h-4 w-4" /> Open Original
-                                        </Button>
-                                        </a>
-                                    </div>
-                                    </div>
-                                ) : (
-                                    <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
-                                    <span className="text-4xl mb-2">📄</span>
-                                    <p>No receipt uploaded</p>
-                                    </div>
-                                )}
-                                </div>
-                            </div>
+                                            <p>No receipt uploaded</p>
+                                            </div>
+                                        )}
+                                </TabsContent>
+                                <TabsContent value="chat" className="pt-4">
+                                    <ChatInterface bookingId={selectedBooking.id} />
+                                </TabsContent>
+                                </Tabs>
+                            )}
                             <DialogFooter className="gap-2 sm:justify-between pt-6">
                              {booking.bookingStatus === 'cancellation_requested' ? (
                                <div className="w-full flex justify-between">

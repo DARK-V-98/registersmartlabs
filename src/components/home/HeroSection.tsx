@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { Calendar, ArrowRight, Star, Users, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -40,7 +41,7 @@ const HeroSection = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Link href="/booking">
+              <Link href="/dashboard/book">
                 <Button size="lg" className="btn-accent text-lg px-8 py-6 group">
                   <Calendar className="w-5 h-5 mr-2" />
                   Book Your Class
@@ -77,101 +78,21 @@ const HeroSection = () => {
             </div>
           </motion.div>
 
-          {/* Right Content - Hero Image/Card */}
+          {/* Right Content - Hero Image */}
           <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative hidden lg:block"
+            className="relative hidden lg:flex justify-center items-center"
           >
-            <div className="relative">
-              {/* Main Card */}
-              <div className="glass-card rounded-3xl p-8 space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center">
-                    <Calendar className="w-8 h-8 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-display font-semibold text-xl">Easy Booking</h3>
-                    <p className="text-muted-foreground">Pick your date & time</p>
-                  </div>
-                </div>
-
-                {/* Mini Calendar Preview */}
-                <div className="bg-white rounded-2xl p-4 border border-border">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="font-semibold">January 2025</span>
-                    <div className="flex gap-2">
-                      <button className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
-                        ←
-                      </button>
-                      <button className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
-                        →
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-7 gap-2 text-center text-sm">
-                    {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
-                      <div key={i} className="text-muted-foreground font-medium py-1">
-                        {day}
-                      </div>
-                    ))}
-                    {[...Array(31)].map((_, i) => (
-                      <div
-                        key={i}
-                        className={`py-2 rounded-lg transition-all cursor-pointer ${
-                          i === 14
-                            ? "bg-accent text-accent-foreground font-semibold"
-                            : i === 15 || i === 16 || i === 20
-                            ? "bg-primary/10 text-primary"
-                            : "hover:bg-secondary"
-                        }`}
-                      >
-                        {i + 1}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Available slots indicator */}
-                <div className="flex items-center gap-4 p-4 bg-success/10 rounded-xl">
-                  <div className="w-3 h-3 rounded-full bg-success animate-pulse" />
-                  <span className="text-sm font-medium text-success">12 slots available this week</span>
-                </div>
-              </div>
-
-              {/* Floating elements */}
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute -top-6 -right-6 bg-white rounded-2xl p-4 shadow-xl"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
-                    <span className="text-lg">🎯</span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">PTE Academic</p>
-                    <p className="text-xs text-muted-foreground">Score 79+</p>
-                  </div>
-                </div>
-              </motion.div>
-
-              <motion.div
-                animate={{ y: [0, 10, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute -bottom-4 -left-6 bg-white rounded-2xl p-4 shadow-xl"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">A</div>
-                    <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-medium">B</div>
-                    <div className="w-8 h-8 rounded-full bg-success text-success-foreground flex items-center justify-center text-sm font-medium">C</div>
-                  </div>
-                  <span className="text-sm font-medium">+2.5k enrolled</span>
-                </div>
-              </motion.div>
-            </div>
+             <Image 
+                src="https://picsum.photos/seed/studying/600/600"
+                alt="A student learning online"
+                width={500}
+                height={500}
+                className="rounded-3xl shadow-xl"
+                data-ai-hint="student learning"
+             />
           </motion.div>
         </div>
       </div>

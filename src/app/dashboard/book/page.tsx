@@ -199,8 +199,8 @@ export default function BookingPage() {
         console.error('Failed to send email notification:', emailError);
       }
 
-      toast({ title: 'Booking submitted successfully!', description: 'Waiting for admin confirmation.' });
-      router.push('/dashboard/bookings');
+      toast({ title: 'Booking submitted successfully!', description: 'Your booking is pending confirmation.' });
+      router.push(`/dashboard/bookings/${bookingId}`);
 
     } catch (error) {
       console.error(error);

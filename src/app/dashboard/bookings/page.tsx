@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, useDoc } from '@/firebase';
-import { collection, query, where, orderBy, doc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -12,21 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, History, X, Info } from 'lucide-react';
-import { Booking, Course } from '@/types';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
+import { Loader2, MessageSquare } from 'lucide-react';
+import { Booking } from '@/types';
+import Link from 'next/link';
 
 const getStatusColor = (status?: string) => {
   switch (status) {
@@ -44,35 +34,9 @@ const getStatusLabel = (status?: string) => {
   return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
-const CourseDetailsDialog = ({ courseId }: { courseId: string }) => {
-    const firestore = useFirestore();
-    const courseRef = useMemoFirebase(() => firestore ? doc(firestore, 'courses', courseId) : null, [firestore, courseId]);
-    const { data: course, isLoading } = useDoc<Course>(courseRef);
-
-    return (
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>{isLoading ? 'Loading...' : course?.name}</DialogTitle>
-            </DialogHeader>
-            {isLoading ? <Loader2 className="animate-spin" /> :
-                course ? (
-                    <div className="space-y-4">
-                        <p><strong>Price:</strong> LKR {course.price.toLocaleString()}</p>
-                        <p><strong>Status:</strong> <span className="capitalize">{course.status}</span></p>
-                        {/* Add more course details here if needed */}
-                    </div>
-                ) : <p>Course details not found.</p>
-            }
-        </DialogContent>
-    );
-};
-
 export default function MyBookingsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const router = useRouter();
-  const { toast } = useToast();
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -85,56 +49,11 @@ export default function MyBookingsPage() {
 
   const { data: bookings, isLoading } = useCollection<Booking>(bookingsQuery);
 
-  const generateInvoice = (booking: Booking) => {
-    const doc = new jsPDF();
-    
-    doc.text("Booking Invoice", 14, 20);
-    doc.setFontSize(12);
-    doc.text(`Booking ID: ${booking.id}`, 14, 30);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 36);
-
-    (doc as any).autoTable({
-      startY: 45,
-      head: [['Description', 'Details']],
-      body: [
-        ['Student', booking.userName || 'N/A'],
-        ['Course', booking.courseName || 'N/A'],
-        ['Lecturer', booking.lecturerName || 'N/A'],
-        ['Class Date', booking.date],
-        ['Class Time', booking.time],
-        ['Class Type', booking.classType || 'Online'],
-        ['Status', getStatusLabel(booking.bookingStatus)],
-        ['Price', `LKR ${booking.price?.toLocaleString() || '0'}`],
-      ],
-      theme: 'grid',
-    });
-
-    doc.save(`invoice-${booking.id}.pdf`);
-  };
-
-  const handleRebook = (booking: Booking) => {
-    router.push(`/dashboard/book?courseId=${booking.courseId}&lecturerId=${booking.lecturerId}`);
-  };
-
-  const handleCancellationRequest = async (bookingId: string) => {
-    if (!firestore) return;
-    try {
-      await updateDocumentNonBlocking(doc(firestore, 'bookings', bookingId), {
-        bookingStatus: 'cancellation_requested'
-      });
-      toast({ title: 'Cancellation Requested', description: 'An admin will review your request shortly.' });
-    } catch (error) {
-      toast({ title: 'Error', description: 'Could not submit cancellation request.', variant: 'destructive' });
-    }
-  };
-
-
   if (isLoading) {
     return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
   }
 
   return (
-    <Dialog onOpenChange={(open) => !open && setSelectedCourseId(null)}>
       <div className="space-y-6">
         <h2 className="text-2xl font-bold">My Bookings</h2>
         
@@ -154,51 +73,32 @@ export default function MyBookingsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {bookings?.map((booking) => {
-                    const isUpcoming = new Date(`${booking.date} ${booking.time}`) > new Date();
-                    return (
-                        <TableRow key={booking.id}>
-                            <TableCell className="font-medium">
-                                <DialogTrigger asChild>
-                                    <button onClick={() => setSelectedCourseId(booking.courseId)} className="hover:underline flex items-center gap-2">
-                                        {booking.courseName || 'Unknown Course'} <Info className="w-3 h-3 text-muted-foreground" />
-                                    </button>
-                                </DialogTrigger>
-                                <div className="text-xs text-muted-foreground capitalize">{booking.classType || 'online'} Class</div>
-                            </TableCell>
-                            <TableCell>{booking.lecturerName || 'Unknown Lecturer'}</TableCell>
-                            <TableCell>
-                                {booking.date} <br/> 
-                                <span className="text-xs text-muted-foreground">{booking.time}</span>
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant="outline" className={getStatusColor(booking.bookingStatus)}>
-                                {getStatusLabel(booking.bookingStatus)}
-                                </Badge>
-                            </TableCell>
-                            <TableCell className="text-right space-x-2">
-                                {!isUpcoming && (
-                                    <Button variant="outline" size="sm" onClick={() => handleRebook(booking)}>
-                                        <History className="w-4 h-4 mr-2" />
-                                        Book Again
-                                    </Button>
-                                )}
-                                {isUpcoming && booking.bookingStatus === 'confirmed' && (
-                                     <Button variant="destructive" size="sm" onClick={() => handleCancellationRequest(booking.id)}>
-                                        <X className="w-4 h-4 mr-2" />
-                                        Cancel
-                                    </Button>
-                                )}
-                                {booking.paymentStatus === 'paid' && booking.bookingStatus === 'confirmed' && (
-                                    <Button variant="secondary" size="sm" onClick={() => generateInvoice(booking)}>
-                                        <Download className="w-4 h-4 mr-2" />
-                                        Invoice
-                                    </Button>
-                                )}
-                            </TableCell>
-                        </TableRow>
-                    )
-                })}
+                {bookings?.map((booking) => (
+                    <TableRow key={booking.id}>
+                        <TableCell className="font-medium">
+                            {booking.courseName || 'Unknown Course'}
+                            <div className="text-xs text-muted-foreground capitalize">{booking.classType || 'online'} Class</div>
+                        </TableCell>
+                        <TableCell>{booking.lecturerName || 'Unknown Lecturer'}</TableCell>
+                        <TableCell>
+                            {booking.date} <br/> 
+                            <span className="text-xs text-muted-foreground">{booking.time}</span>
+                        </TableCell>
+                        <TableCell>
+                            <Badge variant="outline" className={getStatusColor(booking.bookingStatus)}>
+                            {getStatusLabel(booking.bookingStatus)}
+                            </Badge>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                           <Link href={`/dashboard/bookings/${booking.id}`}>
+                               <Button variant="outline" size="sm">
+                                   <MessageSquare className="w-4 h-4 mr-2" />
+                                   View Details & Chat
+                               </Button>
+                           </Link>
+                        </TableCell>
+                    </TableRow>
+                ))}
                 {bookings?.length === 0 && (
                     <TableRow>
                     <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
@@ -211,7 +111,5 @@ export default function MyBookingsPage() {
           </CardContent>
         </Card>
       </div>
-      {selectedCourseId && <CourseDetailsDialog courseId={selectedCourseId} />}
-    </Dialog>
   );
 }

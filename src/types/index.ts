@@ -52,3 +52,11 @@ export interface Booking {
   receiptType?: string;
   createdAt?: any; // Firestore Timestamp
 }
+
+export interface Message {
+    id: string;
+    text: string;
+    senderId: string;
+    senderName: string;
+    createdAt: any; // Firestore Timestamp
+}
