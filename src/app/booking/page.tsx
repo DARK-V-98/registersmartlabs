@@ -175,6 +175,7 @@ function BookingContent() {
           price: null,
           paymentMethod: 'Pending (WhatsApp)',
           receiptUrl: null,
+          recipients: settings?.notificationEmails,
         }),
       });
     } catch (emailError) {

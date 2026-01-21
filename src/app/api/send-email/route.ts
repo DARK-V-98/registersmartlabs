@@ -31,9 +31,13 @@ export async function POST(req: Request) {
     });
 
     // Email content
+    const toEmails = Array.isArray(recipients) && recipients.length > 0 
+      ? recipients.join(', ') 
+      : (process.env.ADMIN_EMAIL || process.env.EMAIL_USER);
+
     const mailOptions = {
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL || process.env.EMAIL_USER, // Send notification to admin
+      to: toEmails, // Send notification to admin(s)
       subject: `New Booking: ${courseName} - ${userName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

@@ -1,6 +1,7 @@
 
 'use client';
 import { useState, useEffect } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ interface AdminSettings {
   bankDetails?: string;
   whatsappNumber?: string;
   disabledDates?: string[];
+  notificationEmails?: string[];
 }
 
 const AdminSettingsPage = () => {
@@ -27,14 +29,34 @@ const AdminSettingsPage = () => {
   const [bankDetails, setBankDetails] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [disabledDates, setDisabledDates] = useState<Date[]>([]);
+  const [notificationEmails, setNotificationEmails] = useState<string[]>([]);
+  const [newEmail, setNewEmail] = useState('');
 
   useEffect(() => {
     if (settings) {
       setBankDetails(settings.bankDetails || '');
       setWhatsappNumber(settings.whatsappNumber || '');
       setDisabledDates((settings.disabledDates || []).map(dateStr => new Date(dateStr)));
+      setNotificationEmails(settings.notificationEmails || []);
     }
   }, [settings]);
+
+  const handleAddEmail = () => {
+    if (!newEmail || !newEmail.includes('@')) {
+        toast({ title: "Invalid Email", description: "Please enter a valid email address.", variant: "destructive" });
+        return;
+    }
+    if (notificationEmails.includes(newEmail)) {
+        toast({ title: "Duplicate Email", description: "This email is already in the list.", variant: "destructive" });
+        return;
+    }
+    setNotificationEmails([...notificationEmails, newEmail]);
+    setNewEmail('');
+  };
+
+  const handleRemoveEmail = (email: string) => {
+    setNotificationEmails(notificationEmails.filter(e => e !== email));
+  };
 
   const handleSave = () => {
     if (!firestore) return;
@@ -43,6 +65,7 @@ const AdminSettingsPage = () => {
       bankDetails,
       whatsappNumber,
       disabledDates: disabledDates.map(date => format(date, 'yyyy-MM-dd')),
+      notificationEmails,
     };
 
     setDocumentNonBlocking(doc(firestore, 'settings', 'admin'), newSettings, { merge: true });
@@ -87,6 +110,35 @@ const AdminSettingsPage = () => {
         </div>
       </div>
       
+      <div className="bg-white p-6 rounded-2xl border border-border space-y-6">
+        <h3 className="font-semibold text-lg">Notification Emails</h3>
+        <p className="text-sm text-muted-foreground">Add email addresses that should receive booking notifications.</p>
+        
+        <div className="flex gap-2">
+            <Input 
+                placeholder="admin@example.com" 
+                value={newEmail} 
+                onChange={(e) => setNewEmail(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && handleAddEmail()}
+            />
+            <Button onClick={handleAddEmail} size="icon"><Plus className="h-4 w-4" /></Button>
+        </div>
+
+        <div className="space-y-2">
+            {notificationEmails.map(email => (
+                <div key={email} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
+                    <span className="text-sm">{email}</span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleRemoveEmail(email)}>
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+            ))}
+            {notificationEmails.length === 0 && (
+                <p className="text-sm text-muted-foreground italic text-center py-4">No notification emails added. Notifications will be sent to the main admin email.</p>
+            )}
+        </div>
+      </div>
+
       <div className="bg-white p-6 rounded-2xl border border-border space-y-6">
         <h3 className="font-semibold text-lg">Manage Availability</h3>
         <p className="text-sm text-muted-foreground">Select dates that should be unavailable for booking across all courses. Click a date to add or remove it.</p>
