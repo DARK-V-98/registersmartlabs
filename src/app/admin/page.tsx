@@ -1,53 +1,62 @@
+
 'use client';
 
 import { useState } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
-import { collection, query, orderBy, doc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, query, orderBy, doc, arrayUnion, where } from 'firebase/firestore';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Check, X, FileText } from 'lucide-react';
-import type { Timestamp } from 'firebase/firestore';
-import { format } from 'date-fns';
-import { useUserProfile } from '@/hooks/useUserProfile';
-import { Booking } from '@/types';
+import { Calendar, Clock, Check, X, Users, IndianRupee, BookCheck, Hourglass, Loader2 } from 'lucide-react';
+import { format, isThisMonth, parseISO } from 'date-fns';
+import { Booking, UserProfile } from '@/types';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+const getStatusLabel = (status?: string) => {
+  if (!status) return 'Unknown';
+  return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
 
-const AdminBookingsPage = () => {
+const AdminDashboardPage = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
-  const { profile, isLoading: isProfileLoading } = useUserProfile();
 
   const bookingsQuery = useMemoFirebase(() => {
-    if (!firestore || !profile || profile.role !== 'admin') return null;
-    return query(collection(firestore, 'bookings'), orderBy('date', 'asc'));
-  }, [firestore, profile]);
+    if (!firestore) return null;
+    // Order by creation date to see newest bookings first
+    return query(collection(firestore, 'bookings'), orderBy('createdAt', 'desc'));
+  }, [firestore]);
+
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'users'));
+  }, [firestore]);
 
   const { data: bookings, isLoading: isBookingsLoading } = useCollection<Booking>(bookingsQuery);
+  const { data: users, isLoading: isUsersLoading } = useCollection<UserProfile>(usersQuery);
   
-  const isLoading = isProfileLoading || isBookingsLoading;
+  const isLoading = isBookingsLoading || isUsersLoading;
 
   const handleStatusChange = (booking: Booking, newStatus: 'confirmed' | 'rejected') => {
     if (!firestore) return;
     const bookingRef = doc(firestore, 'bookings', booking.id);
     
-    // @ts-ignore - Booking status type mismatch between local/global? No, using global.
-    updateDocumentNonBlocking(bookingRef, { bookingStatus: newStatus });
+    updateDocumentNonBlocking(bookingRef, { 
+      bookingStatus: newStatus,
+      paymentStatus: newStatus === 'confirmed' ? 'paid' : 'rejected' 
+    });
 
     if (newStatus === 'confirmed') {
-      const dateString = booking.date; // It's a string YYYY-MM-DD
-      // Construct composite ID matching creation logic: courseId_lecturerId_date
+      const dateString = booking.date;
       const scheduleId = `${booking.courseId}_${booking.lecturerId}_${dateString}`;
       const scheduleRef = doc(firestore, 'schedules', scheduleId);
       setDocumentNonBlocking(scheduleRef, {
         bookedSlots: arrayUnion(booking.time)
       }, { merge: true });
     }
-    // Note: No arrayRemove for 'rejected' here, as this UI only acts on 'pending' items,
-    // which wouldn't be in the schedule yet. Cancellation of confirmed items is handled elsewhere.
-
+    
     toast({
       title: 'Booking Updated',
       description: `Booking has been ${newStatus}.`,
@@ -55,83 +64,120 @@ const AdminBookingsPage = () => {
   };
 
   const filteredBookings = bookings?.filter(b => {
-    if (filter === 'pending') return b.bookingStatus === 'payment_pending' || b.bookingStatus === 'created'; // payment_pending is the main one
+    if (filter === 'pending') return b.bookingStatus === 'payment_pending';
     return true;
   });
 
+  const stats = useMemo(() => {
+    if (!bookings || !users) return { totalRevenue: 0, pendingCount: 0, totalUsers: 0, confirmedCount: 0 };
+    
+    const confirmedBookings = bookings.filter(b => b.bookingStatus === 'confirmed');
+
+    return {
+      totalRevenue: confirmedBookings.reduce((acc, b) => acc + (b.price || 0), 0),
+      pendingCount: bookings.filter(b => b.bookingStatus === 'payment_pending').length,
+      totalUsers: users.length,
+      confirmedCount: confirmedBookings.length,
+    };
+  }, [bookings, users]);
+
+  const statCards = [
+    { title: 'Total Revenue', value: `LKR ${stats.totalRevenue.toLocaleString()}`, icon: IndianRupee },
+    { title: 'Pending Bookings', value: stats.pendingCount, icon: Hourglass },
+    { title: 'Total Users', value: stats.totalUsers, icon: Users },
+    { title: 'Confirmed Classes', value: stats.confirmedCount, icon: BookCheck },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-2xl font-bold">Manage Bookings</h2>
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium">Show All</span>
-          <Switch
-            checked={filter === 'pending'}
-            onCheckedChange={(checked) => setFilter(checked ? 'pending' : 'all')}
-            aria-label="Toggle pending bookings filter"
-          />
-          <span className="text-sm font-medium text-primary">Show Pending Only</span>
-        </div>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+        <p className="text-muted-foreground mt-2">An overview of your platform's activity.</p>
       </div>
 
-      {isLoading && <p>Loading bookings...</p>}
-
-      {!isLoading && (
-        <div className="space-y-4">
-          {filteredBookings && filteredBookings.length > 0 ? (
-            filteredBookings.map((booking) => (
-              <div key={booking.id} className="bg-white p-6 rounded-2xl border border-border transition-shadow hover:shadow-md">
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2 space-y-4">
-                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center text-2xl">
-                            🎓
-                        </div>
-                        <div>
-                            <h3 className="font-semibold text-lg">{booking.courseName}</h3>
-                            <p className="text-sm text-muted-foreground">User: {booking.userName || booking.userId}</p>
-                        </div>
-                     </div>
-                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {booking.date}</span>
-                      <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {booking.time}</span>
-                      <span className="flex items-center gap-1.5 capitalize"><FileText className="w-4 h-4" /> {booking.classType || 'online'}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-start md:items-end justify-between gap-4">
-                    <Badge className={
-                        booking.bookingStatus === 'confirmed' ? 'bg-success/10 text-success' :
-                        booking.bookingStatus === 'payment_pending' ? 'bg-amber-100 text-amber-800' :
-                        booking.bookingStatus === 'rejected' || booking.bookingStatus === 'cancelled' ? 'bg-destructive/10 text-destructive' :
-                        'bg-secondary'
-                    }>{booking.bookingStatus.replace('_', ' ')}</Badge>
-                    
-                    {booking.bookingStatus === 'payment_pending' && (
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="text-success hover:border-success hover:bg-success/5 border-green-200" onClick={() => handleStatusChange(booking, 'confirmed')}>
-                          <Check className="w-4 h-4 mr-2"/> Accept
-                        </Button>
-                        <Button size="sm" variant="outline" className="text-destructive hover:border-destructive hover:bg-destructive/5 border-red-200" onClick={() => handleStatusChange(booking, 'rejected')}>
-                          <X className="w-4 h-4 mr-2"/> Reject
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-12 bg-secondary/50 rounded-2xl">
-              <p className="text-muted-foreground">
-                {filter === 'pending' ? 'No pending bookings.' : 'No bookings found.'}
-              </p>
-            </div>
-          )}
+      {isLoading ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+           {Array(4).fill(0).map((_, i) => <Card key={i}><CardHeader><CardTitle><Loader2 className="animate-spin" /></CardTitle></CardHeader><CardContent><p>Loading...</p></CardContent></Card>)}
+        </div>
+      ) : (
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {statCards.map(card => (
+              <Card key={card.title}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                  <card.icon className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{card.value}</div>
+                </CardContent>
+              </Card>
+            ))}
         </div>
       )}
+
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">Manage Bookings</h2>
+            <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">Show All</span>
+            <Switch
+                checked={filter === 'pending'}
+                onCheckedChange={(checked) => setFilter(checked ? 'pending' : 'all')}
+                aria-label="Toggle pending bookings filter"
+            />
+            <span className="text-sm font-medium text-primary">Show Pending Only</span>
+            </div>
+        </div>
+
+        {isLoading ? (
+            <div className="text-center py-12"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>
+        ) : (
+            <div className="space-y-4">
+            {filteredBookings && filteredBookings.length > 0 ? (
+                filteredBookings.map((booking) => (
+                <Card key={booking.id} className="transition-shadow hover:shadow-md">
+                    <CardContent className="p-4 grid md:grid-cols-3 lg:grid-cols-5 gap-4 items-center">
+                        <div className="lg:col-span-2 space-y-1">
+                            <p className="font-semibold">{booking.courseName}</p>
+                            <p className="text-sm text-muted-foreground">Student: {booking.userName || booking.userId}</p>
+                        </div>
+                         <div className="text-sm text-muted-foreground">
+                            <p className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /> {booking.date}</p>
+                            <p className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {booking.time}</p>
+                        </div>
+                        <div className="flex flex-col items-start gap-2">
+                             <Badge variant={booking.bookingStatus === 'payment_pending' ? 'secondary' : 'outline'}>
+                                {getStatusLabel(booking.bookingStatus)}
+                            </Badge>
+                             <p className="font-bold text-sm">LKR {booking.price?.toLocaleString()}</p>
+                        </div>
+                        <div className="flex gap-2 justify-start md:justify-end">
+                             {booking.bookingStatus === 'payment_pending' && (
+                                <>
+                                    <Button size="sm" variant="outline" className="text-destructive hover:border-destructive hover:bg-destructive/5 border-red-200" onClick={() => handleStatusChange(booking, 'rejected')}>
+                                        <X className="w-4 h-4 mr-2"/> Reject
+                                    </Button>
+                                    <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleStatusChange(booking, 'confirmed')}>
+                                        <Check className="w-4 h-4 mr-2"/> Accept
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+                ))
+            ) : (
+                <div className="text-center py-12 bg-secondary/50 rounded-2xl">
+                <p className="text-muted-foreground">
+                    {filter === 'pending' ? 'No pending bookings to review.' : 'No bookings found.'}
+                </p>
+                </div>
+            )}
+            </div>
+        )}
+      </div>
     </div>
   );
 };
 
-export default AdminBookingsPage;
+export default AdminDashboardPage;
