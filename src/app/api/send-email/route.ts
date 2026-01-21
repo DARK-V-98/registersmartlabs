@@ -22,105 +22,103 @@ export async function POST(req: Request) {
       receiptUrl,
     } = body;
 
-    // Initialize Firebase Admin (using Client SDK in Node environment) to fetch settings
+    // --- Step 1: Initialize Firebase to access Firestore ---
+    // This ensures we can connect to the database to fetch notification settings.
     const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     const db = getFirestore(app);
     
-    // Fetch admin settings for notification emails
-    let recipients: string[] = [];
+    // --- Step 2: Fetch Notification Emails from Firestore ---
+    // The list of emails is stored in the 'admin' document within the 'settings' collection.
+    const recipients: string[] = [];
     try {
         const settingsRef = doc(db, 'settings', 'admin');
         const settingsSnap = await getDoc(settingsRef);
+
         if (settingsSnap.exists()) {
-            const data = settingsSnap.data();
-            if (data.notificationEmails && Array.isArray(data.notificationEmails)) {
-                recipients = data.notificationEmails;
+            const settingsData = settingsSnap.data();
+            // Ensure the 'notificationEmails' field exists and is an array.
+            if (settingsData.notificationEmails && Array.isArray(settingsData.notificationEmails)) {
+                recipients.push(...settingsData.notificationEmails);
+                console.log(`Found ${settingsData.notificationEmails.length} recipient(s) in Firestore.`);
             }
+        } else {
+            console.log("Admin settings document not found. No recipients fetched from Firestore.");
         }
     } catch (error) {
-        console.error('Error fetching admin settings:', error);
-        // Continue with default admin email if fetching fails
+        console.error('Error fetching admin settings from Firestore:', error);
+        // We can continue and fall back to the default email even if this fails.
     }
 
-    // Create a transporter using SMTP settings from environment variables
+    // --- Step 3: Configure and Send Email ---
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+      secure: process.env.SMTP_SECURE === 'true', // Use 'true' for port 465, 'false' for 587
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.EMAIL_USER, // Your Gmail address from environment variables
+        pass: process.env.EMAIL_PASS, // Your Gmail App Password from environment variables
       },
     });
 
-    // Email content
-    // Combine fetched recipients with env ADMIN_EMAIL if available, removing duplicates
+    // Combine recipients from Firestore with a fallback email from environment variables.
+    // A Set is used to prevent sending duplicate emails.
     const defaultAdminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
-    const allRecipients = new Set([...recipients]);
+    const allRecipients = new Set(recipients);
     if (defaultAdminEmail) {
         allRecipients.add(defaultAdminEmail);
     }
     
-    const toEmails = Array.from(allRecipients).join(', ');
+    const toEmails = Array.from(allRecipients);
 
-    if (!toEmails) {
+    if (toEmails.length === 0) {
+        console.error('No recipient emails are configured in Firestore or environment variables.');
         throw new Error('No recipient emails configured');
     }
 
     const mailOptions = {
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: toEmails, // Send notification to all admins
+      from: `"${process.env.EMAIL_FROM_NAME || 'smartlabs'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: toEmails.join(', '), // Nodemailer can send to multiple addresses in a comma-separated string
       subject: `New Booking: ${courseName} - ${userName}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">New Booking Received</h2>
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px;">
-            <p><strong>Booking ID:</strong> ${bookingId}</p>
-            <hr style="border: 1px solid #ddd;" />
-            
-            <h3 style="color: #555;">Student Details</h3>
-            <p><strong>Name:</strong> ${userName}</p>
-            <p><strong>Email:</strong> ${userEmail}</p>
-            <p><strong>User ID:</strong> ${userId}</p>
-            
-            <h3 style="color: #555;">Booking Information</h3>
-            <p><strong>Course:</strong> ${courseName}</p>
-            <p><strong>Type:</strong> ${classType}</p>
-            <p><strong>Lecturer:</strong> ${lecturerName}</p>
-            <p><strong>Date:</strong> ${date}</p>
-            <p><strong>Time:</strong> ${time}</p>
-            <p><strong>Price:</strong> ${price ? `Rs. ${price}` : '-'}</p>
-            
-            <h3 style="color: #555;">Payment Details</h3>
-            <p><strong>Method:</strong> ${paymentMethod}</p>
-            ${receiptUrl ? `<p><strong>Receipt:</strong> <a href="${receiptUrl}">View Receipt</a></p>` : ''}
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: #f7f7f7; padding: 20px; text-align: center;">
+            <h2 style="color: #333; margin: 0;">New Booking Received</h2>
           </div>
-          <p style="color: #888; font-size: 12px; margin-top: 20px;">
-            This email was automatically generated by the SmartLabs Booking System.
-          </p>
+          <div style="padding: 20px;">
+            <p>A new class booking requires your attention. Here are the details:</p>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                <tbody style="border-top: 1px solid #eee; border-bottom: 1px solid #eee;">
+                    <tr><td style="padding: 10px; font-weight: bold; background-color: #fdfdfd;">Booking ID:</td><td style="padding: 10px;">${bookingId}</td></tr>
+                    <tr><td style="padding: 10px; font-weight: bold; background-color: #fdfdfd;">Student Name:</td><td style="padding: 10px;">${userName}</td></tr>
+                    <tr><td style="padding: 10px; font-weight: bold; background-color: #fdfdfd;">Student Email:</td><td style="padding: 10px;">${userEmail}</td></tr>
+                    <tr><td style="padding: 10px; font-weight: bold; background-color: #fdfdfd;">User ID:</td><td style="padding: 10px;">${userId}</td></tr>
+                    <tr><td style="padding: 10px; font-weight: bold; background-color: #fdfdfd;">Course:</td><td style="padding: 10px;">${courseName}</td></tr>
+                    <tr><td style="padding: 10px; font-weight: bold; background-color: #fdfdfd;">Lecturer:</td><td style="padding: 10px;">${lecturerName}</td></tr>
+                    <tr><td style="padding: 10px; font-weight: bold; background-color: #fdfdfd;">Class Type:</td><td style="padding: 10px;">${classType}</td></tr>
+                    <tr><td style="padding: 10px; font-weight: bold; background-color: #fdfdfd;">Date & Time:</td><td style="padding: 10px;">${date} at ${time}</td></tr>
+                    <tr><td style="padding: 10px; font-weight: bold; background-color: #fdfdfd;">Price:</td><td style="padding: 10px;">LKR ${price ? price.toLocaleString() : '-'}</td></tr>
+                    <tr><td style="padding: 10px; font-weight: bold; background-color: #fdfdfd;">Payment Method:</td><td style="padding: 10px;">${paymentMethod}</td></tr>
+                </tbody>
+            </table>
+            ${receiptUrl ? `<div style="margin-top: 20px; text-align: center;"><a href="${receiptUrl}" style="background-color: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; display: inline-block;">View Uploaded Receipt</a></div>` : ''}
+          </div>
+          <div style="background-color: #f7f7f7; padding: 15px; text-align: center; color: #888; font-size: 12px;">
+            This is an automated notification from the smartlabs Booking System.
+          </div>
         </div>
       `,
     };
 
-    // Verify connection configuration
-    await new Promise((resolve, reject) => {
-      transporter.verify(function (error, success) {
-        if (error) {
-          console.error('SMTP Connection Error:', error);
-          reject(error);
-        } else {
-          console.log('Server is ready to take our messages');
-          resolve(success);
-        }
-      });
-    });
-
+    // Verify SMTP connection
+    await transporter.verify();
+    
     // Send email
     await transporter.sendMail(mailOptions);
+    console.log('Booking notification sent successfully to:', toEmails.join(', '));
 
     return NextResponse.json({ message: 'Email notification sent successfully' }, { status: 200 });
   } catch (error: any) {
-    console.error('Error sending email:', error);
+    console.error('Failed to send email notification:', error);
     return NextResponse.json(
       { error: 'Failed to send email notification', details: error.message },
       { status: 500 }

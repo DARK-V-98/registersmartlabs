@@ -13,7 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star } from 'lucide-react';
+import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Course, Lecturer, Schedule } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -26,6 +26,10 @@ const STEPS = [
   { id: 4, title: 'Date & Time' },
   { id: 5, title: 'Payment' },
 ];
+
+interface AdminSettings {
+  bankDetails?: string;
+}
 
 export default function BookingPage() {
   const { user, profile } = useUserProfile();
@@ -50,6 +54,9 @@ export default function BookingPage() {
   const { data: courses } = useCollection<Course>(
     query(collection(firestore, 'courses'), where('status', '==', 'active'))
   );
+
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'admin') : null, [firestore]);
+  const { data: settings } = useDoc<AdminSettings>(settingsRef);
 
   const lecturersQuery = useMemoFirebase(() => {
     if (!firestore || !selectedCourse) return null;
@@ -155,43 +162,41 @@ export default function BookingPage() {
       
       const bookingId = docRef.id;
 
+      let downloadUrl = '';
       if (storage) {
         const fileExtension = receiptFile.name.split('.').pop();
         const storageRef = ref(storage, `payments/${user.uid}/${bookingId}.${fileExtension}`);
         await uploadBytes(storageRef, receiptFile);
-        const downloadUrl = await getDownloadURL(storageRef);
+        downloadUrl = await getDownloadURL(storageRef);
 
         await updateDoc(doc(firestore, 'bookings', bookingId), {
             receiptUrl: downloadUrl,
             receiptType: receiptFile.type
         });
-
-        // Send Email Notification
-        try {
-          await fetch('/api/send-email', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              bookingId,
-              userId: user.uid,
-              userName: profile?.name || user.displayName || user.email?.split('@')[0] || 'Student',
-              userEmail: user.email,
-              courseName: selectedCourse.name,
-              classType,
-              lecturerName: selectedLecturer.name,
-              date: format(selectedDate, 'yyyy-MM-dd'),
-              time: selectedTime,
-              price: selectedCourse.price,
-              paymentMethod: 'Bank Transfer',
-              receiptUrl: downloadUrl,
-              recipients: settings?.notificationEmails,
-            }),
-          });
-        } catch (emailError) {
-          console.error('Failed to send email notification:', emailError);
-        }
+      }
+      
+      // Send Email Notification
+      try {
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookingId,
+            userId: user.uid,
+            userName: profile?.name || user.displayName || user.email?.split('@')[0] || 'Student',
+            userEmail: user.email,
+            courseName: selectedCourse.name,
+            classType,
+            lecturerName: selectedLecturer.name,
+            date: format(selectedDate, 'yyyy-MM-dd'),
+            time: selectedTime,
+            price: selectedCourse.price,
+            paymentMethod: 'Bank Transfer',
+            receiptUrl: downloadUrl,
+          }),
+        });
+      } catch (emailError) {
+        console.error('Failed to send email notification:', emailError);
       }
 
       toast({ title: 'Booking submitted successfully!', description: 'Waiting for admin confirmation.' });
@@ -393,12 +398,18 @@ export default function BookingPage() {
                 </Card>
 
                 <div className="space-y-4">
+                  <div className="bg-red-50 p-4 rounded-lg border border-red-200 text-red-800">
+                    <h4 className="font-bold flex items-center gap-2"><AlertTriangle className="w-5 h-5"/>Important Payment Instructions</h4>
+                    <ul className="list-disc pl-5 mt-2 text-sm space-y-1">
+                      <li>Use your <span className="font-bold">Full Name</span> as the payment reference.</li>
+                      <li>Upload a <span className="font-bold">clear, full-sized screenshot</span> of the receipt.</li>
+                      <li>Unclear receipts may be rejected, requiring you to re-upload.</li>
+                    </ul>
+                  </div>
+
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                     <h4 className="font-semibold text-blue-900 mb-2 flex items-center"><CreditCard className="w-4 h-4 mr-2"/> Bank Transfer Details</h4>
-                    <p className="text-sm text-blue-800">Bank: Commercial Bank</p>
-                    <p className="text-sm text-blue-800">Account No: 1234567890</p>
-                    <p className="text-sm text-blue-800">Account Name: smartlabs Institute</p>
-                    <p className="text-sm text-blue-800 mt-2">Please transfer the exact amount and upload the receipt below.</p>
+                    <p className="text-sm text-blue-800 whitespace-pre-wrap">{settings?.bankDetails}</p>
                   </div>
 
                   <div className="space-y-2">
