@@ -1,3 +1,4 @@
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -62,4 +63,12 @@ export interface Message {
     senderId: string;
     senderName: string;
     createdAt: any; // Firestore Timestamp
+}
+
+export interface AdminSettings {
+  bankDetails?: string;
+  whatsappNumber?: string;
+  disabledDates?: string[];
+  notificationEmails?: string[];
+  physicalClassesEnabled?: boolean;
 }

@@ -11,13 +11,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-
-interface AdminSettings {
-  bankDetails?: string;
-  whatsappNumber?: string;
-  disabledDates?: string[];
-  notificationEmails?: string[];
-}
+import { AdminSettings } from '@/types';
+import { Switch } from '@/components/ui/switch';
 
 const AdminSettingsPage = () => {
   const firestore = useFirestore();
@@ -31,6 +26,7 @@ const AdminSettingsPage = () => {
   const [disabledDates, setDisabledDates] = useState<Date[]>([]);
   const [notificationEmails, setNotificationEmails] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState('');
+  const [physicalClassesEnabled, setPhysicalClassesEnabled] = useState(true);
 
   useEffect(() => {
     if (settings) {
@@ -38,6 +34,7 @@ const AdminSettingsPage = () => {
       setWhatsappNumber(settings.whatsappNumber || '');
       setDisabledDates((settings.disabledDates || []).map(dateStr => new Date(dateStr)));
       setNotificationEmails(settings.notificationEmails || []);
+      setPhysicalClassesEnabled(settings.physicalClassesEnabled ?? true);
     }
   }, [settings]);
 
@@ -61,11 +58,12 @@ const AdminSettingsPage = () => {
   const handleSave = () => {
     if (!firestore) return;
     
-    const newSettings = {
+    const newSettings: AdminSettings = {
       bankDetails,
       whatsappNumber,
       disabledDates: disabledDates.map(date => format(date, 'yyyy-MM-dd')),
       notificationEmails,
+      physicalClassesEnabled,
     };
 
     setDocumentNonBlocking(doc(firestore, 'settings', 'admin'), newSettings, { merge: true });
@@ -141,7 +139,18 @@ const AdminSettingsPage = () => {
 
       <div className="bg-white p-6 rounded-2xl border border-border space-y-6">
         <h3 className="font-semibold text-lg">Manage Availability</h3>
-        <p className="text-sm text-muted-foreground">Select dates that should be unavailable for booking across all courses. Click a date to add or remove it.</p>
+         <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border">
+            <div>
+                <Label htmlFor="physical-classes-switch" className="font-medium">Enable Physical Classes</Label>
+                <p className="text-sm text-muted-foreground">Allow users to book in-person physical classes.</p>
+            </div>
+            <Switch
+                id="physical-classes-switch"
+                checked={physicalClassesEnabled}
+                onCheckedChange={setPhysicalClassesEnabled}
+            />
+        </div>
+        <p className="text-sm text-muted-foreground pt-4 border-t">Select dates that should be unavailable for booking across all courses. Click a date to add or remove it.</p>
         <div className="flex justify-center">
             <Calendar
                 mode="multiple"

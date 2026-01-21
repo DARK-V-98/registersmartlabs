@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useStorage, updateDocumentNonBlocking, useDoc } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
@@ -15,7 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
-import { Course, Lecturer, Schedule } from '@/types';
+import { Course, Lecturer, Schedule, AdminSettings } from '@/types';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -27,10 +28,6 @@ const STEPS = [
   { id: 5, title: 'Payment' },
 ];
 
-interface AdminSettings {
-  bankDetails?: string;
-  whatsappNumber?: string;
-}
 
 export default function BookingPage() {
   const { user, profile } = useUserProfile();
@@ -65,6 +62,12 @@ export default function BookingPage() {
   }, [firestore, selectedCourse]);
 
   const { data: allLecturers } = useCollection<Lecturer>(lecturersQuery);
+  
+  useEffect(() => {
+      if (settings?.physicalClassesEnabled === false && classType === 'physical') {
+          setClassType('online');
+      }
+  }, [settings, classType]);
 
   const availableLecturers = useMemo(() => {
     if (!selectedCourse || !allLecturers) return [];
@@ -90,6 +93,17 @@ export default function BookingPage() {
     if (!schedules) return [];
     return schedules.map(s => new Date(s.date));
   }, [schedules]);
+  
+  const isDateFullyBooked = (date: Date): boolean => {
+    if (!schedules || !date) return false;
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const scheduleForDate = schedules.find(s => s.date === dateStr);
+    if (!scheduleForDate || !scheduleForDate.timeSlots || scheduleForDate.timeSlots.length === 0) {
+        return false;
+    }
+    const availableSlots = scheduleForDate.timeSlots.filter(t => !(scheduleForDate.bookedSlots || []).includes(t));
+    return availableSlots.length === 0;
+  };
 
   const availableTimeSlots = useMemo(() => {
     if (!selectedDate || !schedules) return [];
@@ -253,14 +267,21 @@ export default function BookingPage() {
                   </Label>
                 </div>
                 <div>
-                  <RadioGroupItem value="physical" id="physical" className="peer sr-only" />
+                  <RadioGroupItem value="physical" id="physical" className="peer sr-only" disabled={settings?.physicalClassesEnabled === false} />
                   <Label
                     htmlFor="physical"
-                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                    className={cn(
+                        "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4",
+                        "peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary",
+                        settings?.physicalClassesEnabled === false 
+                            ? "cursor-not-allowed opacity-50" 
+                            : "cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                    )}
                   >
                     <span className="text-3xl mb-2">🏫</span>
                     <span className="font-semibold">Physical Class</span>
                     <span className="font-bold text-primary">LKR {selectedCourse?.pricePhysical.toLocaleString()}</span>
+                    {settings?.physicalClassesEnabled === false && <span className="text-xs text-destructive mt-1">(Currently unavailable)</span>}
                   </Label>
                 </div>
               </RadioGroup>
@@ -320,7 +341,7 @@ export default function BookingPage() {
                     disabled={(date) => {
                         const dateStr = format(date, 'yyyy-MM-dd');
                         const hasSchedule = availableDates.some(d => format(d, 'yyyy-MM-dd') === dateStr);
-                        return date < new Date(new Date().setHours(0,0,0,0)) || !hasSchedule;
+                        return date < new Date(new Date().setHours(0,0,0,0)) || !hasSchedule || isDateFullyBooked(date);
                     }}
                     initialFocus
                     className="rounded-md border shadow"
