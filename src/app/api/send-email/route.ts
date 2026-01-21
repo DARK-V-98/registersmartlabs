@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { firebaseConfig } from '@/firebase/config';
 
 export async function POST(req: Request) {
   try {
@@ -19,6 +22,26 @@ export async function POST(req: Request) {
       receiptUrl,
     } = body;
 
+    // Initialize Firebase Admin (using Client SDK in Node environment) to fetch settings
+    const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    
+    // Fetch admin settings for notification emails
+    let recipients: string[] = [];
+    try {
+        const settingsRef = doc(db, 'settings', 'admin');
+        const settingsSnap = await getDoc(settingsRef);
+        if (settingsSnap.exists()) {
+            const data = settingsSnap.data();
+            if (data.notificationEmails && Array.isArray(data.notificationEmails)) {
+                recipients = data.notificationEmails;
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching admin settings:', error);
+        // Continue with default admin email if fetching fails
+    }
+
     // Create a transporter using SMTP settings from environment variables
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -31,13 +54,22 @@ export async function POST(req: Request) {
     });
 
     // Email content
-    const toEmails = Array.isArray(recipients) && recipients.length > 0 
-      ? recipients.join(', ') 
-      : (process.env.ADMIN_EMAIL || process.env.EMAIL_USER);
+    // Combine fetched recipients with env ADMIN_EMAIL if available, removing duplicates
+    const defaultAdminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+    const allRecipients = new Set([...recipients]);
+    if (defaultAdminEmail) {
+        allRecipients.add(defaultAdminEmail);
+    }
+    
+    const toEmails = Array.from(allRecipients).join(', ');
+
+    if (!toEmails) {
+        throw new Error('No recipient emails configured');
+    }
 
     const mailOptions = {
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: toEmails, // Send notification to admin(s)
+      to: toEmails, // Send notification to all admins
       subject: `New Booking: ${courseName} - ${userName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
