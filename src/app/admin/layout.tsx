@@ -17,6 +17,7 @@ import {
   LayoutGrid,
   Presentation,
   PanelLeft,
+  Home,
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -98,7 +99,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <AdminNav />
             </SheetContent>
           </Sheet>
-          <div className="w-full flex-1">{/* Can add search or other header items here */}</div>
+          <div className="w-full flex-1" />
+          <Link href="/">
+            <Button variant="outline">
+              <Home className="mr-2 h-4 w-4" />
+              Back to Site
+            </Button>
+          </Link>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">{children}</main>
       </div>

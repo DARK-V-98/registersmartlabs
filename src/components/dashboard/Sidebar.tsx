@@ -9,7 +9,8 @@ import {
   CalendarCheck, 
   User, 
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/firebase/provider';
@@ -90,7 +91,13 @@ export function DashboardSidebar() {
           )}
         </nav>
       </div>
-      <div className="mt-auto">
+      <div className="mt-auto space-y-1">
+        <Link href="/">
+          <Button variant="ghost" className="w-full justify-start">
+            <Home className="mr-2 h-4 w-4" />
+            Back to Site
+          </Button>
+        </Link>
         <Button variant="ghost" className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50" onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           Logout
