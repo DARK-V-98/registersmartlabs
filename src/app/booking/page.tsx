@@ -137,11 +137,14 @@ function BookingContent() {
   const handleConfirmBooking = async () => {
     if (!user || !firestore || !selectedDate || !selectedTime) return;
 
+    const selectedCourseObj = courses.find(c => c.id === selectedCourse);
+    
     const enrollmentData = {
       userId: user.uid,
+      userName: user.displayName || user.email?.split('@')[0] || 'Student',
       courseId: selectedCourse,
-      courseName: courses.find(c => c.id === selectedCourse)?.name,
-      courseIcon: courses.find(c => c.id === selectedCourse)?.icon,
+      courseName: selectedCourseObj?.name || 'Unknown Course',
+      courseIcon: selectedCourseObj?.icon || '🎓',
       date: selectedDate,
       time: selectedTime,
       classType: classType,
@@ -150,8 +153,34 @@ function BookingContent() {
     };
 
     const collectionRef = collection(firestore, `bookings`);
-    await addDocumentNonBlocking(collectionRef, enrollmentData);
+    const docRef = await addDocumentNonBlocking(collectionRef, enrollmentData);
     
+    // Send Email Notification
+    try {
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingId: docRef?.id,
+          userId: user.uid,
+          userName: user.displayName || user.email?.split('@')[0] || 'Student',
+          userEmail: user.email,
+          courseName: selectedCourseObj?.name || 'Unknown Course',
+          classType,
+          lecturerName: 'Any Available',
+          date: format(selectedDate, 'yyyy-MM-dd'),
+          time: selectedTime,
+          price: null,
+          paymentMethod: 'Pending (WhatsApp)',
+          receiptUrl: null,
+        }),
+      });
+    } catch (emailError) {
+      console.error('Failed to send email notification:', emailError);
+    }
+
     setStep(2);
   };
 

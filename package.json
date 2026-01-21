@@ -53,6 +53,7 @@
     "lucide-react": "^0.363.0",
     "next": "14.2.35",
     "next-themes": "^0.3.0",
+    "nodemailer": "^7.0.12",
     "react": "^18.2.0",
     "react-day-picker": "^8.10.0",
     "react-dom": "^18.2.0",
@@ -67,9 +68,12 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.30",
+    "@types/nodemailer": "^7.0.5",
     "@types/prop-types": "^15.7.15",
     "@types/react": "^18.2.79",
     "@types/react-dom": "^18.2.25",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "16.1.4",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"

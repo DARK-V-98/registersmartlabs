@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useAuth, useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase/provider';
+import { useAuth, useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';

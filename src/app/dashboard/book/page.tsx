@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useStorage, updateDocumentNonBlocking, useUserProfile } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useStorage, updateDocumentNonBlocking } from '@/firebase';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
@@ -134,7 +135,7 @@ export default function BookingPage() {
     try {
       const bookingData = {
         userId: user.uid,
-        userName: profile.name,
+        userName: profile?.name || user.displayName || user.email?.split('@')[0] || 'Student',
         courseId: selectedCourse.id,
         courseName: selectedCourse.name,
         lecturerId: selectedLecturer.id,
@@ -164,6 +165,32 @@ export default function BookingPage() {
             receiptUrl: downloadUrl,
             receiptType: receiptFile.type
         });
+
+        // Send Email Notification
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              bookingId,
+              userId: user.uid,
+              userName: profile?.name || user.displayName || user.email?.split('@')[0] || 'Student',
+              userEmail: user.email,
+              courseName: selectedCourse.name,
+              classType,
+              lecturerName: selectedLecturer.name,
+              date: format(selectedDate, 'yyyy-MM-dd'),
+              time: selectedTime,
+              price: selectedCourse.price,
+              paymentMethod: 'Bank Transfer',
+              receiptUrl: downloadUrl,
+            }),
+          });
+        } catch (emailError) {
+          console.error('Failed to send email notification:', emailError);
+        }
       }
 
       toast({ title: 'Booking submitted successfully!', description: 'Waiting for admin confirmation.' });
