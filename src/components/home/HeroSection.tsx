@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import Image from "next/image";
 import { Calendar, ArrowRight, Star, Users, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -78,21 +77,23 @@ const HeroSection = () => {
             </div>
           </motion.div>
 
-          {/* Right Content - Hero Image */}
+          {/* Right Content - Hero Video */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative hidden lg:flex justify-center items-center"
           >
-             <Image 
-                src="https://picsum.photos/seed/studying/600/600"
-                alt="A student learning online"
-                width={500}
-                height={500}
-                className="rounded-3xl shadow-xl"
-                data-ai-hint="student learning"
-             />
+             <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="rounded-3xl shadow-xl w-full h-auto max-w-[500px]"
+            >
+              <source src="/rn.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
           </motion.div>
         </div>
       </div>
