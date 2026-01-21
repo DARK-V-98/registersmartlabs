@@ -45,7 +45,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <nav className="flex items-center justify-between h-20">
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="SmartLabs Logo" width={40} height={40} className="rounded-xl" />
+            <Image src="/logo.png" alt="smartlabs Logo" width={40} height={40} className="rounded-xl" />
           </Link>
 
           <div className="hidden md:flex items-center gap-8">

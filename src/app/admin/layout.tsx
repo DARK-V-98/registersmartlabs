@@ -37,7 +37,7 @@ function AdminNav() {
   return (
     <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
       <div className="flex items-center gap-3 px-3 py-4 mb-4">
-        <Image src="/logo.png" alt="SmartLabs Logo" width={32} height={32} className="rounded-lg" />
+        <Image src="/logo.png" alt="smartlabs Logo" width={32} height={32} className="rounded-lg" />
         <h2 className="text-xl font-bold tracking-tight">Admin Panel</h2>
       </div>
       {navLinks.map((link) => (
