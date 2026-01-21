@@ -1,6 +1,7 @@
 'use client';
 
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import {
   Table,
@@ -29,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 export default function AdminUsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { profile: adminProfile } = useUserProfile();
 
   const usersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -102,20 +104,28 @@ export default function AdminUsersPage() {
                     <TableCell className="text-right">
                        <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
+                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={user.id === adminProfile?.id}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'admin' })}>Make Admin</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'student' })}>Make Student</DropdownMenuItem>
+                          
+                          {adminProfile?.role === 'developer' && (
+                             <>
+                               <DropdownMenuSeparator />
+                               <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'developer' })}>Make Developer</DropdownMenuItem>
+                               <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'admin' })}>Make Admin</DropdownMenuItem>
+                               <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'student' })}>Make Student</DropdownMenuItem>
+                             </>
+                          )}
+
                           <DropdownMenuSeparator />
                            <DropdownMenuItem
                             className="text-yellow-600 focus:text-yellow-700"
-                            onClick={() => handleUpdateUser(user.id, { status: 'suspended' })}>
+                            onClick={() => handleUpdateUser(user.id, { status: 'suspended' })}
+                            disabled={user.role === 'developer'}>
                             Suspend User
                            </DropdownMenuItem>
                           <DropdownMenuItem
