@@ -70,7 +70,7 @@ function ChatInterface({ bookingId }: { bookingId: string }) {
     };
     
     return (
-        <div className="flex flex-col h-[500px]">
+        <div className="flex flex-col h-[400px] lg:h-[500px]">
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/50 rounded-lg">
                 {messages?.map(msg => (
                     <div key={msg.id} className={cn("flex items-end gap-2", msg.senderName === 'Admin Support' ? 'justify-end' : 'justify-start')}>
@@ -219,7 +219,7 @@ export default function AdminBookingsPage() {
                               Review
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-4xl">
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                               <DialogTitle>Review Booking: {selectedBooking?.id}</DialogTitle>
                             </DialogHeader>
@@ -275,12 +275,12 @@ export default function AdminBookingsPage() {
                                         {booking.receiptUrl ? (
                                             <div className="space-y-4">
                                             {booking.receiptType?.startsWith('image/') ? (
-                                                <div className="relative w-full h-[400px] border rounded-lg overflow-hidden bg-black/5">
+                                                <div className="relative w-full h-[300px] lg:h-[400px] border rounded-lg overflow-hidden bg-black/5">
                                                 <Image 
                                                     src={booking.receiptUrl} 
                                                     alt="Receipt" 
                                                     fill 
-                                                    style={{ objectFit: 'contain' }}
+                                                    className="object-contain"
                                                 />
                                                 </div>
                                             ) : booking.receiptType === 'application/pdf' ? (
