@@ -149,7 +149,7 @@ export default function DashboardOverview() {
                             booking.bookingStatus === 'payment_pending' ? 'border-orange-200 bg-orange-50 text-orange-700' : 
                             'border-gray-200 bg-gray-50 text-gray-700'
                          }`}>
-                            {booking.bookingStatus.replace('_', ' ')}
+                            {booking.bookingStatus?.replace('_', ' ') || 'Unknown'}
                          </span>
                     </div>
                 </div>

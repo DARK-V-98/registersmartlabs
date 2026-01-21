@@ -28,7 +28,7 @@ import 'jspdf-autotable';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
-const getStatusColor = (status: string) => {
+const getStatusColor = (status?: string) => {
   switch (status) {
     case 'confirmed': return 'bg-green-100 text-green-800 border-green-200';
     case 'payment_pending': return 'bg-orange-100 text-orange-800 border-orange-200';
@@ -39,7 +39,8 @@ const getStatusColor = (status: string) => {
   }
 };
 
-const getStatusLabel = (status: string) => {
+const getStatusLabel = (status?: string) => {
+  if (!status) return 'Unknown';
   return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
@@ -77,17 +78,12 @@ export default function MyBookingsPage() {
     if (!user || !firestore) return null;
     return query(
       collection(firestore, 'bookings'),
-      where('userId', '==', user.uid)
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
     );
   }, [user, firestore]);
 
-  const { data: bookingsRaw, isLoading } = useCollection<Booking>(bookingsQuery);
-
-  const bookings = bookingsRaw?.sort((a, b) => {
-    const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime();
-    const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt).getTime();
-    return timeB - timeA;
-  });
+  const { data: bookings, isLoading } = useCollection<Booking>(bookingsQuery);
 
   const generateInvoice = (booking: Booking) => {
     const doc = new jsPDF();

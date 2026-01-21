@@ -69,7 +69,7 @@ export default function AdminBookingsPage() {
     }
   };
 
-  const getStatusVariant = (status: Booking['bookingStatus']) => {
+  const getStatusVariant = (status?: Booking['bookingStatus']) => {
     switch (status) {
       case 'confirmed': return 'default';
       case 'payment_pending': return 'secondary';
@@ -127,7 +127,7 @@ export default function AdminBookingsPage() {
                           variant={getStatusVariant(booking.bookingStatus)}
                           className={booking.bookingStatus === 'cancellation_requested' ? 'bg-yellow-400 text-yellow-900' : ''}
                         >
-                          {booking.bookingStatus.replace('_', ' ')}
+                          {booking.bookingStatus?.replace('_', ' ') || 'Unknown'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -175,7 +175,7 @@ export default function AdminBookingsPage() {
                                    <div className="flex justify-between items-center border-b pb-2">
                                       <span className="font-semibold">Booking Status:</span>
                                       <Badge variant={getStatusVariant(booking.bookingStatus)} className={booking.bookingStatus === 'cancellation_requested' ? 'bg-yellow-400 text-yellow-900' : ''}>
-                                          {booking.bookingStatus.replace('_', ' ')}
+                                          {booking.bookingStatus?.replace('_', ' ') || 'Unknown'}
                                       </Badge>
                                   </div>
                                   <div className="flex justify-between items-center border-b pb-2">
