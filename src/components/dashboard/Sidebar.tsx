@@ -13,10 +13,13 @@ import {
   Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/firebase/provider';
+import { Badge } from '@/components/ui/badge';
+import { useAuth, useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase/provider';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { collection, query, where } from 'firebase/firestore';
+import { Booking } from '@/types';
 
 const sidebarItems = [
   {
@@ -33,6 +36,7 @@ const sidebarItems = [
     title: 'My Bookings',
     href: '/dashboard/bookings',
     icon: CalendarCheck,
+    notificationKey: 'pending_payment',
   },
   {
     title: 'Profile',
@@ -41,11 +45,32 @@ const sidebarItems = [
   },
 ];
 
+const useBookingNotifications = () => {
+    const { user } = useUser();
+    const firestore = useFirestore();
+
+    const pendingBookingsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        return query(
+            collection(firestore, 'bookings'),
+            where('userId', '==', user.uid),
+            where('bookingStatus', '==', 'payment_pending')
+        );
+    }, [user, firestore]);
+
+    const { data: pendingBookings } = useCollection<Booking>(pendingBookingsQuery);
+
+    return {
+        pendingPaymentCount: pendingBookings?.length || 0,
+    };
+};
+
 export function DashboardSidebar() {
   const pathname = usePathname();
   const auth = useAuth();
   const router = useRouter();
   const { profile } = useUserProfile();
+  const { pendingPaymentCount } = useBookingNotifications();
 
   const handleLogout = async () => {
     if (auth) {
@@ -76,6 +101,11 @@ export function DashboardSidebar() {
                 >
                   <Icon className="mr-2 h-4 w-4" />
                   <span>{item.title}</span>
+                   {item.notificationKey === 'pending_payment' && pendingPaymentCount > 0 && (
+                      <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
+                        {pendingPaymentCount}
+                      </Badge>
+                    )}
                 </span>
               </Link>
             );

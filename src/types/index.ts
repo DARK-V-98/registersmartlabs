@@ -5,6 +5,8 @@ export interface UserProfile {
   role: 'student' | 'admin' | 'developer';
   status?: 'active' | 'suspended';
   createdAt?: any;
+  favoriteLecturers?: string[];
+  phoneNumber?: string;
 }
 
 export interface Course {
@@ -44,8 +46,8 @@ export interface Booking {
   time: string;
   price?: number;
   classType?: 'online' | 'physical'; // Added per user requirement
-  paymentStatus: 'pending' | 'confirmed' | 'rejected';
-  bookingStatus: 'created' | 'payment_pending' | 'confirmed' | 'rejected' | 'cancelled';
+  paymentStatus: 'pending' | 'paid' | 'rejected' | 'failed';
+  bookingStatus: 'created' | 'payment_pending' | 'confirmed' | 'rejected' | 'cancelled' | 'cancellation_requested';
   receiptUrl?: string;
   receiptType?: string;
   createdAt?: any; // Firestore Timestamp

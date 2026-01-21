@@ -20,19 +20,20 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogClose
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Booking } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, Check, X } from 'lucide-react';
+import { Loader2, Eye, Check, X, AlertTriangle } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AdminBookingsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
 
@@ -47,7 +48,8 @@ export default function AdminBookingsPage() {
     if (activeTab === 'all') return true;
     if (activeTab === 'pending') return b.bookingStatus === 'payment_pending';
     if (activeTab === 'confirmed') return b.bookingStatus === 'confirmed';
-    if (activeTab === 'rejected') return b.bookingStatus === 'rejected';
+    if (activeTab === 'rejected') return b.bookingStatus === 'rejected' || b.bookingStatus === 'cancelled';
+    if (activeTab === 'requests') return b.bookingStatus === 'cancellation_requested';
     return true;
   });
 
@@ -59,7 +61,7 @@ export default function AdminBookingsPage() {
         paymentStatus: paymentStatus
       });
       toast({ title: `Booking ${status}` });
-      setIsReceiptOpen(false);
+      setIsDialogOpen(false);
     } catch (error) {
       toast({ title: 'Error updating booking', variant: 'destructive' });
     } finally {
@@ -67,16 +69,28 @@ export default function AdminBookingsPage() {
     }
   };
 
+  const getStatusVariant = (status: Booking['bookingStatus']) => {
+    switch (status) {
+      case 'confirmed': return 'default';
+      case 'payment_pending': return 'secondary';
+      case 'cancellation_requested': return 'default'; // yellow
+      case 'cancelled':
+      case 'rejected': return 'destructive';
+      default: return 'outline';
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Bookings Management</h2>
 
       <Tabs defaultValue="all" onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="all">All Bookings</TabsTrigger>
           <TabsTrigger value="pending">Payment Pending</TabsTrigger>
           <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
+          <TabsTrigger value="rejected">Rejected/Cancelled</TabsTrigger>
         </TabsList>
 
         <Card className="mt-4">
@@ -98,8 +112,8 @@ export default function AdminBookingsPage() {
                   {filteredBookings?.map((booking) => (
                     <TableRow key={booking.id}>
                       <TableCell>
-                         <div className="font-medium">{booking.userId}</div>
-                         {/* We need to fetch user name or store it in booking. Stored in booking is better. */}
+                         <div className="font-medium">{booking.userName}</div>
+                         <div className="text-xs text-muted-foreground">{booking.userId}</div>
                       </TableCell>
                       <TableCell>
                         <div>{booking.courseName}</div>
@@ -109,22 +123,23 @@ export default function AdminBookingsPage() {
                         {booking.date} <br/> {booking.time}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={
-                          booking.bookingStatus === 'confirmed' ? 'default' : 
-                          booking.bookingStatus === 'payment_pending' ? 'secondary' : 
-                          'destructive'
-                        }>
-                          {booking.bookingStatus}
+                        <Badge 
+                          variant={getStatusVariant(booking.bookingStatus)}
+                          className={booking.bookingStatus === 'cancellation_requested' ? 'bg-yellow-400 text-yellow-900' : ''}
+                        >
+                          {booking.bookingStatus.replace('_', ' ')}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Dialog open={isReceiptOpen && selectedBooking?.id === booking.id} onOpenChange={(open) => {
-                          setIsReceiptOpen(open);
+                        <Dialog open={isDialogOpen && selectedBooking?.id === booking.id} onOpenChange={(open) => {
+                          setIsDialogOpen(open);
                           if (!open) setSelectedBooking(null);
-                          else setSelectedBooking(booking);
                         }}>
                           <DialogTrigger asChild>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedBooking(booking)}>
+                            <Button variant="ghost" size="sm" onClick={() => {
+                                setSelectedBooking(booking);
+                                setIsDialogOpen(true);
+                            }}>
                               Review
                             </Button>
                           </DialogTrigger>
@@ -173,20 +188,29 @@ export default function AdminBookingsPage() {
                               </div>
                             </div>
                             <DialogFooter className="gap-2 sm:justify-between">
-                              <Button 
-                                variant="destructive" 
-                                onClick={() => handleUpdateStatus(booking.id, 'rejected', 'rejected')}
-                                disabled={isLoading}
-                              >
-                                <X className="w-4 h-4 mr-2" /> Reject
-                              </Button>
-                              <Button 
-                                className="bg-green-600 hover:bg-green-700" 
-                                onClick={() => handleUpdateStatus(booking.id, 'confirmed', 'confirmed')}
-                                disabled={isLoading}
-                              >
-                                <Check className="w-4 h-4 mr-2" /> Confirm Payment
-                              </Button>
+                             {booking.bookingStatus === 'cancellation_requested' ? (
+                               <div className="w-full flex justify-between">
+                                  <Button variant="outline" onClick={() => handleUpdateStatus(booking.id, 'confirmed', 'paid')} disabled={isLoading}>Deny Request</Button>
+                                  <Button variant="destructive" onClick={() => handleUpdateStatus(booking.id, 'cancelled', 'rejected')} disabled={isLoading}><AlertTriangle className="w-4 h-4 mr-2"/>Approve Cancellation</Button>
+                               </div>
+                             ) : (
+                                <>
+                                  <Button 
+                                    variant="destructive" 
+                                    onClick={() => handleUpdateStatus(booking.id, 'rejected', 'rejected')}
+                                    disabled={isLoading}
+                                  >
+                                    <X className="w-4 h-4 mr-2" /> Reject
+                                  </Button>
+                                  <Button 
+                                    className="bg-green-600 hover:bg-green-700" 
+                                    onClick={() => handleUpdateStatus(booking.id, 'confirmed', 'paid')}
+                                    disabled={isLoading || booking.bookingStatus === 'confirmed'}
+                                  >
+                                    <Check className="w-4 h-4 mr-2" /> Confirm Payment
+                                  </Button>
+                                </>
+                             )}
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
@@ -195,7 +219,7 @@ export default function AdminBookingsPage() {
                   ))}
                   {filteredBookings?.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">No bookings found.</TableCell>
+                      <TableCell colSpan={5} className="text-center py-8">No bookings found for this tab.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>

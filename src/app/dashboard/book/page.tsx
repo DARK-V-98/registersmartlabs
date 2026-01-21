@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useFirestore, useCollection, useUser, useMemoFirebase, addDocumentNonBlocking, useStorage } from '@/firebase';
-import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useStorage, updateDocumentNonBlocking, useUserProfile } from '@/firebase';
+import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import { Course, Lecturer, Schedule } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -26,7 +27,7 @@ const STEPS = [
 ];
 
 export default function BookingPage() {
-  const { user } = useUser();
+  const { user, profile } = useUserProfile();
   const firestore = useFirestore();
   const storage = useStorage();
   const { toast } = useToast();
@@ -42,14 +43,13 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [showFavorites, setShowFavorites] = useState(false);
 
   // Data Fetching
-  // 1. Courses
   const { data: courses } = useCollection<Course>(
     query(collection(firestore, 'courses'), where('status', '==', 'active'))
   );
 
-  // 2. Lecturers (Filtered by Course)
   const lecturersQuery = useMemoFirebase(() => {
     if (!firestore || !selectedCourse) return null;
     return query(collection(firestore, 'lecturers'), orderBy('name'));
@@ -59,10 +59,13 @@ export default function BookingPage() {
 
   const availableLecturers = useMemo(() => {
     if (!selectedCourse || !allLecturers) return [];
-    return allLecturers.filter(l => l.courses?.includes(selectedCourse.id));
-  }, [selectedCourse, allLecturers]);
+    let lecturers = allLecturers.filter(l => l.courses?.includes(selectedCourse.id));
+    if (showFavorites) {
+        lecturers = lecturers.filter(l => profile?.favoriteLecturers?.includes(l.id));
+    }
+    return lecturers;
+  }, [selectedCourse, allLecturers, showFavorites, profile]);
 
-  // 3. Schedules (For selected Lecturer & Course)
   const schedulesQuery = useMemoFirebase(() => {
     if (!firestore || !selectedCourse || !selectedLecturer) return null;
     return query(
@@ -74,10 +77,8 @@ export default function BookingPage() {
 
   const { data: schedules } = useCollection<Schedule>(schedulesQuery);
 
-  // Computed Availability
   const availableDates = useMemo(() => {
     if (!schedules) return [];
-    // Return array of Date objects
     return schedules.map(s => new Date(s.date));
   }, [schedules]);
 
@@ -92,7 +93,6 @@ export default function BookingPage() {
   }, [selectedDate, schedules]);
 
 
-  // Handlers
   const handleNext = () => {
     if (step === 1 && !selectedCourse) return;
     if (step === 2 && !classType) return;
@@ -111,14 +111,30 @@ export default function BookingPage() {
     }
   };
 
+  const handleToggleFavorite = async (lecturerId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || !firestore) return;
+    const userRef = doc(firestore, 'users', user.uid);
+    const isFavorite = profile?.favoriteLecturers?.includes(lecturerId);
+
+    try {
+        await updateDocumentNonBlocking(userRef, {
+            favoriteLecturers: isFavorite ? arrayRemove(lecturerId) : arrayUnion(lecturerId)
+        });
+        toast({ title: isFavorite ? 'Lecturer Unfavorited' : 'Lecturer Favorited' });
+    } catch (error) {
+        toast({ title: 'Error', description: 'Could not update favorites.', variant: 'destructive' });
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!user || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !receiptFile) return;
+    if (!user || !profile || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !receiptFile) return;
 
     setLoading(true);
     try {
       const bookingData = {
         userId: user.uid,
-        userName: user.displayName || user.email?.split('@')[0] || 'Student',
+        userName: profile.name,
         courseId: selectedCourse.id,
         courseName: selectedCourse.name,
         lecturerId: selectedLecturer.id,
@@ -127,27 +143,23 @@ export default function BookingPage() {
         time: selectedTime,
         classType,
         paymentStatus: 'pending',
-        bookingStatus: 'payment_pending', // As per status flow
+        bookingStatus: 'payment_pending',
         createdAt: Timestamp.now(),
         price: selectedCourse.price
       };
 
       const docRef = await addDocumentNonBlocking(collection(firestore, 'bookings'), bookingData);
       
-      if (!docRef) {
-        throw new Error("Failed to create booking reference");
-      }
+      if (!docRef) throw new Error("Failed to create booking reference");
       
       const bookingId = docRef.id;
 
-      // 2. Upload Image
       if (storage) {
         const fileExtension = receiptFile.name.split('.').pop();
         const storageRef = ref(storage, `payments/${user.uid}/${bookingId}.${fileExtension}`);
         await uploadBytes(storageRef, receiptFile);
         const downloadUrl = await getDownloadURL(storageRef);
 
-        // 3. Update Booking with Receipt URL and type
         await updateDoc(doc(firestore, 'bookings', bookingId), {
             receiptUrl: downloadUrl,
             receiptType: receiptFile.type
@@ -167,7 +179,6 @@ export default function BookingPage() {
 
   return (
     <div className="max-w-4xl mx-auto py-8">
-      {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex justify-between items-center relative">
           <div className="absolute left-0 top-1/2 w-full h-0.5 bg-secondary -z-10" />
@@ -191,7 +202,6 @@ export default function BookingPage() {
       <Card className="min-h-[400px]">
         <CardContent className="p-6">
           
-          {/* STEP 1: SELECT COURSE */}
           {step === 1 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-center">Select Your Course</h2>
@@ -213,7 +223,6 @@ export default function BookingPage() {
             </div>
           )}
 
-          {/* STEP 2: CLASS TYPE */}
           {step === 2 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-center">Select Class Type</h2>
@@ -242,12 +251,17 @@ export default function BookingPage() {
             </div>
           )}
 
-          {/* STEP 3: SELECT LECTURER */}
           {step === 3 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-center">Select Lecturer</h2>
+                <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-center">Select Lecturer</h2>
+                    <div className="flex items-center space-x-2">
+                        <Label htmlFor="favorites-only">Show Favorites Only</Label>
+                        <Switch id="favorites-only" checked={showFavorites} onCheckedChange={setShowFavorites} />
+                    </div>
+                </div>
               {availableLecturers.length === 0 ? (
-                <p className="text-center text-muted-foreground">No lecturers available for this course.</p>
+                <p className="text-center text-muted-foreground">No lecturers available for this course{showFavorites && ' or filter'}.</p>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-4">
                   {availableLecturers.map(lecturer => (
@@ -255,10 +269,13 @@ export default function BookingPage() {
                       key={lecturer.id}
                       onClick={() => setSelectedLecturer(lecturer)}
                       className={cn(
-                        "flex items-center gap-4 cursor-pointer rounded-xl border-2 p-4 transition-all hover:border-primary/50",
+                        "flex items-center gap-4 cursor-pointer rounded-xl border-2 p-4 transition-all hover:border-primary/50 relative",
                         selectedLecturer?.id === lecturer.id ? "border-primary bg-primary/5" : "border-border"
                       )}
                     >
+                       <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={(e) => handleToggleFavorite(lecturer.id, e)}>
+                         <Star className={cn("w-5 h-5 text-gray-300", profile?.favoriteLecturers?.includes(lecturer.id) && "fill-yellow-400 text-yellow-400")} />
+                       </Button>
                       <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
                         <User className="h-6 w-6" />
                       </div>
@@ -272,7 +289,6 @@ export default function BookingPage() {
             </div>
           )}
 
-          {/* STEP 4: DATE & TIME */}
           {step === 4 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-center">Select Date & Time</h2>
@@ -287,8 +303,6 @@ export default function BookingPage() {
                     }}
                     disabled={(date) => {
                         const dateStr = format(date, 'yyyy-MM-dd');
-                        // Disable if past or not in availableDates
-                        // availableDates contains dates that have schedules
                         const hasSchedule = availableDates.some(d => format(d, 'yyyy-MM-dd') === dateStr);
                         return date < new Date(new Date().setHours(0,0,0,0)) || !hasSchedule;
                     }}
@@ -321,7 +335,6 @@ export default function BookingPage() {
             </div>
           )}
 
-          {/* STEP 5: PAYMENT */}
           {step === 5 && (
              <div className="space-y-6 max-w-lg mx-auto">
                 <h2 className="text-2xl font-bold text-center">Payment Details</h2>
@@ -356,7 +369,7 @@ export default function BookingPage() {
                     <h4 className="font-semibold text-blue-900 mb-2 flex items-center"><CreditCard className="w-4 h-4 mr-2"/> Bank Transfer Details</h4>
                     <p className="text-sm text-blue-800">Bank: Commercial Bank</p>
                     <p className="text-sm text-blue-800">Account No: 1234567890</p>
-                    <p className="text-sm text-blue-800">Account Name: SmartLabs Institute</p>
+                    <p className="text-sm text-blue-800">Account Name: smartlabs Institute</p>
                     <p className="text-sm text-blue-800 mt-2">Please transfer the exact amount and upload the receipt below.</p>
                   </div>
 
@@ -368,7 +381,6 @@ export default function BookingPage() {
              </div>
           )}
 
-          {/* Navigation Buttons */}
           <div className="flex justify-between mt-8 pt-4 border-t">
             <Button variant="outline" onClick={handleBack} disabled={step === 1 || loading}>
               <ChevronLeft className="w-4 h-4 mr-2" /> Back

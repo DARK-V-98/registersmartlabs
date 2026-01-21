@@ -1,17 +1,32 @@
 'use client';
 
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Booking } from '@/types';
 import Link from 'next/link';
 import { CalendarPlus, ArrowRight, Clock, CheckCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInMilliseconds } from 'date-fns';
+import { useEffect, useState } from 'react';
+
+// Function to format the countdown
+const formatCountdown = (ms: number) => {
+  if (ms < 0) return 'Session has passed';
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((ms % (1000 * 60)) / 1000);
+  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+};
+
 
 export default function DashboardOverview() {
-  const { user } = useUser();
+  const { user, profile } = useUserProfile();
   const firestore = useFirestore();
+
+  const [countdown, setCountdown] = useState('');
 
   const recentBookingsQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
@@ -26,14 +41,32 @@ export default function DashboardOverview() {
   const { data: bookings, isLoading } = useCollection<Booking>(recentBookingsQuery);
 
   const upcomingBooking = bookings?.find(b => 
-    ['confirmed', 'payment_pending'].includes(b.bookingStatus) && 
-    new Date(b.date) >= new Date(new Date().setHours(0,0,0,0))
+    b.bookingStatus === 'confirmed' && 
+    new Date(`${b.date} ${b.time}`) >= new Date()
   );
+
+  useEffect(() => {
+    if (!upcomingBooking) {
+        setCountdown('');
+        return;
+    }
+
+    const sessionDateTime = new Date(`${upcomingBooking.date} ${upcomingBooking.time}`);
+    
+    const interval = setInterval(() => {
+        const now = new Date();
+        const diff = differenceInMilliseconds(sessionDateTime, now);
+        setCountdown(formatCountdown(diff));
+    }, 1000);
+
+    return () => clearInterval(interval);
+
+  }, [upcomingBooking]);
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Welcome back, {user?.displayName?.split(' ')[0] || 'Student'}!</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Welcome back, {profile?.name?.split(' ')[0] || 'Student'}!</h1>
         <p className="text-muted-foreground mt-2">Manage your classes and schedule upcoming sessions.</p>
       </div>
 
@@ -61,7 +94,7 @@ export default function DashboardOverview() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="w-6 h-6" /> Next Session
+              <Clock className="w-6 h-6" /> Next Confirmed Session
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -73,20 +106,18 @@ export default function DashboardOverview() {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                    <div className="px-2 py-1 bg-secondary rounded text-secondary-foreground">
-                      {upcomingBooking.date}
-                   </div>
-                   <div className="px-2 py-1 bg-secondary rounded text-secondary-foreground">
-                      {upcomingBooking.time}
+                      {upcomingBooking.date} at {upcomingBooking.time}
                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${upcomingBooking.bookingStatus === 'confirmed' ? 'bg-green-500' : 'bg-orange-500'}`} />
-                    <span className="capitalize text-sm font-medium">{upcomingBooking.bookingStatus.replace('_', ' ')}</span>
-                </div>
+                {countdown && (
+                    <div className="text-2xl font-bold text-primary font-mono tabular-nums">
+                        {countdown}
+                    </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-6 text-muted-foreground">
-                <p>No upcoming sessions scheduled.</p>
+                <p>No upcoming confirmed sessions.</p>
               </div>
             )}
           </CardContent>
