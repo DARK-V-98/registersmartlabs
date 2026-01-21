@@ -90,7 +90,7 @@ const CoursesPreview = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="w-4 h-4" />
-                      Price: LKR {course.price.toLocaleString()}
+                      From LKR {course.priceOnline?.toLocaleString()}
                     </div>
                   </div>
 

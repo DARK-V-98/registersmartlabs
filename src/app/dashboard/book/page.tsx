@@ -29,6 +29,7 @@ const STEPS = [
 
 interface AdminSettings {
   bankDetails?: string;
+  whatsappNumber?: string;
 }
 
 export default function BookingPage() {
@@ -140,9 +141,12 @@ export default function BookingPage() {
 
     setLoading(true);
     try {
+      const price = classType === 'online' ? selectedCourse.priceOnline : selectedCourse.pricePhysical;
+
       const bookingData = {
         userId: user.uid,
         userName: profile?.name || user.displayName || user.email?.split('@')[0] || 'Student',
+        userEmail: user.email,
         courseId: selectedCourse.id,
         courseName: selectedCourse.name,
         lecturerId: selectedLecturer.id,
@@ -153,7 +157,7 @@ export default function BookingPage() {
         paymentStatus: 'pending',
         bookingStatus: 'payment_pending',
         createdAt: Timestamp.now(),
-        price: selectedCourse.price
+        price: price
       };
 
       const docRef = await addDocumentNonBlocking(collection(firestore, 'bookings'), bookingData);
@@ -162,12 +166,11 @@ export default function BookingPage() {
       
       const bookingId = docRef.id;
 
-      let downloadUrl = '';
       if (storage) {
         const fileExtension = receiptFile.name.split('.').pop();
         const storageRef = ref(storage, `payments/${user.uid}/${bookingId}.${fileExtension}`);
         await uploadBytes(storageRef, receiptFile);
-        downloadUrl = await getDownloadURL(storageRef);
+        const downloadUrl = await getDownloadURL(storageRef);
 
         await updateDoc(doc(firestore, 'bookings', bookingId), {
             receiptUrl: downloadUrl,
@@ -175,30 +178,6 @@ export default function BookingPage() {
         });
       }
       
-      // Send Email Notification
-      try {
-        await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bookingId,
-            userId: user.uid,
-            userName: profile?.name || user.displayName || user.email?.split('@')[0] || 'Student',
-            userEmail: user.email,
-            courseName: selectedCourse.name,
-            classType,
-            lecturerName: selectedLecturer.name,
-            date: format(selectedDate, 'yyyy-MM-dd'),
-            time: selectedTime,
-            price: selectedCourse.price,
-            paymentMethod: 'Bank Transfer',
-            receiptUrl: downloadUrl,
-          }),
-        });
-      } catch (emailError) {
-        console.error('Failed to send email notification:', emailError);
-      }
-
       toast({ title: 'Booking submitted successfully!', description: 'Your booking is pending confirmation.' });
       router.push(`/dashboard/bookings/${bookingId}`);
 
@@ -209,6 +188,8 @@ export default function BookingPage() {
       setLoading(false);
     }
   };
+
+  const currentPrice = selectedCourse ? (classType === 'online' ? selectedCourse.priceOnline : selectedCourse.pricePhysical) : 0;
 
   return (
     <div className="max-w-4xl mx-auto py-8">
@@ -249,7 +230,7 @@ export default function BookingPage() {
                     )}
                   >
                     <h3 className="font-bold text-lg mb-2">{course.name}</h3>
-                    <p className="text-muted-foreground">LKR {course.price.toLocaleString()}</p>
+                    <p className="text-muted-foreground">from LKR {course.priceOnline?.toLocaleString()}</p>
                   </div>
                 ))}
               </div>
@@ -268,6 +249,7 @@ export default function BookingPage() {
                   >
                     <span className="text-3xl mb-2">💻</span>
                     <span className="font-semibold">Online Class</span>
+                    <span className="font-bold text-primary">LKR {selectedCourse?.priceOnline.toLocaleString()}</span>
                   </Label>
                 </div>
                 <div>
@@ -278,6 +260,7 @@ export default function BookingPage() {
                   >
                     <span className="text-3xl mb-2">🏫</span>
                     <span className="font-semibold">Physical Class</span>
+                    <span className="font-bold text-primary">LKR {selectedCourse?.pricePhysical.toLocaleString()}</span>
                   </Label>
                 </div>
               </RadioGroup>
@@ -392,7 +375,7 @@ export default function BookingPage() {
                     </div>
                     <div className="flex justify-between items-center text-xl font-bold pt-2">
                       <span>Total Amount:</span>
-                      <span className="text-primary">LKR {selectedCourse?.price.toLocaleString()}</span>
+                      <span className="text-primary">LKR {currentPrice.toLocaleString()}</span>
                     </div>
                   </CardContent>
                 </Card>

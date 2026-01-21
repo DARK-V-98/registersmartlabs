@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, useStorage } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { collection, query, orderBy, doc, Timestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, ArrowLeft, History, X, Download } from 'lucide-react';
+import { Loader2, Send, ArrowLeft, History, X, Download, UploadCloud, AlertTriangle } from 'lucide-react';
 import { Booking, Message } from '@/types';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -21,6 +22,7 @@ const getStatusColor = (status?: string) => {
     switch (status) {
         case 'confirmed': return 'bg-green-100 text-green-800 border-green-200';
         case 'payment_pending': return 'bg-orange-100 text-orange-800 border-orange-200';
+        case 're_upload_receipt': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
         case 'cancellation_requested': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
         case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
         case 'cancelled': return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -33,6 +35,62 @@ const getStatusLabel = (status?: string) => {
     return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
+const ReUploadReceipt = ({ booking, onUploadComplete }: { booking: Booking, onUploadComplete: () => void }) => {
+    const [receiptFile, setReceiptFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const { user } = useUserProfile();
+    const storage = useStorage();
+    const firestore = useFirestore();
+    const { toast } = useToast();
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setReceiptFile(e.target.files[0]);
+        }
+    };
+
+    const handleUpload = async () => {
+        if (!receiptFile || !user || !storage || !firestore) return;
+        setIsUploading(true);
+        try {
+            const fileExtension = receiptFile.name.split('.').pop();
+            const storageRef = ref(storage, `payments/${user.uid}/${booking.id}.${fileExtension}`);
+            await uploadBytes(storageRef, receiptFile);
+            const downloadUrl = await getDownloadURL(storageRef);
+
+            await updateDocumentNonBlocking(doc(firestore, 'bookings', booking.id), {
+                receiptUrl: downloadUrl,
+                receiptType: receiptFile.type,
+                bookingStatus: 'payment_pending',
+                updatedAt: Timestamp.now(),
+            });
+
+            toast({ title: "Receipt Uploaded", description: "Your new receipt has been submitted for review." });
+            onUploadComplete();
+        } catch (error) {
+            toast({ title: "Upload Failed", description: "Could not upload your receipt.", variant: "destructive" });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    return (
+        <Card className="bg-yellow-50 border-yellow-200 mt-6">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-yellow-800"><AlertTriangle /> Action Required: Re-upload Receipt</CardTitle>
+                <CardDescription className="text-yellow-700">An admin has reviewed your payment and requires a new receipt. Please upload a clear, full-sized image of your bank transfer receipt.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row gap-4">
+                <Input type="file" accept="image/*,application/pdf" onChange={handleFileChange} disabled={isUploading} />
+                <Button onClick={handleUpload} disabled={isUploading || !receiptFile}>
+                    {isUploading ? <Loader2 className="animate-spin" /> : <UploadCloud />}
+                    <span className="ml-2">Submit New Receipt</span>
+                </Button>
+            </CardContent>
+        </Card>
+    );
+};
+
 export default function BookingDetailPage({ params }: { params: { bookingId: string } }) {
     const { bookingId } = params;
     const firestore = useFirestore();
@@ -43,17 +101,20 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
     const [newMessage, setNewMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const bookingRef = useMemoFirebase(() => {
         if (!firestore || !bookingId) return null;
         return doc(firestore, 'bookings', bookingId);
-    }, [firestore, bookingId]);
+    }, [firestore, bookingId, refreshKey]);
+
     const { data: booking, isLoading: isBookingLoading } = useDoc<Booking>(bookingRef);
 
     const messagesQuery = useMemoFirebase(() => {
         if (!firestore || !bookingId) return null;
         return query(collection(firestore, 'bookings', bookingId, 'messages'), orderBy('createdAt', 'asc'));
     }, [firestore, bookingId]);
+
     const { data: messages, isLoading: areMessagesLoading } = useCollection<Message>(messagesQuery);
     
     useEffect(() => {
@@ -91,7 +152,7 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
             });
             toast({ title: 'Cancellation Requested', description: 'An admin will review your request shortly.' });
         } catch (error) {
-            toast({ title: 'Error', description: 'Could not submit cancellation request.', variant: 'destructive' });
+            toast({ title: 'Error', description: 'Could not submit cancellation request.', variant: "destructive" });
         }
     };
 
@@ -135,6 +196,10 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
             <Button variant="outline" onClick={() => router.push('/dashboard/bookings')} className="mb-4">
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to All Bookings
             </Button>
+            
+            {booking.bookingStatus === 're_upload_receipt' && (
+                <ReUploadReceipt booking={booking} onUploadComplete={() => setRefreshKey(k => k + 1)} />
+            )}
             
             <Card>
                 <CardHeader>

@@ -13,9 +13,8 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Loader2, CheckCircle, XCircle, Eye, ExternalLink, FileText } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Eye, ExternalLink, FileText, AlertTriangle } from 'lucide-react';
 import { Booking } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
@@ -25,41 +24,35 @@ export default function AdminPaymentsPage() {
   const { toast } = useToast();
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // Query only pending payments or where receiptUrl exists but status is pending
+  // Query for payments that need action
   const paymentsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(
       collection(firestore, 'bookings'),
-      where('bookingStatus', '==', 'payment_pending'),
+      where('bookingStatus', 'in', ['payment_pending', 're_upload_receipt']),
       orderBy('createdAt', 'desc')
     );
   }, [firestore]);
 
   const { data: bookings, isLoading } = useCollection<Booking>(paymentsQuery);
 
-  const handleVerify = async (bookingId: string, action: 'approve' | 'reject') => {
+  const handleVerify = async (bookingId: string, action: 'approve' | 'reject' | 'request_reupload') => {
     if (!firestore) return;
     setProcessingId(bookingId);
     try {
       const bookingRef = doc(firestore, 'bookings', bookingId);
       
       const updateData = action === 'approve' 
-        ? { 
-            paymentStatus: 'paid', 
-            bookingStatus: 'confirmed',
-            updatedAt: new Date()
-          }
-        : { 
-            paymentStatus: 'failed', 
-            bookingStatus: 'rejected',
-            updatedAt: new Date()
-          };
+        ? { paymentStatus: 'paid', bookingStatus: 'confirmed' }
+        : action === 'reject' 
+          ? { paymentStatus: 'failed', bookingStatus: 'rejected' }
+          : { paymentStatus: 'pending', bookingStatus: 're_upload_receipt' };
 
-      await updateDocumentNonBlocking(bookingRef, updateData);
+      await updateDocumentNonBlocking(bookingRef, { ...updateData, updatedAt: new Date() });
       
       toast({
-        title: action === 'approve' ? 'Payment Approved' : 'Payment Rejected',
-        description: `Booking has been ${action}d.`,
+        title: action === 'approve' ? 'Payment Approved' : action === 'reject' ? 'Payment Rejected' : 'Re-upload Requested',
+        description: `Booking has been updated.`,
       });
     } catch (error) {
       toast({
@@ -90,7 +83,7 @@ export default function AdminPaymentsPage() {
                   <TableHead>Course</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Receipt</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -196,7 +189,7 @@ export default function AdminPaymentsPage() {
                         </DialogContent>
                       </Dialog>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <div className="flex items-center gap-2">
                         <Button 
                           size="sm" 
@@ -205,6 +198,17 @@ export default function AdminPaymentsPage() {
                           disabled={!!processingId}
                         >
                           {processingId === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                          <span className="hidden sm:inline ml-2">Approve</span>
+                        </Button>
+                         <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                          onClick={() => handleVerify(booking.id, 'request_reupload')}
+                          disabled={!!processingId}
+                        >
+                          {processingId === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+                           <span className="hidden sm:inline ml-2">Re-upload</span>
                         </Button>
                         <Button 
                           size="sm" 
@@ -213,6 +217,7 @@ export default function AdminPaymentsPage() {
                           disabled={!!processingId}
                         >
                           {processingId === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                           <span className="hidden sm:inline ml-2">Reject</span>
                         </Button>
                       </div>
                     </TableCell>

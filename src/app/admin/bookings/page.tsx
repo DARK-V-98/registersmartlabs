@@ -28,7 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Booking, Message } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send } from 'lucide-react';
+import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -121,7 +121,7 @@ export default function AdminBookingsPage() {
 
   const filteredBookings = bookings?.filter(b => {
     if (activeTab === 'all') return true;
-    if (activeTab === 'pending') return b.bookingStatus === 'payment_pending';
+    if (activeTab === 'pending') return b.bookingStatus === 'payment_pending' || b.bookingStatus === 're_upload_receipt';
     if (activeTab === 'confirmed') return b.bookingStatus === 'confirmed';
     if (activeTab === 'rejected') return b.bookingStatus === 'rejected' || b.bookingStatus === 'cancelled';
     if (activeTab === 'requests') return b.bookingStatus === 'cancellation_requested';
@@ -138,6 +138,8 @@ export default function AdminBookingsPage() {
       toast({ title: `Booking ${status}` });
       // Keep dialog open if you are just interacting, close on final actions.
       // setIsDialogOpen(false); 
+      // Manually update local state to reflect change immediately
+      setSelectedBooking(prev => prev ? {...prev, bookingStatus: status, paymentStatus: paymentStatus} : null);
     } catch (error) {
       toast({ title: 'Error updating booking', variant: 'destructive' });
     } finally {
@@ -149,10 +151,19 @@ export default function AdminBookingsPage() {
     switch (status) {
       case 'confirmed': return 'default';
       case 'payment_pending': return 'secondary';
+      case 're_upload_receipt': return 'destructive';
       case 'cancellation_requested': return 'default'; // yellow
       case 'cancelled':
       case 'rejected': return 'destructive';
       default: return 'outline';
+    }
+  }
+  
+  const getStatusClass = (status?: Booking['bookingStatus']) => {
+    switch (status) {
+      case 'cancellation_requested': return 'bg-yellow-400 text-yellow-900';
+      case 're_upload_receipt': return 'bg-orange-400 text-orange-900';
+      default: return '';
     }
   }
 
@@ -163,7 +174,7 @@ export default function AdminBookingsPage() {
       <Tabs defaultValue="all" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="all">All Bookings</TabsTrigger>
-          <TabsTrigger value="pending">Payment Pending</TabsTrigger>
+          <TabsTrigger value="pending">Pending/Re-upload</TabsTrigger>
           <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="rejected">Rejected/Cancelled</TabsTrigger>
@@ -201,9 +212,9 @@ export default function AdminBookingsPage() {
                       <TableCell>
                         <Badge 
                           variant={getStatusVariant(booking.bookingStatus)}
-                          className={booking.bookingStatus === 'cancellation_requested' ? 'bg-yellow-400 text-yellow-900' : ''}
+                          className={getStatusClass(booking.bookingStatus)}
                         >
-                          {booking.bookingStatus?.replace('_', ' ') || 'Unknown'}
+                          {booking.bookingStatus?.replace(/_/g, ' ') || 'Unknown'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -235,55 +246,55 @@ export default function AdminBookingsPage() {
                                         <CardContent className="p-6 space-y-4">
                                         <div className="flex justify-between items-center border-b pb-2">
                                             <span className="font-semibold">Student:</span>
-                                            <span className="text-right">{booking.userName || 'Unknown'}<br/><span className="text-xs text-muted-foreground">{booking.userId}</span></span>
+                                            <span className="text-right">{selectedBooking.userName || 'Unknown'}<br/><span className="text-xs text-muted-foreground">{selectedBooking.userId}</span></span>
                                         </div>
                                         <div className="flex justify-between items-center border-b pb-2">
                                             <span className="font-semibold">Course:</span>
-                                            <span>{booking.courseName}</span>
+                                            <span>{selectedBooking.courseName}</span>
                                         </div>
                                         <div className="flex justify-between items-center border-b pb-2">
                                             <span className="font-semibold">Lecturer:</span>
-                                            <span>{booking.lecturerName}</span>
+                                            <span>{selectedBooking.lecturerName}</span>
                                         </div>
                                         <div className="flex justify-between items-center border-b pb-2">
                                             <span className="font-semibold">Class Type:</span>
-                                            <span className="capitalize">{booking.classType || 'Online'}</span>
+                                            <span className="capitalize">{selectedBooking.classType || 'Online'}</span>
                                         </div>
                                         <div className="flex justify-between items-center border-b pb-2">
                                             <span className="font-semibold">Date & Time:</span>
-                                            <span>{booking.date} @ {booking.time}</span>
+                                            <span>{selectedBooking.date} @ {selectedBooking.time}</span>
                                         </div>
                                         <div className="flex justify-between items-center border-b pb-2">
                                             <span className="font-semibold">Booking Status:</span>
-                                            <Badge variant={getStatusVariant(booking.bookingStatus)} className={booking.bookingStatus === 'cancellation_requested' ? 'bg-yellow-400 text-yellow-900' : ''}>
-                                                {booking.bookingStatus?.replace('_', ' ') || 'Unknown'}
+                                            <Badge variant={getStatusVariant(selectedBooking.bookingStatus)} className={getStatusClass(selectedBooking.bookingStatus)}>
+                                                {selectedBooking.bookingStatus?.replace(/_/g, ' ') || 'Unknown'}
                                             </Badge>
                                         </div>
                                         <div className="flex justify-between items-center border-b pb-2">
                                             <span className="font-semibold">Payment Status:</span>
-                                            <span className="capitalize">{booking.paymentStatus?.replace('_', ' ')}</span>
+                                            <span className="capitalize">{selectedBooking.paymentStatus?.replace('_', ' ')}</span>
                                         </div>
                                         <div className="flex justify-between items-center text-xl font-bold pt-2">
                                             <span>Amount:</span>
-                                            <span className="text-primary">LKR {booking.price}</span>
+                                            <span className="text-primary">LKR {selectedBooking.price}</span>
                                         </div>
                                         </CardContent>
                                     </Card>
                                 </TabsContent>
                                 <TabsContent value="payment" className="pt-4">
                                      <h3 className="font-semibold mb-2">Payment Receipt</h3>
-                                        {booking.receiptUrl ? (
+                                        {selectedBooking.receiptUrl ? (
                                             <div className="space-y-4">
-                                            {booking.receiptType?.startsWith('image/') ? (
+                                            {selectedBooking.receiptType?.startsWith('image/') ? (
                                                 <div className="relative w-full h-[300px] lg:h-[400px] border rounded-lg overflow-hidden bg-black/5">
                                                 <Image 
-                                                    src={booking.receiptUrl} 
+                                                    src={selectedBooking.receiptUrl} 
                                                     alt="Receipt" 
                                                     fill 
                                                     className="object-contain"
                                                 />
                                                 </div>
-                                            ) : booking.receiptType === 'application/pdf' ? (
+                                            ) : selectedBooking.receiptType === 'application/pdf' ? (
                                                 <div className="h-[400px] flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-muted-foreground bg-muted/10">
                                                     <FileText className="w-16 h-16 text-red-500 mb-4" />
                                                     <p className="font-semibold">PDF Document</p>
@@ -296,7 +307,7 @@ export default function AdminBookingsPage() {
                                                 </div>
                                             )}
                                             <div className="flex justify-end">
-                                                <a href={booking.receiptUrl} target="_blank" rel="noopener noreferrer">
+                                                <a href={selectedBooking.receiptUrl} target="_blank" rel="noopener noreferrer">
                                                 <Button variant="secondary" size="sm">
                                                     <ExternalLink className="mr-2 h-4 w-4" /> Open Original
                                                 </Button>
@@ -316,29 +327,37 @@ export default function AdminBookingsPage() {
                                 </Tabs>
                             )}
                             <DialogFooter className="gap-2 sm:justify-between pt-6">
-                             {booking.bookingStatus === 'cancellation_requested' ? (
+                             {selectedBooking?.bookingStatus === 'cancellation_requested' ? (
                                <div className="w-full flex justify-between">
-                                  <Button variant="outline" onClick={() => handleUpdateStatus(booking.id, 'confirmed', 'paid')} disabled={isLoading}>Deny Request</Button>
-                                  <Button variant="destructive" onClick={() => handleUpdateStatus(booking.id, 'cancelled', 'rejected')} disabled={isLoading}><AlertTriangle className="w-4 h-4 mr-2"/>Approve Cancellation</Button>
+                                  <Button variant="outline" onClick={() => handleUpdateStatus(selectedBooking.id, 'confirmed', 'paid')} disabled={isLoading}>Deny Request</Button>
+                                  <Button variant="destructive" onClick={() => handleUpdateStatus(selectedBooking.id, 'cancelled', 'rejected')} disabled={isLoading}><AlertTriangle className="w-4 h-4 mr-2"/>Approve Cancellation</Button>
                                </div>
-                             ) : (
-                                <>
+                             ) : selectedBooking?.bookingStatus === 'payment_pending' || selectedBooking?.bookingStatus === 're_upload_receipt' ? (
+                                <div className="w-full flex justify-between items-center">
                                   <Button 
                                     variant="destructive" 
-                                    onClick={() => handleUpdateStatus(booking.id, 'rejected', 'rejected')}
+                                    onClick={() => handleUpdateStatus(selectedBooking.id, 'rejected', 'rejected')}
                                     disabled={isLoading}
                                   >
                                     <X className="w-4 h-4 mr-2" /> Reject
                                   </Button>
                                   <Button 
+                                    variant="outline"
+                                    className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                                    onClick={() => handleUpdateStatus(selectedBooking.id, 're_upload_receipt', 'pending')}
+                                    disabled={isLoading}
+                                  >
+                                    <RefreshCw className="w-4 h-4 mr-2" /> Request Re-upload
+                                  </Button>
+                                  <Button 
                                     className="bg-green-600 hover:bg-green-700" 
-                                    onClick={() => handleUpdateStatus(booking.id, 'confirmed', 'paid')}
-                                    disabled={isLoading || booking.bookingStatus === 'confirmed'}
+                                    onClick={() => handleUpdateStatus(selectedBooking.id, 'confirmed', 'paid')}
+                                    disabled={isLoading || selectedBooking.bookingStatus === 'confirmed'}
                                   >
                                     <Check className="w-4 h-4 mr-2" /> Confirm Payment
                                   </Button>
-                                </>
-                             )}
+                                </div>
+                             ) : null}
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>

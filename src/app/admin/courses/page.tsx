@@ -37,7 +37,8 @@ export default function CoursesPage() {
 
   // Form State
   const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
+  const [priceOnline, setPriceOnline] = useState('');
+  const [pricePhysical, setPricePhysical] = useState('');
   const [isActive, setIsActive] = useState(true);
 
   const coursesQuery = useMemoFirebase(() => {
@@ -49,13 +50,14 @@ export default function CoursesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !price) return;
+    if (!name || !priceOnline || !pricePhysical) return;
     
     setIsLoading(true);
     try {
       const courseData = {
         name,
-        price: parseFloat(price),
+        priceOnline: parseFloat(priceOnline),
+        pricePhysical: parseFloat(pricePhysical),
         status: isActive ? 'active' : 'inactive',
       };
 
@@ -78,7 +80,8 @@ export default function CoursesPage() {
   const handleEdit = (course: Course) => {
     setEditingCourse(course);
     setName(course.name);
-    setPrice(course.price.toString());
+    setPriceOnline(course.priceOnline?.toString() || '0');
+    setPricePhysical(course.pricePhysical?.toString() || '0');
     setIsActive(course.status === 'active');
     setIsDialogOpen(true);
   };
@@ -86,7 +89,8 @@ export default function CoursesPage() {
   const resetForm = () => {
     setEditingCourse(null);
     setName('');
-    setPrice('');
+    setPriceOnline('');
+    setPricePhysical('');
     setIsActive(true);
   };
 
@@ -110,11 +114,17 @@ export default function CoursesPage() {
                 <Label htmlFor="name">Course Name</Label>
                 <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="price">Price (LKR)</Label>
-                <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} required />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="priceOnline">Price Online (LKR)</Label>
+                  <Input id="priceOnline" type="number" value={priceOnline} onChange={(e) => setPriceOnline(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pricePhysical">Price Physical (LKR)</Label>
+                  <Input id="pricePhysical" type="number" value={pricePhysical} onChange={(e) => setPricePhysical(e.target.value)} required />
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 pt-2">
                 <Switch id="active" checked={isActive} onCheckedChange={setIsActive} />
                 <Label htmlFor="active">Active</Label>
               </div>
@@ -141,7 +151,8 @@ export default function CoursesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Price</TableHead>
+                  <TableHead>Price (Online)</TableHead>
+                  <TableHead>Price (Physical)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -150,7 +161,8 @@ export default function CoursesPage() {
                 {courses?.map((course) => (
                   <TableRow key={course.id}>
                     <TableCell className="font-medium">{course.name}</TableCell>
-                    <TableCell>LKR {course.price.toLocaleString()}</TableCell>
+                    <TableCell>LKR {course.priceOnline?.toLocaleString() || 0}</TableCell>
+                    <TableCell>LKR {course.pricePhysical?.toLocaleString() || 0}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs ${course.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                         {course.status}
@@ -165,7 +177,7 @@ export default function CoursesPage() {
                 ))}
                 {courses?.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">No courses found.</TableCell>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">No courses found.</TableCell>
                   </TableRow>
                 )}
               </TableBody>

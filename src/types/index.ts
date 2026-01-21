@@ -11,8 +11,9 @@ export interface UserProfile {
 
 export interface Course {
   id: string;
-  name: string;
-  price: number;
+  name:string;
+  priceOnline: number;
+  pricePhysical: number;
   status: 'active' | 'inactive';
 }
 
@@ -37,7 +38,8 @@ export interface Schedule {
 export interface Booking {
   id: string;
   userId: string;
-  userName?: string; // Added for admin display
+  userName?: string;
+  userEmail?: string;
   courseId: string;
   courseName?: string;
   lecturerId: string;
@@ -45,12 +47,13 @@ export interface Booking {
   date: string; // YYYY-MM-DD
   time: string;
   price?: number;
-  classType?: 'online' | 'physical'; // Added per user requirement
+  classType?: 'online' | 'physical';
   paymentStatus: 'pending' | 'paid' | 'rejected' | 'failed';
-  bookingStatus: 'created' | 'payment_pending' | 'confirmed' | 'rejected' | 'cancelled' | 'cancellation_requested';
+  bookingStatus: 'payment_pending' | 're_upload_receipt' | 'confirmed' | 'rejected' | 'cancelled' | 'cancellation_requested';
   receiptUrl?: string;
   receiptType?: string;
   createdAt?: any; // Firestore Timestamp
+  updatedAt?: any; // Firestore Timestamp
 }
 
 export interface Message {

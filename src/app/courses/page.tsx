@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { 
   ArrowRight,
   GraduationCap,
-  Loader2
+  Loader2,
+  Monitor,
+  Building
 } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy } from 'firebase/firestore';
@@ -77,9 +79,21 @@ const CoursesPage = () => {
                       <CardTitle>{course.name}</CardTitle>
                       <CardDescription>One-on-one personalized coaching.</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex-1">
-                       <p className="text-3xl font-bold text-primary">LKR {course.price.toLocaleString()}</p>
-                       <p className="text-sm text-muted-foreground">per individual course package</p>
+                    <CardContent className="flex-1 space-y-4">
+                       <div className="flex items-baseline gap-3">
+                          <Monitor className="w-5 h-5 text-muted-foreground"/>
+                          <div>
+                            <p className="text-2xl font-bold text-primary">LKR {course.priceOnline?.toLocaleString()}</p>
+                            <p className="text-sm text-muted-foreground">Online Class</p>
+                          </div>
+                       </div>
+                       <div className="flex items-baseline gap-3">
+                          <Building className="w-5 h-5 text-muted-foreground"/>
+                           <div>
+                            <p className="text-2xl font-bold text-primary">LKR {course.pricePhysical?.toLocaleString()}</p>
+                            <p className="text-sm text-muted-foreground">Physical Class</p>
+                          </div>
+                       </div>
                     </CardContent>
                     <CardFooter>
                        <Link href="/dashboard/book" className="w-full">
