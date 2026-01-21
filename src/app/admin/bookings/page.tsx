@@ -135,6 +135,36 @@ export default function AdminBookingsPage() {
         bookingStatus: status,
         paymentStatus: paymentStatus
       });
+
+      // Send confirmation email if status is confirmed
+      if (status === 'confirmed') {
+          const booking = bookings?.find(b => b.id === bookingId);
+          if (booking && booking.userEmail) {
+             try {
+                 fetch('/api/send-email', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({
+                         type: 'confirmation',
+                         bookingId: booking.id,
+                         userId: booking.userId,
+                         userName: booking.userName,
+                         userEmail: booking.userEmail,
+                         courseName: booking.courseName,
+                         classType: booking.classType,
+                         lecturerName: booking.lecturerName,
+                         date: booking.date,
+                         time: booking.time,
+                         price: booking.price,
+                         paymentMethod: booking.paymentMethod || 'Bank Transfer',
+                     })
+                 });
+             } catch (emailError) {
+                 console.error("Failed to send confirmation email", emailError);
+             }
+          }
+      }
+
       toast({ title: `Booking ${status}` });
       // Keep dialog open if you are just interacting, close on final actions.
       // setIsDialogOpen(false); 

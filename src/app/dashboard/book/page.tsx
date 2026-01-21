@@ -179,17 +179,42 @@ export default function BookingPage() {
       if (!docRef) throw new Error("Failed to create booking reference");
       
       const bookingId = docRef.id;
+      let downloadUrl = '';
 
       if (storage) {
         const fileExtension = receiptFile.name.split('.').pop();
         const storageRef = ref(storage, `payments/${user.uid}/${bookingId}.${fileExtension}`);
         await uploadBytes(storageRef, receiptFile);
-        const downloadUrl = await getDownloadURL(storageRef);
+        downloadUrl = await getDownloadURL(storageRef);
 
         await updateDoc(doc(firestore, 'bookings', bookingId), {
             receiptUrl: downloadUrl,
             receiptType: receiptFile.type
         });
+      }
+      
+      // Send Email Notification
+      try {
+          await fetch('/api/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  bookingId,
+                  userId: bookingData.userId,
+                  userName: bookingData.userName,
+                  userEmail: bookingData.userEmail,
+                  courseName: bookingData.courseName,
+                  classType: bookingData.classType,
+                  lecturerName: bookingData.lecturerName,
+                  date: bookingData.date,
+                  time: bookingData.time,
+                  price: bookingData.price,
+                  paymentMethod: 'Bank Transfer',
+                  receiptUrl: downloadUrl
+              })
+          });
+      } catch (error) {
+          console.error('Failed to send email notification', error);
       }
       
       toast({ title: 'Booking submitted successfully!', description: 'Your booking is pending confirmation.' });
