@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -22,7 +22,7 @@ import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "firebase/firest
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
 
-const Login = () => {
+function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,7 +53,7 @@ const Login = () => {
     if (userDoc.exists()) {
       const userData = userDoc.data();
       if (userData.status === 'suspended') {
-        await signOut(auth);
+        if(auth) await signOut(auth);
         toast({
           variant: "destructive",
           title: "Account Suspended",
@@ -89,6 +89,8 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
+    if (!auth) return;
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       await handleSuccessfulLogin(userCredential.user);
@@ -105,6 +107,7 @@ const Login = () => {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    if(!auth) return;
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
@@ -122,16 +125,13 @@ const Login = () => {
 
   if (isUserLoading || user) {
     return (
-       <Layout showFooter={false}>
-         <div className="flex min-h-screen items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-         </div>
-       </Layout>
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
     );
   }
 
   return (
-    <Layout showFooter={false}>
       <section className="min-h-[calc(100vh-5rem)] flex items-center justify-center py-12 bg-dots">
         <div className="container mx-auto px-4">
           <div className="max-w-md mx-auto">
@@ -143,7 +143,7 @@ const Login = () => {
             >
               <div className="text-center mb-8">
                 <Link href="/" className="inline-flex items-center gap-3 mb-6">
-                  <Image src="/logo.png" alt="SmartLabs Logo" width={48} height={48} className="rounded-xl" />
+                  <Image src="/logo.png" alt="smartlabs Logo" width={48} height={48} className="rounded-xl" />
                 </Link>
                 <h1 className="font-display text-2xl font-bold mb-2">Welcome Back!</h1>
                 <p className="text-muted-foreground">Sign in to continue to your dashboard</p>
@@ -232,8 +232,19 @@ const Login = () => {
           </div>
         </div>
       </section>
-    </Layout>
   );
 };
 
-export default Login;
+const LoginPage = () => (
+  <Layout showFooter={false}>
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
+  </Layout>
+);
+
+export default LoginPage;
