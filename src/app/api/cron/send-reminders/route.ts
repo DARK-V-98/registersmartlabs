@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { initializeApp, getApps, getApp } from 'firebase/app';
@@ -68,7 +69,7 @@ export async function GET(req: Request) {
                   <p><strong>Course:</strong> ${(booking as any).courseName}</p>
                   <p><strong>Lecturer:</strong> ${(booking as any).lecturerName}</p>
                   <p><strong>Date:</strong> ${(booking as any).date}</p>
-                  <p><strong>Time:</strong> ${(booking as any).time}</p>
+                  <p><strong>Time:</strong> ${(booking as any).time} (Asia/Colombo Time)</p>
                   
                   <div style="margin-top: 20px;">
                     <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard" style="background-color: #ff9800; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Dashboard</a>

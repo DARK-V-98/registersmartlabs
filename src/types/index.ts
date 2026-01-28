@@ -8,6 +8,7 @@ export interface UserProfile {
   createdAt?: any;
   favoriteLecturers?: string[];
   phoneNumber?: string;
+  timezone?: string;
 }
 
 export interface Course {

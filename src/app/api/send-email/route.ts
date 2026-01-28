@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { initializeApp, getApps, getApp } from 'firebase/app';
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
                   <h3 style="color: #555;">Class Details</h3>
                   <p><strong>Lecturer:</strong> ${lecturerName}</p>
                   <p><strong>Date:</strong> ${date}</p>
-                  <p><strong>Time:</strong> ${time}</p>
+                  <p><strong>Time:</strong> ${time} (Asia/Colombo Time)</p>
                   <p><strong>Type:</strong> ${classType}</p>
                   <p><strong>Booking ID:</strong> ${bookingId}</p>
                   
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
                   <p><strong>Course:</strong> ${courseName}</p>
                   <p><strong>Lecturer:</strong> ${lecturerName}</p>
                   <p><strong>Date:</strong> ${date}</p>
-                  <p><strong>Time:</strong> ${time}</p>
+                  <p><strong>Time:</strong> ${time} (Asia/Colombo Time)</p>
                   
                   <div style="margin-top: 20px;">
                     <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard" style="background-color: #ff9800; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Dashboard</a>
@@ -161,7 +162,7 @@ export async function POST(req: Request) {
                 <p><strong>Type:</strong> ${classType}</p>
                 <p><strong>Lecturer:</strong> ${lecturerName}</p>
                 <p><strong>Date:</strong> ${date}</p>
-                <p><strong>Time:</strong> ${time}</p>
+                <p><strong>Time:</strong> ${time} (Asia/Colombo Time)</p>
                 <p><strong>Price:</strong> ${price ? `Rs. ${price}` : '-'}</p>
                 
                 <h3 style="color: #555;">Payment Details</h3>

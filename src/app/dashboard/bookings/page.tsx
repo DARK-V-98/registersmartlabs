@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -82,7 +83,7 @@ export default function MyBookingsPage() {
                         <TableCell>{booking.lecturerName || 'Unknown Lecturer'}</TableCell>
                         <TableCell>
                             {booking.date} <br/> 
-                            <span className="text-xs text-muted-foreground">{booking.time}</span>
+                            <span className="text-xs text-muted-foreground">{booking.time} (LKT)</span>
                         </TableCell>
                         <TableCell>
                             <Badge variant="outline" className={getStatusColor(booking.bookingStatus)}>

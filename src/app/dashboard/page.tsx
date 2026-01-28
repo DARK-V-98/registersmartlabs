@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -106,7 +107,7 @@ export default function DashboardOverview() {
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                    <div className="px-2 py-1 bg-secondary rounded text-secondary-foreground">
-                      {upcomingBooking.date} at {upcomingBooking.time}
+                      {upcomingBooking.date} at {upcomingBooking.time} (LKT)
                    </div>
                 </div>
                 {countdown && (
@@ -140,7 +141,7 @@ export default function DashboardOverview() {
                         </div>
                         <div>
                             <p className="font-medium">{booking.courseName}</p>
-                            <p className="text-sm text-muted-foreground">{booking.date} • {booking.time}</p>
+                            <p className="text-sm text-muted-foreground">{booking.date} • {booking.time} (LKT)</p>
                         </div>
                     </div>
                     <div className="text-right">

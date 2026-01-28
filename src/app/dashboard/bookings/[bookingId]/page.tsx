@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -172,7 +173,7 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
                 ['Course', booking.courseName || 'N/A'],
                 ['Lecturer', booking.lecturerName || 'N/A'],
                 ['Class Date', booking.date],
-                ['Class Time', booking.time],
+                ['Class Time', `${booking.time} (LKT)`],
                 ['Class Type', booking.classType || 'Online'],
                 ['Status', getStatusLabel(booking.bookingStatus)],
                 ['Price', `LKR ${booking.price?.toLocaleString() || '0'}`],
@@ -221,7 +222,7 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
                     </div>
                     <div className="space-y-1">
                         <Label>Date & Time</Label>
-                        <p className="font-medium">{booking.date} at {booking.time}</p>
+                        <p className="font-medium">{booking.date} at {booking.time} (LKT)</p>
                     </div>
                     <div className="space-y-1">
                         <Label>Class Type</Label>

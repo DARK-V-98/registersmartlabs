@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -14,11 +15,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star, AlertTriangle, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { Course, Lecturer, Schedule, AdminSettings } from '@/types';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const STEPS = [
   { id: 1, title: 'Select Course' },
@@ -375,6 +377,12 @@ export default function BookingPage() {
                   />
                 </div>
                 <div>
+                    <Alert className="mb-4 bg-blue-50 border-blue-200">
+                        <Info className="h-4 w-4 text-blue-700" />
+                        <AlertDescription className="text-blue-700">
+                            All times shown are in Sri Lanka Time (LKT, UTC+5:30). Your local timezone is {profile?.timezone || 'unknown'}.
+                        </AlertDescription>
+                    </Alert>
                   <h3 className="font-semibold mb-4">Available Time Slots</h3>
                   {!selectedDate ? (
                     <p className="text-muted-foreground">Please select a date first.</p>
@@ -419,7 +427,7 @@ export default function BookingPage() {
                     </div>
                     <div className="flex justify-between items-center border-b pb-2">
                       <span className="font-semibold">Date & Time:</span>
-                      <span>{selectedDate ? format(selectedDate, 'PPP') : ''} @ {selectedTime}</span>
+                      <span>{selectedDate ? format(selectedDate, 'PPP') : ''} @ {selectedTime} (LKT)</span>
                     </div>
                     <div className="flex justify-between items-center text-xl font-bold pt-2">
                       <span>Total Amount:</span>
