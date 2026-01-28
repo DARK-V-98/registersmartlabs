@@ -181,7 +181,7 @@ export default function SchedulesPage() {
           const newData = {
             id: scheduleId, courseId: selectedCourse, lecturerId: selectedLecturer, date: dateString,
             timeSlots: bulkTimeSlots, updatedAt: new Date(),
-            bookedSlots: docSnap.exists() ? docSnap.data().bookedSlots : [],
+            bookedSlots: docSnap.exists() ? (docSnap.data().bookedSlots || []) : [],
           };
           batch.set(scheduleRef, newData, { merge: true });
         }
