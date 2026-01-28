@@ -33,6 +33,15 @@ export async function POST(req: Request) {
       receiptUrl,
     } = body;
 
+    // Check for essential environment variables
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.error('Missing SMTP credentials. Please set EMAIL_USER and EMAIL_PASS environment variables.');
+      return NextResponse.json(
+        { error: 'Server configuration error', details: 'Missing SMTP credentials on the server.' },
+        { status: 500 }
+      );
+    }
+
     // Initialize Firebase (using Client SDK in Node environment) to fetch settings
     const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     const db = getFirestore(app);

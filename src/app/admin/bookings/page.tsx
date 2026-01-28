@@ -261,7 +261,7 @@ export default function AdminBookingsPage() {
       if (status === 'confirmed') {
           if (booking.userEmail) {
              try {
-                 fetch('/api/send-email', {
+                 const emailResponse = await fetch('/api/send-email', {
                      method: 'POST',
                      headers: { 'Content-Type': 'application/json' },
                      body: JSON.stringify({
@@ -280,8 +280,22 @@ export default function AdminBookingsPage() {
                          paymentMethod: 'Bank Transfer',
                      })
                  });
-             } catch (emailError) {
-                 console.error("Failed to send confirmation email", emailError);
+                  if (!emailResponse.ok) {
+                    const errorResult = await emailResponse.json();
+                    console.error("Failed to send confirmation email:", errorResult.details || errorResult);
+                    toast({
+                        variant: "destructive",
+                        title: "Email Sending Failed",
+                        description: "The booking was confirmed, but the confirmation email could not be sent. Please check the server logs.",
+                    });
+                 }
+             } catch (emailError: any) {
+                 console.error("Failed to send confirmation email (network error):", emailError);
+                 toast({
+                    variant: "destructive",
+                    title: "Email Sending Failed",
+                    description: `A network error occurred while trying to send the email: ${emailError.message}`,
+                });
              }
           }
       }
