@@ -34,6 +34,13 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
+const MASTER_TIME_SLOTS = [
+  "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
+  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
+  "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM"
+];
+
 function ChatInterface({ bookingId }: { bookingId: string }) {
     const firestore = useFirestore();
     const { profile } = useUserProfile(); // Admin's profile
@@ -105,15 +112,16 @@ function ChatInterface({ bookingId }: { bookingId: string }) {
     );
 }
 
-const getSlotsForBooking = (bookingTime: string, duration: number, allTimeSlotsForDay: string[]) => {
+const getSlotsToRemoveForBooking = (booking: Booking) => {
     const slots = [];
-    const startTimeIndex = allTimeSlotsForDay.indexOf(bookingTime);
+    const startTimeIndex = MASTER_TIME_SLOTS.indexOf(booking.time);
     if (startTimeIndex === -1) return [];
     
-    const slotsToBookCount = (duration || 1) * 2; // 1hr = 2 slots, 2hr = 4 slots
+    const slotsToBookCount = (booking.duration || 1) === 1 ? 2 : 4; // 1hr = 2 slots, 2hr = 4 slots
     for (let i = 0; i < slotsToBookCount; i++) {
-        if (startTimeIndex + i < allTimeSlotsForDay.length) {
-            slots.push(allTimeSlotsForDay[startTimeIndex + i]);
+        const slotIndex = startTimeIndex + i;
+        if (slotIndex < MASTER_TIME_SLOTS.length) {
+            slots.push(MASTER_TIME_SLOTS[slotIndex]);
         }
     }
     return slots;
@@ -161,9 +169,7 @@ export default function AdminBookingsPage() {
         
         const scheduleSnap = await getDoc(scheduleRef);
         if (scheduleSnap.exists()) {
-          const scheduleData = scheduleSnap.data() as Schedule;
-          const allTimeSlots = scheduleData.timeSlots || [];
-          const slotsToRemove = getSlotsForBooking(booking.time, booking.duration, allTimeSlots);
+          const slotsToRemove = getSlotsToRemoveForBooking(booking);
           
           if (slotsToRemove.length > 0) {
             updateDocumentNonBlocking(scheduleRef, {
@@ -327,6 +333,10 @@ export default function AdminBookingsPage() {
                                         <div className="flex justify-between items-center border-b pb-2">
                                             <span className="font-semibold">Date & Time:</span>
                                             <span>{selectedBooking.date} @ {selectedBooking.time}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center border-b pb-2">
+                                            <span className="font-semibold">Duration:</span>
+                                            <span>{selectedBooking.duration} Hour(s)</span>
                                         </div>
                                         <div className="flex justify-between items-center border-b pb-2">
                                             <span className="font-semibold">Booking Status:</span>

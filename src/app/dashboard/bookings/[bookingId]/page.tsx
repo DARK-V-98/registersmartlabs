@@ -157,6 +157,7 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
                 bookingStatus: 'cancellation_requested'
             });
             toast({ title: 'Cancellation Requested', description: 'An admin will review your request shortly.' });
+            setRefreshKey(k => k + 1); // Refresh data
         } catch (error) {
             toast({ title: 'Error', description: 'Could not submit cancellation request.', variant: "destructive" });
         }
@@ -179,6 +180,7 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
                 ['Class Date', booking.date],
                 ['Class Time', `${booking.time} (LKT)`],
                 ['Class Type', booking.classType || 'Online'],
+                ['Duration', `${booking.duration} Hour(s)`],
                 ['Status', getStatusLabel(booking.bookingStatus)],
                 ['Price', `LKR ${booking.price?.toLocaleString() || '0'}`],
             ],

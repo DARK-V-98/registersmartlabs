@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -28,13 +29,13 @@ const STEPS = [
   { id: 5, title: 'Payment' },
 ];
 
+// This master list is the source of truth for time progression.
 const MASTER_TIME_SLOTS = [
   "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
   "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
   "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
   "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM"
 ];
-
 
 export default function BookingPage() {
   const { user, profile } = useUserProfile();
@@ -97,75 +98,60 @@ export default function BookingPage() {
 
   const { data: schedules } = useCollection<Schedule>(schedulesQuery);
 
-  const isDateFullyBooked = (date: Date): boolean => {
-    if (!schedules || !date) return true; // Default to booked if no data
+  const getValidSlotsForDate = (date: Date) => {
+    if (!schedules || !date) return { hasAny: false, oneHour: [], twoHour: []};
     const dateStr = format(date, 'yyyy-MM-dd');
     const scheduleForDate = schedules.find(s => s.date === dateStr);
 
     if (!scheduleForDate || !scheduleForDate.timeSlots || scheduleForDate.timeSlots.length === 0) {
-        return true;
+      return { hasAny: false, oneHour: [], twoHour: [] };
     }
-    const availableAdminSlots = new Set(scheduleForDate.timeSlots);
-    const takenSlots = new Set(scheduleForDate.bookedSlots || []);
 
-    // Check if there is at least one valid 1-hour start time
-    const hasAnyValidSlot = Array.from(availableAdminSlots).some(startTime => {
-        const startTimeIndex = MASTER_TIME_SLOTS.indexOf(startTime);
-        if (startTimeIndex === -1) return false;
-
-        // Check for a 1-hour slot (2 consecutive 30-min blocks)
-        if (startTimeIndex + 1 >= MASTER_TIME_SLOTS.length) return false;
-
-        const slot1 = MASTER_TIME_SLOTS[startTimeIndex];
-        const slot2 = MASTER_TIME_SLOTS[startTimeIndex + 1];
-
-        if (availableAdminSlots.has(slot1) && !takenSlots.has(slot1) &&
-            availableAdminSlots.has(slot2) && !takenSlots.has(slot2)) {
-            return true; // Found a valid 1-hour slot
-        }
-        return false;
-    });
+    const adminStartTimes = new Set(scheduleForDate.timeSlots);
+    const taken30MinSlots = new Set(scheduleForDate.bookedSlots || []);
     
-    return !hasAnyValidSlot;
+    const validOneHourStarts = [];
+    const validTwoHourStarts = [];
+
+    for (const startTime of MASTER_TIME_SLOTS) {
+        if (!adminStartTimes.has(startTime)) continue;
+
+        const startIndex = MASTER_TIME_SLOTS.indexOf(startTime);
+        if (startIndex === -1) continue;
+
+        // Check for 1-hour validity (2 consecutive slots)
+        if (startIndex + 1 < MASTER_TIME_SLOTS.length) {
+            const slot1 = MASTER_TIME_SLOTS[startIndex];
+            const slot2 = MASTER_TIME_SLOTS[startIndex + 1];
+            if (!taken30MinSlots.has(slot1) && !taken30MinSlots.has(slot2)) {
+                validOneHourStarts.push(startTime);
+            }
+        }
+        
+        // Check for 2-hour validity (4 consecutive slots)
+        if (startIndex + 3 < MASTER_TIME_SLOTS.length) {
+            const slot1 = MASTER_TIME_SLOTS[startIndex];
+            const slot2 = MASTER_TIME_SLOTS[startIndex + 1];
+            const slot3 = MASTER_TIME_SLOTS[startIndex + 2];
+            const slot4 = MASTER_TIME_SLOTS[startIndex + 3];
+            if (!taken30MinSlots.has(slot1) && !taken30MinSlots.has(slot2) && !taken30MinSlots.has(slot3) && !taken30MinSlots.has(slot4)) {
+                validTwoHourStarts.push(startTime);
+            }
+        }
+    }
+    
+    return { hasAny: validOneHourStarts.length > 0, oneHour: validOneHourStarts, twoHour: validTwoHourStarts };
   };
+  
+  const isDateFullyBooked = (date: Date) => {
+      const { hasAny } = getValidSlotsForDate(date);
+      return !hasAny;
+  }
 
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDate || !schedules) return [];
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const schedule = schedules.find(s => s.date === dateStr);
-    
-    // The start times defined by admin
-    const availableAdminSlots = new Set(schedule?.timeSlots || []); 
-    if (!schedule || availableAdminSlots.size === 0) return [];
-    
-    // The slots that are already booked within the day
-    const takenSlots = new Set(schedule.bookedSlots || []);
-    const slotsNeeded = duration * 2; // 1hr = 2 slots, 2hr = 4 slots
-
-    // Filter possible start times from the ones admin made available
-    return Array.from(availableAdminSlots).filter(startTime => {
-        const startTimeIndex = MASTER_TIME_SLOTS.indexOf(startTime);
-        if (startTimeIndex === -1) return false; // Should not happen
-
-        // Check for a contiguous block of `slotsNeeded` from the master list
-        for (let i = 0; i < slotsNeeded; i++) {
-            const currentSlotIndex = startTimeIndex + i;
-
-            // Check if we run out of slots in the master list for the day
-            if (currentSlotIndex >= MASTER_TIME_SLOTS.length) {
-                return false;
-            }
-
-            const slotToCheck = MASTER_TIME_SLOTS[currentSlotIndex];
-
-            // The admin must have made this slot available AND it must not be booked
-            if (!availableAdminSlots.has(slotToCheck) || takenSlots.has(slotToCheck)) {
-                return false;
-            }
-        }
-
-        return true; // This is a valid start time
-    });
+    if (!selectedDate) return [];
+    const { oneHour, twoHour } = getValidSlotsForDate(selectedDate);
+    return duration === 1 ? oneHour : twoHour;
   }, [selectedDate, schedules, duration]);
 
 
@@ -204,7 +190,7 @@ export default function BookingPage() {
   };
 
   const handleSubmit = async () => {
-    if (!user || !profile || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !receiptFile || !schedules) return;
+    if (!user || !profile || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !receiptFile) return;
 
     setLoading(true);
     try {
@@ -213,19 +199,20 @@ export default function BookingPage() {
       const finalPrice = duration === 2 ? basePrice + addHourPrice : basePrice;
 
       // Provisional Booking: Block slots immediately
-      const scheduleForDate = schedules.find(s => s.date === format(selectedDate, 'yyyy-MM-dd'));
-      if (!scheduleForDate) throw new Error("Schedule not found for the selected date.");
-
       const slotsToBook = [];
       const startTimeIndex = MASTER_TIME_SLOTS.indexOf(selectedTime);
+      const slotsNeeded = duration === 1 ? 2 : 4;
+
       if (startTimeIndex !== -1) {
-        for (let i = 0; i < duration * 2; i++) {
-            slotsToBook.push(MASTER_TIME_SLOTS[startTimeIndex + i]);
+        for (let i = 0; i < slotsNeeded; i++) {
+            if (startTimeIndex + i < MASTER_TIME_SLOTS.length) {
+                slotsToBook.push(MASTER_TIME_SLOTS[startTimeIndex + i]);
+            }
         }
       }
 
-      if (slotsToBook.length !== duration * 2) {
-        throw new Error("Could not determine slots to block.");
+      if (slotsToBook.length !== slotsNeeded) {
+        throw new Error("Could not determine all slots to block. The time may have just been booked.");
       }
 
       const scheduleId = `${selectedCourse.id}_${selectedLecturer.id}_${format(selectedDate, 'yyyy-MM-dd')}`;
@@ -296,7 +283,7 @@ export default function BookingPage() {
     if (!selectedCourse) return 0;
     const basePrice = classType === 'online' ? selectedCourse.priceOnline : selectedCourse.pricePhysical;
     const addHourPrice = classType === 'online' ? selectedCourse.priceOnlineAddHour : selectedCourse.pricePhysicalAddHour;
-    return duration === 2 ? basePrice + addHourPrice : basePrice;
+    return duration === 2 && addHourPrice ? basePrice + addHourPrice : basePrice;
   }, [selectedCourse, classType, duration]);
 
   return (
@@ -422,7 +409,7 @@ export default function BookingPage() {
 
           {step === 4 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-center">Select Date & Time</h2>
+              <h2 className="text-2xl font-bold text-center">Select Date & Available Start Time</h2>
               <div className="grid md:grid-cols-2 gap-8">
                 <div className="flex justify-center">
                   <Calendar
@@ -435,7 +422,7 @@ export default function BookingPage() {
                     disabled={(date) => {
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
-                        return date < today || isDateFullyBooked(date);
+                        return date < today || isDateFullyBooked(date) || (settings?.disabledDates || []).includes(format(date, 'yyyy-MM-dd'));
                     }}
                     initialFocus
                     className="rounded-md border shadow"
@@ -452,7 +439,7 @@ export default function BookingPage() {
                     <Alert className="mb-4 bg-green-50 border-green-200 text-green-800">
                         <Clock className="h-4 w-4 text-green-800" />
                         <AlertDescription>
-                            Classes are 1 hour by default. For a 2-hour session, use the switch above. The system will book two consecutive hours from your selected start time.
+                            The default class duration is 1 hour. If you need a 2-hour session, please use the switch above. The system will book two consecutive hours from your selected start time.
                         </AlertDescription>
                     </Alert>
                     <Alert className="mb-4 bg-blue-50 border-blue-200">
@@ -464,7 +451,7 @@ export default function BookingPage() {
                   {!selectedDate ? (
                     <p className="text-muted-foreground">Please select a date first.</p>
                   ) : availableTimeSlots.length === 0 ? (
-                    <p className="text-red-500">No available {duration}-hour slots for this date.</p>
+                    <p className="text-red-500">No available {duration}-hour slots for this date. Please try another date or duration.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {availableTimeSlots.map(time => (

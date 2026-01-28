@@ -128,11 +128,11 @@ export default function CoursesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="priceOnline">Price Online (LKR)</Label>
+                  <Label htmlFor="priceOnline">Price Online (LKR) for 1h</Label>
                   <Input id="priceOnline" type="number" value={priceOnline} onChange={(e) => setPriceOnline(e.target.value)} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pricePhysical">Price Physical (LKR)</Label>
+                  <Label htmlFor="pricePhysical">Price Physical (LKR) for 1h</Label>
                   <Input id="pricePhysical" type="number" value={pricePhysical} onChange={(e) => setPricePhysical(e.target.value)} required />
                 </div>
               </div>
@@ -173,8 +173,8 @@ export default function CoursesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Online (1h/2h)</TableHead>
-                  <TableHead>Physical (1h/2h)</TableHead>
+                  <TableHead>Online (1h / +1h)</TableHead>
+                  <TableHead>Physical (1h / +1h)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>

@@ -35,8 +35,8 @@ export interface Schedule {
   courseId: string;
   lecturerId: string;
   date: string; // YYYY-MM-DD
-  timeSlots: string[];
-  bookedSlots?: string[];
+  timeSlots: string[]; // Potential start times set by admin
+  bookedSlots?: string[]; // 30-min blocks that are booked
 }
 
 export interface Booking {
