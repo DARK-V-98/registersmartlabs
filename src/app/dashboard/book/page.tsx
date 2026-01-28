@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -27,6 +26,13 @@ const STEPS = [
   { id: 3, title: 'Select Lecturer' },
   { id: 4, title: 'Date & Time' },
   { id: 5, title: 'Payment' },
+];
+
+const MASTER_TIME_SLOTS = [
+  "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
+  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
+  "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM"
 ];
 
 
@@ -92,46 +98,73 @@ export default function BookingPage() {
   const { data: schedules } = useCollection<Schedule>(schedulesQuery);
 
   const isDateFullyBooked = (date: Date): boolean => {
-    if (!schedules || !date) return false;
+    if (!schedules || !date) return true; // Default to booked if no data
     const dateStr = format(date, 'yyyy-MM-dd');
     const scheduleForDate = schedules.find(s => s.date === dateStr);
+
     if (!scheduleForDate || !scheduleForDate.timeSlots || scheduleForDate.timeSlots.length === 0) {
-        return true; 
+        return true;
     }
+    const availableAdminSlots = new Set(scheduleForDate.timeSlots);
     const takenSlots = new Set(scheduleForDate.bookedSlots || []);
-    const availableSlots = scheduleForDate.timeSlots.filter(t => !takenSlots.has(t));
-    return availableSlots.length < 2; // Can't even fit a 1-hour class
+
+    // Check if there is at least one valid 1-hour start time
+    const hasAnyValidSlot = Array.from(availableAdminSlots).some(startTime => {
+        const startTimeIndex = MASTER_TIME_SLOTS.indexOf(startTime);
+        if (startTimeIndex === -1) return false;
+
+        // Check for a 1-hour slot (2 consecutive 30-min blocks)
+        if (startTimeIndex + 1 >= MASTER_TIME_SLOTS.length) return false;
+
+        const slot1 = MASTER_TIME_SLOTS[startTimeIndex];
+        const slot2 = MASTER_TIME_SLOTS[startTimeIndex + 1];
+
+        if (availableAdminSlots.has(slot1) && !takenSlots.has(slot1) &&
+            availableAdminSlots.has(slot2) && !takenSlots.has(slot2)) {
+            return true; // Found a valid 1-hour slot
+        }
+        return false;
+    });
+    
+    return !hasAnyValidSlot;
   };
 
   const availableTimeSlots = useMemo(() => {
     if (!selectedDate || !schedules) return [];
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     const schedule = schedules.find(s => s.date === dateStr);
-    if (!schedule || !schedule.timeSlots) return [];
-
+    
+    // The start times defined by admin
+    const availableAdminSlots = new Set(schedule?.timeSlots || []); 
+    if (!schedule || availableAdminSlots.size === 0) return [];
+    
+    // The slots that are already booked within the day
     const takenSlots = new Set(schedule.bookedSlots || []);
     const slotsNeeded = duration * 2; // 1hr = 2 slots, 2hr = 4 slots
 
-    // Filter possible start times
-    return schedule.timeSlots.filter((startTime, index) => {
-      // Create an array of all slots required for this booking
-      const requiredSlots = [];
-      for (let i = 0; i < slotsNeeded; i++) {
-        const nextSlotIndex = index + i;
-        if (nextSlotIndex >= schedule.timeSlots.length) {
-          return false; // Not enough slots left in the day for this duration
-        }
-        requiredSlots.push(schedule.timeSlots[nextSlotIndex]);
-      }
-      
-      // Check if any of the required slots are already taken
-      for (const slot of requiredSlots) {
-        if (takenSlots.has(slot)) {
-          return false;
-        }
-      }
+    // Filter possible start times from the ones admin made available
+    return Array.from(availableAdminSlots).filter(startTime => {
+        const startTimeIndex = MASTER_TIME_SLOTS.indexOf(startTime);
+        if (startTimeIndex === -1) return false; // Should not happen
 
-      return true;
+        // Check for a contiguous block of `slotsNeeded` from the master list
+        for (let i = 0; i < slotsNeeded; i++) {
+            const currentSlotIndex = startTimeIndex + i;
+
+            // Check if we run out of slots in the master list for the day
+            if (currentSlotIndex >= MASTER_TIME_SLOTS.length) {
+                return false;
+            }
+
+            const slotToCheck = MASTER_TIME_SLOTS[currentSlotIndex];
+
+            // The admin must have made this slot available AND it must not be booked
+            if (!availableAdminSlots.has(slotToCheck) || takenSlots.has(slotToCheck)) {
+                return false;
+            }
+        }
+
+        return true; // This is a valid start time
     });
   }, [selectedDate, schedules, duration]);
 
@@ -181,12 +214,13 @@ export default function BookingPage() {
 
       // Provisional Booking: Block slots immediately
       const scheduleForDate = schedules.find(s => s.date === format(selectedDate, 'yyyy-MM-dd'));
-      const allTimeSlotsForDay = scheduleForDate?.timeSlots || [];
-      const startTimeIndex = allTimeSlotsForDay.indexOf(selectedTime);
+      if (!scheduleForDate) throw new Error("Schedule not found for the selected date.");
+
       const slotsToBook = [];
+      const startTimeIndex = MASTER_TIME_SLOTS.indexOf(selectedTime);
       if (startTimeIndex !== -1) {
         for (let i = 0; i < duration * 2; i++) {
-            slotsToBook.push(allTimeSlotsForDay[startTimeIndex + i]);
+            slotsToBook.push(MASTER_TIME_SLOTS[startTimeIndex + i]);
         }
       }
 
