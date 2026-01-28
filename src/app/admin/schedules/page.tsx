@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -22,8 +23,10 @@ import { format, eachDayOfInterval, getDay, isSameDay, addDays } from 'date-fns'
 import { DateRange } from 'react-day-picker';
 
 const TIME_SLOTS = [
-  "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-  "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM"
+  "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
+  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
+  "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM"
 ];
 
 const DAYS_OF_WEEK = [
@@ -150,12 +153,6 @@ export default function SchedulesPage() {
                 
                 // Let's use setDoc with merge: true. 
                 // If doc exists, bookedSlots won't be touched if we don't include it.
-                // Wait, if we don't include it, and doc is new, it will be missing.
-                // We can't conditionally include field in a batch write easily without reading first.
-                // Reading all docs first is expensive.
-                
-                // Compromise: We assume this is "Setting Availability".
-                // If we use merge: true, and don't send bookedSlots, existing docs keep bookedSlots.
                 // New docs won't have bookedSlots field. That might be an issue.
                 // We can use a default value in our code when reading.
                 

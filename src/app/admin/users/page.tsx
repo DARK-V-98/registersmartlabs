@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
@@ -59,6 +60,15 @@ export default function AdminUsersPage() {
         return 'bg-gray-100 text-gray-800';
     }
   };
+  
+  const getRoleVariant = (role?: UserProfile['role']) => {
+    switch(role) {
+      case 'developer': return 'destructive';
+      case 'superadmin': return 'destructive';
+      case 'admin': return 'secondary';
+      default: return 'outline';
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -89,7 +99,7 @@ export default function AdminUsersPage() {
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant={user.role === 'admin' || user.role === 'developer' ? 'destructive' : 'secondary'}>
+                      <Badge variant={getRoleVariant(user.role)}>
                         {user.role}
                       </Badge>
                     </TableCell>
@@ -116,6 +126,7 @@ export default function AdminUsersPage() {
                              <>
                                <DropdownMenuSeparator />
                                <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'developer' })}>Make Developer</DropdownMenuItem>
+                               <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'superadmin' })}>Make Superadmin</DropdownMenuItem>
                                <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'admin' })}>Make Admin</DropdownMenuItem>
                                <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'student' })}>Make Student</DropdownMenuItem>
                              </>
@@ -125,7 +136,7 @@ export default function AdminUsersPage() {
                            <DropdownMenuItem
                             className="text-yellow-600 focus:text-yellow-700"
                             onClick={() => handleUpdateUser(user.id, { status: 'suspended' })}
-                            disabled={user.role === 'developer'}>
+                            disabled={user.role === 'developer' || user.role === 'superadmin'}>
                             Suspend User
                            </DropdownMenuItem>
                           <DropdownMenuItem

@@ -12,13 +12,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, ArrowLeft, History, X, Download, UploadCloud, AlertTriangle } from 'lucide-react';
-import { Booking, Message } from '@/types';
+import { Loader2, Send, ArrowLeft, History, X, Download, UploadCloud, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Booking, Message, AdminSettings } from '@/types';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import Link from 'next/link';
 
 const getStatusColor = (status?: string) => {
     switch (status) {
@@ -111,6 +112,9 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
     }, [firestore, bookingId, refreshKey]);
 
     const { data: booking, isLoading: isBookingLoading } = useDoc<Booking>(bookingRef);
+
+    const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'admin') : null, [firestore]);
+    const { data: settings } = useDoc<AdminSettings>(settingsRef);
 
     const messagesQuery = useMemoFirebase(() => {
         if (!firestore || !bookingId) return null;
@@ -228,11 +232,15 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
                         <Label>Class Type</Label>
                         <p className="font-medium capitalize">{booking.classType}</p>
                     </div>
+                     <div className="space-y-1">
+                        <Label>Duration</Label>
+                        <p className="font-medium">{booking.duration} Hour(s)</p>
+                    </div>
                     <div className="space-y-1">
                         <Label>Price</Label>
                         <p className="font-medium">LKR {booking.price?.toLocaleString()}</p>
                     </div>
-                    <div className="lg:col-span-2 space-y-2 flex sm:items-end justify-end gap-2">
+                    <div className="space-y-2 flex sm:items-end justify-end gap-2">
                          {!isUpcoming && (
                             <Button variant="outline" size="sm" onClick={() => handleRebook(booking)}>
                                 <History className="w-4 h-4 mr-2" />
@@ -254,6 +262,21 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
                     </div>
                 </CardContent>
             </Card>
+
+            {(booking.bookingStatus === 'payment_pending' || booking.bookingStatus === 're_upload_receipt') && settings?.whatsappContactUrl && (
+                <Card>
+                    <CardContent className="p-6 text-center">
+                        <h3 className="font-semibold mb-2">Need help with your payment?</h3>
+                        <p className="text-muted-foreground mb-4">Contact our support team directly on WhatsApp for assistance.</p>
+                        <Link href={settings.whatsappContactUrl} target="_blank" rel="noopener noreferrer">
+                            <Button className="bg-green-500 hover:bg-green-600 text-white">
+                                <MessageSquare className="w-4 h-4 mr-2" />
+                                Contact Admin on WhatsApp
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+            )}
 
             <Card>
                 <CardHeader>

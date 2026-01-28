@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -39,6 +40,8 @@ export default function CoursesPage() {
   const [name, setName] = useState('');
   const [priceOnline, setPriceOnline] = useState('');
   const [pricePhysical, setPricePhysical] = useState('');
+  const [priceOnlineAddHour, setPriceOnlineAddHour] = useState('');
+  const [pricePhysicalAddHour, setPricePhysicalAddHour] = useState('');
   const [isActive, setIsActive] = useState(true);
 
   const coursesQuery = useMemoFirebase(() => {
@@ -50,7 +53,10 @@ export default function CoursesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !priceOnline || !pricePhysical) return;
+    if (!name || !priceOnline || !pricePhysical || !priceOnlineAddHour || !pricePhysicalAddHour) {
+        toast({ title: "Please fill all fields", variant: "destructive" });
+        return;
+    }
     
     setIsLoading(true);
     try {
@@ -58,6 +64,8 @@ export default function CoursesPage() {
         name,
         priceOnline: parseFloat(priceOnline),
         pricePhysical: parseFloat(pricePhysical),
+        priceOnlineAddHour: parseFloat(priceOnlineAddHour),
+        pricePhysicalAddHour: parseFloat(pricePhysicalAddHour),
         status: isActive ? 'active' : 'inactive',
       };
 
@@ -82,6 +90,8 @@ export default function CoursesPage() {
     setName(course.name);
     setPriceOnline(course.priceOnline?.toString() || '0');
     setPricePhysical(course.pricePhysical?.toString() || '0');
+    setPriceOnlineAddHour(course.priceOnlineAddHour?.toString() || '0');
+    setPricePhysicalAddHour(course.pricePhysicalAddHour?.toString() || '0');
     setIsActive(course.status === 'active');
     setIsDialogOpen(true);
   };
@@ -91,6 +101,8 @@ export default function CoursesPage() {
     setName('');
     setPriceOnline('');
     setPricePhysical('');
+    setPriceOnlineAddHour('');
+    setPricePhysicalAddHour('');
     setIsActive(true);
   };
 
@@ -105,7 +117,7 @@ export default function CoursesPage() {
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" /> Add Course</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
               <DialogTitle>{editingCourse ? 'Edit Course' : 'Add New Course'}</DialogTitle>
             </DialogHeader>
@@ -122,6 +134,16 @@ export default function CoursesPage() {
                 <div className="space-y-2">
                   <Label htmlFor="pricePhysical">Price Physical (LKR)</Label>
                   <Input id="pricePhysical" type="number" value={pricePhysical} onChange={(e) => setPricePhysical(e.target.value)} required />
+                </div>
+              </div>
+               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="priceOnlineAddHour">Add. Hour Online (LKR)</Label>
+                  <Input id="priceOnlineAddHour" type="number" value={priceOnlineAddHour} onChange={(e) => setPriceOnlineAddHour(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pricePhysicalAddHour">Add. Hour Physical (LKR)</Label>
+                  <Input id="pricePhysicalAddHour" type="number" value={pricePhysicalAddHour} onChange={(e) => setPricePhysicalAddHour(e.target.value)} required />
                 </div>
               </div>
               <div className="flex items-center space-x-2 pt-2">
@@ -151,8 +173,8 @@ export default function CoursesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Price (Online)</TableHead>
-                  <TableHead>Price (Physical)</TableHead>
+                  <TableHead>Online (1h/2h)</TableHead>
+                  <TableHead>Physical (1h/2h)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -161,8 +183,14 @@ export default function CoursesPage() {
                 {courses?.map((course) => (
                   <TableRow key={course.id}>
                     <TableCell className="font-medium">{course.name}</TableCell>
-                    <TableCell>LKR {course.priceOnline?.toLocaleString() || 0}</TableCell>
-                    <TableCell>LKR {course.pricePhysical?.toLocaleString() || 0}</TableCell>
+                    <TableCell>
+                        <div>LKR {course.priceOnline?.toLocaleString() || 0}</div>
+                        <div className="text-xs text-muted-foreground">+ LKR {course.priceOnlineAddHour?.toLocaleString() || 0}</div>
+                    </TableCell>
+                    <TableCell>
+                        <div>LKR {course.pricePhysical?.toLocaleString() || 0}</div>
+                        <div className="text-xs text-muted-foreground">+ LKR {course.pricePhysicalAddHour?.toLocaleString() || 0}</div>
+                    </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs ${course.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                         {course.status}

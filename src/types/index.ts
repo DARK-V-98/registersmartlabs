@@ -3,7 +3,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: 'student' | 'admin' | 'developer';
+  role: 'student' | 'admin' | 'developer' | 'superadmin';
   status?: 'active' | 'suspended';
   createdAt?: any;
   favoriteLecturers?: string[];
@@ -16,6 +16,8 @@ export interface Course {
   name:string;
   priceOnline: number;
   pricePhysical: number;
+  priceOnlineAddHour: number;
+  pricePhysicalAddHour: number;
   status: 'active' | 'inactive';
 }
 
@@ -49,6 +51,7 @@ export interface Booking {
   lecturerName?: string;
   date: string; // YYYY-MM-DD
   time: string;
+  duration: number; // 1 or 2 hours
   price?: number;
   classType?: 'online' | 'physical';
   paymentStatus: 'pending' | 'paid' | 'rejected' | 'failed';
@@ -70,6 +73,7 @@ export interface Message {
 export interface AdminSettings {
   bankDetails?: string;
   whatsappNumber?: string;
+  whatsappContactUrl?: string;
   disabledDates?: string[];
   notificationEmails?: string[];
   physicalClassesEnabled?: boolean;

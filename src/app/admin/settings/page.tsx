@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, ShieldAlert } from 'lucide-react';
@@ -23,14 +24,13 @@ const AdminSettingsPage = () => {
   
   const [bankDetails, setBankDetails] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
+  const [whatsappContactUrl, setWhatsappContactUrl] = useState('');
   const [disabledDates, setDisabledDates] = useState<Date[]>([]);
   const [notificationEmails, setNotificationEmails] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState('');
   const [physicalClassesEnabled, setPhysicalClassesEnabled] = useState(true);
 
   useEffect(() => {
-    // We fetch settings manually since we need to handle the initial state
-    // when the document might not exist.
     if (firestore) {
       const settingsRef = doc(firestore, 'settings', 'admin');
       const getSettings = async () => {
@@ -40,6 +40,7 @@ const AdminSettingsPage = () => {
           const settings = docSnap.data() as AdminSettings;
           setBankDetails(settings.bankDetails || '');
           setWhatsappNumber(settings.whatsappNumber || '');
+          setWhatsappContactUrl(settings.whatsappContactUrl || '');
           setDisabledDates((settings.disabledDates || []).map(dateStr => new Date(dateStr)));
           setNotificationEmails(settings.notificationEmails || []);
           setPhysicalClassesEnabled(settings.physicalClassesEnabled ?? true);
@@ -72,6 +73,7 @@ const AdminSettingsPage = () => {
     const newSettings: AdminSettings = {
       bankDetails,
       whatsappNumber,
+      whatsappContactUrl,
       disabledDates: disabledDates.map(date => format(date, 'yyyy-MM-dd')),
       notificationEmails,
       physicalClassesEnabled,
@@ -88,6 +90,8 @@ const AdminSettingsPage = () => {
   if (isProfileLoading) {
     return <p>Loading settings...</p>;
   }
+
+  const isSuperAdminOrDev = profile?.role === 'developer' || profile?.role === 'superadmin';
 
   return (
     <div className="space-y-8">
@@ -129,6 +133,18 @@ const AdminSettingsPage = () => {
                     className="min-h-[120px]"
                 />
                 </div>
+                {isSuperAdminOrDev && (
+                    <div className="space-y-2 pt-4 border-t">
+                        <Label htmlFor="whatsappContact">Student Contact WhatsApp Link</Label>
+                        <Input 
+                            id="whatsappContact"
+                            placeholder="https://wa.me/..."
+                            value={whatsappContactUrl}
+                            onChange={(e) => setWhatsappContactUrl(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">This link will be shown to students after they book.</p>
+                    </div>
+                )}
             </div>
             
             <div className="bg-white p-6 rounded-2xl border border-border space-y-6">

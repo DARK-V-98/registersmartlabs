@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -67,7 +68,7 @@ export default function ProfilePage() {
     <div className="space-y-6 max-w-2xl">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">My Profile</h2>
-        {(profile?.role === 'admin' || profile?.role === 'developer') && (
+        {(profile?.role === 'admin' || profile?.role === 'developer' || profile?.role === 'superadmin') && (
            <Link href="/admin">
              <Button variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800">
                <ShieldCheck className="mr-2 h-4 w-4" />

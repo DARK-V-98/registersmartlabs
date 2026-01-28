@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -25,7 +26,8 @@
         },
         "role": {
           "type": "string",
-          "description": "Role of the user (e.g., 'user', 'admin'). Default is 'user'."
+          "description": "Role of the user (e.g., 'user', 'admin', 'developer', 'superadmin'). Default is 'user'.",
+          "enum": ["student", "admin", "developer", "superadmin"]
         }
       },
       "required": [
@@ -52,6 +54,14 @@
         "description": {
           "type": "string",
           "description": "Description of the course."
+        },
+        "priceOnlineAddHour": {
+            "type": "number",
+            "description": "Price for an additional hour for an online class."
+        },
+        "pricePhysicalAddHour": {
+            "type": "number",
+            "description": "Price for an additional hour for a physical class."
         }
       },
       "required": [
@@ -94,6 +104,10 @@
         "time": {
           "type": "string"
         },
+        "duration": {
+            "type": "number",
+            "description": "Duration of the class in hours (1 or 2)."
+        },
         "classType": {
           "type": "string",
           "enum": ["online", "physical"]
@@ -113,6 +127,7 @@
         "courseName",
         "date",
         "time",
+        "duration",
         "classType",
         "status",
         "enrollmentDate"
@@ -131,6 +146,10 @@
         "whatsappNumber": {
           "type": "string",
           "description": "WhatsApp number for payment verification."
+        },
+        "whatsappContactUrl": {
+            "type": "string",
+            "description": "Full WhatsApp chat link for student contact."
         },
         "disabledDates": {
           "type": "array",

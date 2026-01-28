@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -111,7 +112,7 @@ export function DashboardSidebar() {
             );
           })}
           
-          {(profile?.role === 'admin' || profile?.role === 'developer') && (
+          {(profile?.role === 'admin' || profile?.role === 'developer' || profile?.role === 'superadmin') && (
              <Link href="/admin">
                 <span className="group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground text-amber-600 font-bold mt-4 border border-amber-200 bg-amber-50">
                   <ShieldCheck className="mr-2 h-4 w-4" />

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -15,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star, AlertTriangle, Info } from 'lucide-react';
+import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star, AlertTriangle, Info, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { Course, Lecturer, Schedule, AdminSettings } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -47,6 +46,7 @@ export default function BookingPage() {
   const [selectedLecturer, setSelectedLecturer] = useState<Lecturer | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>('');
+  const [duration, setDuration] = useState(1); // 1 or 2 hours
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [showFavorites, setShowFavorites] = useState(false);
 
@@ -91,31 +91,49 @@ export default function BookingPage() {
 
   const { data: schedules } = useCollection<Schedule>(schedulesQuery);
 
-  const availableDates = useMemo(() => {
-    if (!schedules) return [];
-    return schedules.map(s => new Date(s.date));
-  }, [schedules]);
-  
   const isDateFullyBooked = (date: Date): boolean => {
     if (!schedules || !date) return false;
     const dateStr = format(date, 'yyyy-MM-dd');
     const scheduleForDate = schedules.find(s => s.date === dateStr);
     if (!scheduleForDate || !scheduleForDate.timeSlots || scheduleForDate.timeSlots.length === 0) {
-        return false;
+        return true; 
     }
-    const availableSlots = scheduleForDate.timeSlots.filter(t => !(scheduleForDate.bookedSlots || []).includes(t));
-    return availableSlots.length === 0;
+    const takenSlots = new Set(scheduleForDate.bookedSlots || []);
+    const availableSlots = scheduleForDate.timeSlots.filter(t => !takenSlots.has(t));
+    return availableSlots.length < 2; // Can't even fit a 1-hour class
   };
 
   const availableTimeSlots = useMemo(() => {
     if (!selectedDate || !schedules) return [];
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     const schedule = schedules.find(s => s.date === dateStr);
-    if (!schedule) return [];
+    if (!schedule || !schedule.timeSlots) return [];
 
-    const takenSlots = schedule.bookedSlots || [];
-    return schedule.timeSlots.filter(t => !takenSlots.includes(t));
-  }, [selectedDate, schedules]);
+    const takenSlots = new Set(schedule.bookedSlots || []);
+    const slotsNeeded = duration * 2; // 1hr = 2 slots, 2hr = 4 slots
+
+    // Filter possible start times
+    return schedule.timeSlots.filter((startTime, index) => {
+      // Create an array of all slots required for this booking
+      const requiredSlots = [];
+      for (let i = 0; i < slotsNeeded; i++) {
+        const nextSlotIndex = index + i;
+        if (nextSlotIndex >= schedule.timeSlots.length) {
+          return false; // Not enough slots left in the day for this duration
+        }
+        requiredSlots.push(schedule.timeSlots[nextSlotIndex]);
+      }
+      
+      // Check if any of the required slots are already taken
+      for (const slot of requiredSlots) {
+        if (takenSlots.has(slot)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [selectedDate, schedules, duration]);
 
 
   const handleNext = () => {
@@ -153,12 +171,34 @@ export default function BookingPage() {
   };
 
   const handleSubmit = async () => {
-    if (!user || !profile || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !receiptFile) return;
+    if (!user || !profile || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !receiptFile || !schedules) return;
 
     setLoading(true);
     try {
-      const price = classType === 'online' ? selectedCourse.priceOnline : selectedCourse.pricePhysical;
+      const basePrice = classType === 'online' ? selectedCourse.priceOnline : selectedCourse.pricePhysical;
+      const addHourPrice = classType === 'online' ? selectedCourse.priceOnlineAddHour : selectedCourse.pricePhysicalAddHour;
+      const finalPrice = duration === 2 ? basePrice + addHourPrice : basePrice;
 
+      // Provisional Booking: Block slots immediately
+      const scheduleForDate = schedules.find(s => s.date === format(selectedDate, 'yyyy-MM-dd'));
+      const allTimeSlotsForDay = scheduleForDate?.timeSlots || [];
+      const startTimeIndex = allTimeSlotsForDay.indexOf(selectedTime);
+      const slotsToBook = [];
+      if (startTimeIndex !== -1) {
+        for (let i = 0; i < duration * 2; i++) {
+            slotsToBook.push(allTimeSlotsForDay[startTimeIndex + i]);
+        }
+      }
+
+      if (slotsToBook.length !== duration * 2) {
+        throw new Error("Could not determine slots to block.");
+      }
+
+      const scheduleId = `${selectedCourse.id}_${selectedLecturer.id}_${format(selectedDate, 'yyyy-MM-dd')}`;
+      const scheduleRef = doc(firestore, 'schedules', scheduleId);
+      await updateDoc(scheduleRef, { bookedSlots: arrayUnion(...slotsToBook) });
+
+      // Create Booking Document
       const bookingData = {
         userId: user.uid,
         userName: profile?.name || user.displayName || user.email?.split('@')[0] || 'Student',
@@ -170,11 +210,12 @@ export default function BookingPage() {
         lecturerName: selectedLecturer.name,
         date: format(selectedDate, 'yyyy-MM-dd'),
         time: selectedTime,
+        duration: duration,
         classType,
         paymentStatus: 'pending',
         bookingStatus: 'payment_pending',
         createdAt: Timestamp.now(),
-        price: price
+        price: finalPrice
       };
 
       const docRef = await addDocumentNonBlocking(collection(firestore, 'bookings'), bookingData);
@@ -201,21 +242,7 @@ export default function BookingPage() {
           await fetch('/api/send-email', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  bookingId,
-                  userId: bookingData.userId,
-                  userName: bookingData.userName,
-                  userEmail: bookingData.userEmail,
-                  userPhoneNumber: bookingData.userPhoneNumber,
-                  courseName: bookingData.courseName,
-                  classType: bookingData.classType,
-                  lecturerName: bookingData.lecturerName,
-                  date: bookingData.date,
-                  time: bookingData.time,
-                  price: bookingData.price,
-                  paymentMethod: 'Bank Transfer',
-                  receiptUrl: downloadUrl
-              })
+              body: JSON.stringify({ ...bookingData, bookingId, receiptUrl: downloadUrl })
           });
       } catch (error) {
           console.error('Failed to send email notification', error);
@@ -224,15 +251,19 @@ export default function BookingPage() {
       toast({ title: 'Booking submitted successfully!', description: 'Your booking is pending confirmation.' });
       router.push(`/dashboard/bookings/${bookingId}`);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast({ title: 'Error creating booking', variant: 'destructive' });
-    } finally {
+      toast({ title: 'Error creating booking', description: error.message, variant: 'destructive' });
       setLoading(false);
     }
   };
 
-  const currentPrice = selectedCourse ? (classType === 'online' ? selectedCourse.priceOnline : selectedCourse.pricePhysical) : 0;
+  const currentPrice = useMemo(() => {
+    if (!selectedCourse) return 0;
+    const basePrice = classType === 'online' ? selectedCourse.priceOnline : selectedCourse.pricePhysical;
+    const addHourPrice = classType === 'online' ? selectedCourse.priceOnlineAddHour : selectedCourse.pricePhysicalAddHour;
+    return duration === 2 ? basePrice + addHourPrice : basePrice;
+  }, [selectedCourse, classType, duration]);
 
   return (
     <div className="max-w-4xl mx-auto py-8">
@@ -368,26 +399,32 @@ export default function BookingPage() {
                        setSelectedTime('');
                     }}
                     disabled={(date) => {
-                        const dateStr = format(date, 'yyyy-MM-dd');
-                        const hasSchedule = availableDates.some(d => format(d, 'yyyy-MM-dd') === dateStr);
-                        return date < new Date(new Date().setHours(0,0,0,0)) || !hasSchedule || isDateFullyBooked(date);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today || isDateFullyBooked(date);
                     }}
                     initialFocus
                     className="rounded-md border shadow"
                   />
                 </div>
                 <div>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold">Available Time Slots</h3>
+                        <div className="flex items-center space-x-2">
+                            <Label htmlFor="duration-switch">2-hour class</Label>
+                            <Switch id="duration-switch" checked={duration === 2} onCheckedChange={(checked) => setDuration(checked ? 2 : 1)} />
+                        </div>
+                    </div>
                     <Alert className="mb-4 bg-blue-50 border-blue-200">
                         <Info className="h-4 w-4 text-blue-700" />
                         <AlertDescription className="text-blue-700">
-                            All times shown are in Sri Lanka Time (LKT, UTC+5:30). Your local timezone is {profile?.timezone || 'unknown'}.
+                            All times shown are in Sri Lanka Time (LKT, UTC+5:30).
                         </AlertDescription>
                     </Alert>
-                  <h3 className="font-semibold mb-4">Available Time Slots</h3>
                   {!selectedDate ? (
                     <p className="text-muted-foreground">Please select a date first.</p>
                   ) : availableTimeSlots.length === 0 ? (
-                    <p className="text-red-500">No available slots for this date.</p>
+                    <p className="text-red-500">No available {duration}-hour slots for this date.</p>
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {availableTimeSlots.map(time => (
@@ -428,6 +465,10 @@ export default function BookingPage() {
                     <div className="flex justify-between items-center border-b pb-2">
                       <span className="font-semibold">Date & Time:</span>
                       <span>{selectedDate ? format(selectedDate, 'PPP') : ''} @ {selectedTime} (LKT)</span>
+                    </div>
+                     <div className="flex justify-between items-center border-b pb-2">
+                      <span className="font-semibold">Duration:</span>
+                      <span>{duration} Hour(s)</span>
                     </div>
                     <div className="flex justify-between items-center text-xl font-bold pt-2">
                       <span>Total Amount:</span>

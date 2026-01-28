@@ -3,19 +3,33 @@
 
 import { useState, useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
-import { collection, query, orderBy, doc, arrayUnion, where } from 'firebase/firestore';
+import { collection, query, orderBy, doc, arrayUnion, where, getDoc, arrayRemove } from 'firebase/firestore';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, Clock, Check, X, Users, IndianRupee, BookCheck, Hourglass, Loader2 } from 'lucide-react';
 import { format, isThisMonth, parseISO } from 'date-fns';
-import { Booking, UserProfile } from '@/types';
+import { Booking, UserProfile, Schedule } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const getStatusLabel = (status?: string) => {
   if (!status) return 'Unknown';
   return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
+
+const getSlotsForBooking = (bookingTime: string, duration: number, allTimeSlotsForDay: string[]) => {
+    const slots = [];
+    const startTimeIndex = allTimeSlotsForDay.indexOf(bookingTime);
+    if (startTimeIndex === -1) return [];
+    
+    const slotsToBookCount = (duration || 1) * 2; // 1hr = 2 slots, 2hr = 4 slots
+    for (let i = 0; i < slotsToBookCount; i++) {
+        if (startTimeIndex + i < allTimeSlotsForDay.length) {
+            slots.push(allTimeSlotsForDay[startTimeIndex + i]);
+        }
+    }
+    return slots;
 };
 
 const AdminDashboardPage = () => {
@@ -25,7 +39,6 @@ const AdminDashboardPage = () => {
 
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Order by creation date to see newest bookings first
     return query(collection(firestore, 'bookings'), orderBy('createdAt', 'desc'));
   }, [firestore]);
 
@@ -39,7 +52,7 @@ const AdminDashboardPage = () => {
   
   const isLoading = isBookingsLoading || isUsersLoading;
 
-  const handleStatusChange = (booking: Booking, newStatus: 'confirmed' | 'rejected') => {
+  const handleStatusChange = async (booking: Booking, newStatus: 'confirmed' | 'rejected') => {
     if (!firestore) return;
     const bookingRef = doc(firestore, 'bookings', booking.id);
     
@@ -48,13 +61,27 @@ const AdminDashboardPage = () => {
       paymentStatus: newStatus === 'confirmed' ? 'paid' : 'rejected' 
     });
 
-    if (newStatus === 'confirmed') {
-      const dateString = booking.date;
-      const scheduleId = `${booking.courseId}_${booking.lecturerId}_${dateString}`;
-      const scheduleRef = doc(firestore, 'schedules', scheduleId);
-      setDocumentNonBlocking(scheduleRef, {
-        bookedSlots: arrayUnion(booking.time)
-      }, { merge: true });
+    if (newStatus === 'rejected') {
+        const scheduleId = `${booking.courseId}_${booking.lecturerId}_${booking.date}`;
+        const scheduleRef = doc(firestore, 'schedules', scheduleId);
+        
+        try {
+            const scheduleSnap = await getDoc(scheduleRef);
+            if (scheduleSnap.exists()) {
+                const scheduleData = scheduleSnap.data() as Schedule;
+                const allTimeSlots = scheduleData.timeSlots || [];
+                const slotsToRemove = getSlotsForBooking(booking.time, booking.duration, allTimeSlots);
+                
+                if (slotsToRemove.length > 0) {
+                    updateDocumentNonBlocking(scheduleRef, {
+                        bookedSlots: arrayRemove(...slotsToRemove)
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Error un-blocking time slot:", error);
+            toast({ title: 'Error', description: 'Could not un-block the time slot.', variant: 'destructive'});
+        }
     }
     
     toast({

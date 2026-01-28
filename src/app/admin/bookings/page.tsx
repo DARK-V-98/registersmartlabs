@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import { useFirestore, useCollection, updateDocumentNonBlocking, addDocumentNonBlocking, useMemoFirebase } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { collection, query, orderBy, doc, where, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, doc, where, Timestamp, getDoc, arrayRemove } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Booking, Message } from '@/types';
+import { Booking, Message, Schedule } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
@@ -104,6 +105,20 @@ function ChatInterface({ bookingId }: { bookingId: string }) {
     );
 }
 
+const getSlotsForBooking = (bookingTime: string, duration: number, allTimeSlotsForDay: string[]) => {
+    const slots = [];
+    const startTimeIndex = allTimeSlotsForDay.indexOf(bookingTime);
+    if (startTimeIndex === -1) return [];
+    
+    const slotsToBookCount = (duration || 1) * 2; // 1hr = 2 slots, 2hr = 4 slots
+    for (let i = 0; i < slotsToBookCount; i++) {
+        if (startTimeIndex + i < allTimeSlotsForDay.length) {
+            slots.push(allTimeSlotsForDay[startTimeIndex + i]);
+        }
+    }
+    return slots;
+};
+
 export default function AdminBookingsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -128,18 +143,39 @@ export default function AdminBookingsPage() {
     return true;
   });
 
-  const handleUpdateStatus = async (bookingId: string, status: Booking['bookingStatus'], paymentStatus: Booking['paymentStatus']) => {
+  const handleUpdateStatus = async (booking: Booking, status: Booking['bookingStatus'], paymentStatus: Booking['paymentStatus']) => {
+    if (!firestore) return;
     setIsLoading(true);
+
     try {
-      await updateDocumentNonBlocking(doc(firestore, 'bookings', bookingId), {
+      // 1. Update the booking document status
+      updateDocumentNonBlocking(doc(firestore, 'bookings', booking.id), {
         bookingStatus: status,
         paymentStatus: paymentStatus
       });
 
-      // Send confirmation email if status is confirmed
+      // 2. If rejected or cancelled, un-block the time slots
+      if (status === 'rejected' || status === 'cancelled') {
+        const scheduleId = `${booking.courseId}_${booking.lecturerId}_${booking.date}`;
+        const scheduleRef = doc(firestore, 'schedules', scheduleId);
+        
+        const scheduleSnap = await getDoc(scheduleRef);
+        if (scheduleSnap.exists()) {
+          const scheduleData = scheduleSnap.data() as Schedule;
+          const allTimeSlots = scheduleData.timeSlots || [];
+          const slotsToRemove = getSlotsForBooking(booking.time, booking.duration, allTimeSlots);
+          
+          if (slotsToRemove.length > 0) {
+            updateDocumentNonBlocking(scheduleRef, {
+              bookedSlots: arrayRemove(...slotsToRemove)
+            });
+          }
+        }
+      }
+
+      // 3. Send confirmation email if status is confirmed
       if (status === 'confirmed') {
-          const booking = bookings?.find(b => b.id === bookingId);
-          if (booking && booking.userEmail) {
+          if (booking.userEmail) {
              try {
                  fetch('/api/send-email', {
                      method: 'POST',
@@ -156,7 +192,7 @@ export default function AdminBookingsPage() {
                          date: booking.date,
                          time: booking.time,
                          price: booking.price,
-                         paymentMethod: booking.paymentMethod || 'Bank Transfer',
+                         paymentMethod: 'Bank Transfer',
                      })
                  });
              } catch (emailError) {
@@ -166,12 +202,10 @@ export default function AdminBookingsPage() {
       }
 
       toast({ title: `Booking ${status}` });
-      // Keep dialog open if you are just interacting, close on final actions.
-      // setIsDialogOpen(false); 
-      // Manually update local state to reflect change immediately
       setSelectedBooking(prev => prev ? {...prev, bookingStatus: status, paymentStatus: paymentStatus} : null);
     } catch (error) {
       toast({ title: 'Error updating booking', variant: 'destructive' });
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -359,14 +393,14 @@ export default function AdminBookingsPage() {
                             <DialogFooter className="gap-2 sm:justify-between pt-6">
                              {selectedBooking?.bookingStatus === 'cancellation_requested' ? (
                                <div className="w-full flex justify-between">
-                                  <Button variant="outline" onClick={() => handleUpdateStatus(selectedBooking.id, 'confirmed', 'paid')} disabled={isLoading}>Deny Request</Button>
-                                  <Button variant="destructive" onClick={() => handleUpdateStatus(selectedBooking.id, 'cancelled', 'rejected')} disabled={isLoading}><AlertTriangle className="w-4 h-4 mr-2"/>Approve Cancellation</Button>
+                                  <Button variant="outline" onClick={() => handleUpdateStatus(selectedBooking, 'confirmed', 'paid')} disabled={isLoading}>Deny Request</Button>
+                                  <Button variant="destructive" onClick={() => handleUpdateStatus(selectedBooking, 'cancelled', 'rejected')} disabled={isLoading}><AlertTriangle className="w-4 h-4 mr-2"/>Approve Cancellation</Button>
                                </div>
                              ) : selectedBooking?.bookingStatus === 'payment_pending' || selectedBooking?.bookingStatus === 're_upload_receipt' ? (
                                 <div className="w-full flex justify-between items-center">
                                   <Button 
                                     variant="destructive" 
-                                    onClick={() => handleUpdateStatus(selectedBooking.id, 'rejected', 'rejected')}
+                                    onClick={() => handleUpdateStatus(selectedBooking, 'rejected', 'rejected')}
                                     disabled={isLoading}
                                   >
                                     <X className="w-4 h-4 mr-2" /> Reject
@@ -374,14 +408,14 @@ export default function AdminBookingsPage() {
                                   <Button 
                                     variant="outline"
                                     className="text-amber-600 border-amber-300 hover:bg-amber-50"
-                                    onClick={() => handleUpdateStatus(selectedBooking.id, 're_upload_receipt', 'pending')}
+                                    onClick={() => handleUpdateStatus(selectedBooking, 're_upload_receipt', 'pending')}
                                     disabled={isLoading}
                                   >
                                     <RefreshCw className="w-4 h-4 mr-2" /> Request Re-upload
                                   </Button>
                                   <Button 
                                     className="bg-green-600 hover:bg-green-700" 
-                                    onClick={() => handleUpdateStatus(selectedBooking.id, 'confirmed', 'paid')}
+                                    onClick={() => handleUpdateStatus(selectedBooking, 'confirmed', 'paid')}
                                     disabled={isLoading || selectedBooking.bookingStatus === 'confirmed'}
                                   >
                                     <Check className="w-4 h-4 mr-2" /> Confirm Payment
