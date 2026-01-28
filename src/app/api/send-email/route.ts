@@ -9,6 +9,88 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { logoBase64 } from '@/lib/logo-base64';
 
+
+const getInvoiceHtml = (bookingData: any) => {
+    const {
+        bookingId = 'N/A',
+        userName = 'N/A',
+        userEmail = 'N/A',
+        userPhoneNumber = 'N/A',
+        courseName = 'N/A',
+        lecturerName = 'N/A',
+        date = 'N/A',
+        time = 'N/A',
+        classType = 'N/A',
+        duration = 1,
+        price = 0,
+    } = bookingData;
+    
+    const numericPrice = typeof price === 'number' ? price : 0;
+
+    return `
+    <div style="font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0,0,0,0.05);">
+        <table cellpadding="0" cellspacing="0" style="width: 100%; line-height: inherit; text-align: left;">
+            <tr class="top">
+                <td colspan="2" style="padding: 5px; vertical-align: top;">
+                    <table style="width: 100%; line-height: inherit; text-align: left;">
+                        <tr>
+                            <td class="title" style="padding-bottom: 20px; font-size: 45px; line-height: 45px; color: #333;">
+                                <img src="${logoBase64}" style="width:100%; max-width:100px;">
+                            </td>
+                            <td style="padding-bottom: 20px; text-align: right;">
+                                <strong style="font-size: 20px;">Invoice #${bookingId}</strong><br>
+                                Created: ${new Date().toLocaleDateString()}<br>
+                                Status: <strong style="color: #27ae60;">Paid</strong>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr class="information">
+                <td colspan="2" style="padding: 5px; vertical-align: top;">
+                    <table style="width: 100%; line-height: inherit; text-align: left; border-top: 1px solid #eee; padding-top: 20px;">
+                        <tr>
+                            <td style="padding-bottom: 40px;">
+                                SmartLabs<br>
+                                3rd Floor, No. 326, Jana Jaya Building<br>
+                                Rajagiriya, Sri Lanka
+                            </td>
+                            <td style="padding-bottom: 40px; text-align: right;">
+                                <strong>Bill To:</strong><br>
+                                ${userName}<br>
+                                ${userEmail}<br>
+                                ${userPhoneNumber}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <tr class="heading" style="background: #eee; border-bottom: 1px solid #ddd; font-weight: bold;">
+                <td style="padding: 10px; vertical-align: top;">Description</td>
+                <td style="padding: 10px; vertical-align: top; text-align: right;">Amount (LKR)</td>
+            </tr>
+            <tr class="item" style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px; vertical-align: top;">
+                    ${courseName} - ${lecturerName}<br>
+                    <small style="color: #555;">Date: ${date} @ ${time} (${duration} Hour(s), ${classType})</small>
+                </td>
+                <td style="padding: 10px; vertical-align: top; text-align: right;">${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            </tr>
+            <tr class="total">
+                <td style="padding: 5px; vertical-align: top;"></td>
+                <td style="padding: 10px 10px 40px; vertical-align: top; text-align: right; border-top: 2px solid #eee; font-weight: bold; font-size: 1.2em;">
+                    Total: LKR ${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+            </tr>
+        </table>
+        <div style="text-align: center; color: #777; font-size: 12px; margin-top: 20px;">
+            <p>Thank you for choosing SmartLabs. This is a computer-generated invoice and does not require a signature.</p>
+        </div>
+    </div>
+    `;
+};
+
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -57,150 +139,17 @@ export async function POST(req: Request) {
     let mailOptions;
 
     if (type === 'confirmation') {
-        // --- PDF INVOICE GENERATION ---
+        const invoiceHtml = getInvoiceHtml(body);
+
+        // --- PDF INVOICE GENERATION from HTML ---
         const doc = new jsPDF();
-        
-        // Ensure all data has fallbacks
-        const safeUserName = userName || 'N/A';
-        const safeUserEmail = userEmail || 'N/A';
-        const safeUserPhoneNumber = userPhoneNumber || 'N/A';
-        const safeBookingId = bookingId || 'N/A';
-        const safeCourseName = courseName || 'N/A';
-        const safeLecturerName = lecturerName || 'N/A';
-        const safeDate = date || 'N/A';
-        const safeTime = time || 'N/A';
-        const safeClassType = classType || 'N/A';
-        const safeDuration = duration || 1;
-        const numericPrice = typeof price === 'number' ? price : 0;
-
-        const primaryColor = '#0984e3';
-        const mutedColor = '#747d8c';
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const leftMargin = 14;
-        const rightMargin = 14;
-        const rightX = pageWidth - rightMargin;
-
-        // --- Header ---
-        if (logoBase64) {
-            doc.addImage(logoBase64, 'PNG', leftMargin, 15, 25, 25);
-        }
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(24);
-        doc.setTextColor(primaryColor);
-        doc.text('INVOICE', rightX, 30, { align: 'right' });
-
-        let currentY = 45; // Start Y position after header
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(mutedColor);
-        doc.text('SmartLabs', leftMargin, currentY);
-        currentY += 5;
-        doc.text('3rd Floor, No. 326, Jana Jaya Building', leftMargin, currentY);
-        currentY += 5;
-        doc.text('Rajagiriya, Sri Lanka', leftMargin, currentY);
-
-        // --- Bill To & Invoice Details ---
-        currentY += 10;
-        doc.setLineWidth(0.1);
-        doc.line(leftMargin, currentY, rightX, currentY);
-        currentY += 10;
-
-        doc.setFontSize(10);
-        doc.setTextColor('#000000');
-        doc.setFont('helvetica', 'bold');
-        doc.text('BILL TO', leftMargin, currentY);
-        
-        const detailsLabelX = pageWidth * 0.55;
-        doc.text('INVOICE #:', detailsLabelX, currentY);
-        doc.setFont('helvetica', 'normal');
-        doc.text(safeBookingId, rightX, currentY, { align: 'right' });
-        currentY += 5;
-
-        doc.setFont('helvetica', 'normal');
-        doc.text(safeUserName, leftMargin, currentY);
-        doc.setFont('helvetica', 'bold');
-        doc.text('DATE:', detailsLabelX, currentY);
-        doc.setFont('helvetica', 'normal');
-        doc.text(new Date().toLocaleDateString(), rightX, currentY, { align: 'right' });
-        currentY += 5;
-
-        doc.text(safeUserEmail, leftMargin, currentY);
-        doc.setFont('helvetica', 'bold');
-        doc.text('STATUS:', detailsLabelX, currentY);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor('#27ae60');
-        doc.text('PAID', rightX, currentY, { align: 'right' });
-        currentY += 5;
-        
-        doc.setTextColor('#000000');
-        if(safeUserPhoneNumber) {
-            doc.setFont('helvetica', 'normal');
-            doc.text(safeUserPhoneNumber, leftMargin, currentY);
-        }
-        
-        currentY += 8;
-        doc.line(leftMargin, currentY, rightX, currentY);
-
-        // --- Invoice Table (Manual) ---
-        currentY += 10;
-        const tableHeaderY = currentY;
-        const tableRowHeight = 10;
-        const descriptionX = leftMargin;
-        const lecturerX = pageWidth * 0.40;
-        const dateTimeX = pageWidth * 0.60;
-        const amountX = rightX;
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setFillColor(9, 132, 227); // Header background
-        doc.rect(leftMargin, tableHeaderY - 5, rightX - leftMargin, tableRowHeight, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.text("DESCRIPTION", descriptionX + 2, tableHeaderY);
-        doc.text("LECTURER", lecturerX, tableHeaderY);
-        doc.text("DATE & TIME", dateTimeX, tableHeaderY);
-        doc.text("AMOUNT (LKR)", amountX - 2, tableHeaderY, { align: 'right' });
-        currentY += tableRowHeight;
-        
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor('#000000');
-        
-        // Table Row Content
-        const rowText = `${safeCourseName} (${safeDuration} Hour(s), ${safeClassType})`;
-        doc.text(rowText, descriptionX + 2, currentY);
-        doc.text(safeLecturerName, lecturerX, currentY);
-        doc.text(`${safeDate} @ ${safeTime}`, dateTimeX, currentY);
-        doc.text(numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), amountX - 2, currentY, { align: 'right' });
-        
-        // Table Borders
-        currentY += 5;
-        const tableBottomY = currentY;
-        doc.setLineWidth(0.1);
-        doc.rect(leftMargin, tableHeaderY - 5, rightX - leftMargin, tableBottomY - (tableHeaderY - 5));
-
-
-        // --- Totals ---
-        currentY += 15;
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('TOTAL', detailsLabelX, currentY);
-        doc.text(`LKR ${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightX, currentY, { align: 'right' });
-
-
-        // --- Footer ---
-        currentY = pageHeight - 35;
-        doc.line(leftMargin, currentY, rightX, currentY);
-        
-        currentY += 10;
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(mutedColor);
-        doc.text('Thank you for choosing SmartLabs!', leftMargin, currentY);
-        currentY += 5;
-        doc.text('If you have any questions, please contact info@smartlabs.lk', leftMargin, currentY);
-        currentY += 10;
-        doc.text('This is a computer-generated invoice and does not require a signature.', pageWidth / 2, currentY, { align: 'center'});
-
+        await doc.html(invoiceHtml, {
+            autoPaging: 'text',
+            x: 0,
+            y: 0,
+            width: 210, // A4 width in mm
+            windowWidth: 800 // The width of the HTML element
+        });
         const pdfBuffer = doc.output('arraybuffer');
         // --- END PDF INVOICE GENERATION ---
 
@@ -273,7 +222,6 @@ export async function POST(req: Request) {
         };
     } else {
         // Default: Admin Notification
-        // Fetch admin settings for notification emails
         let recipients: string[] = [];
         try {
             const settingsRef = doc(db, 'settings', 'admin');
@@ -286,30 +234,19 @@ export async function POST(req: Request) {
             }
         } catch (error) {
             console.error('Error fetching admin settings:', error);
-            // Continue with default admin email if fetching fails
         }
 
-        // Combine fetched recipients with env ADMIN_EMAIL if available, removing duplicates
         const defaultAdminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
         const allRecipients = new Set<string>();
-        
-        // Add Firestore recipients
         recipients.forEach(email => allRecipients.add(email));
-        
-        // Add default admin email
-        if (defaultAdminEmail) {
-            allRecipients.add(defaultAdminEmail);
-        }
-        
+        if (defaultAdminEmail) allRecipients.add(defaultAdminEmail);
         const toEmails = Array.from(allRecipients).join(', ');
 
-        if (!toEmails) {
-            console.warn('No recipient emails configured. Using fallback.');
-        }
+        if (!toEmails) console.warn('No recipient emails configured.');
 
         mailOptions = {
           from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-          to: toEmails, // Send notification to all admins
+          to: toEmails,
           subject: `New Booking: ${courseName} - ${userName}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -317,13 +254,11 @@ export async function POST(req: Request) {
               <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px;">
                 <p><strong>Booking ID:</strong> ${bookingId}</p>
                 <hr style="border: 1px solid #ddd;" />
-                
                 <h3 style="color: #555;">Student Details</h3>
                 <p><strong>Name:</strong> ${userName}</p>
                 <p><strong>Email:</strong> ${userEmail}</p>
                 <p><strong>Phone:</strong> ${userPhoneNumber || 'Not Provided'}</p>
                 <p><strong>User ID:</strong> ${userId}</p>
-                
                 <h3 style="color: #555;">Booking Information</h3>
                 <p><strong>Course:</strong> ${courseName}</p>
                 <p><strong>Type:</strong> ${classType}</p>
@@ -331,7 +266,6 @@ export async function POST(req: Request) {
                 <p><strong>Date:</strong> ${date}</p>
                 <p><strong>Time:</strong> ${time} (Asia/Colombo Time)</p>
                 <p><strong>Price:</strong> ${price ? `Rs. ${price}` : '-'}</p>
-                
                 <h3 style="color: #555;">Payment Details</h3>
                 <p><strong>Method:</strong> ${paymentMethod}</p>
                 ${receiptUrl ? `<p><strong>Receipt:</strong> <a href="${receiptUrl}">View Receipt</a></p>` : ''}
@@ -344,7 +278,6 @@ export async function POST(req: Request) {
         };
     }
 
-    // Verify connection configuration
     await new Promise((resolve, reject) => {
       transporter.verify(function (error, success) {
         if (error) {
@@ -357,7 +290,6 @@ export async function POST(req: Request) {
       });
     });
 
-    // Send email
     await transporter.sendMail(mailOptions);
 
     return NextResponse.json({ message: 'Email notification sent successfully' }, { status: 200 });
