@@ -27,6 +27,7 @@ import { Loader2, MoreHorizontal, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { UserProfile } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { logActivity } from '@/lib/logger';
 
 const roleHierarchy: Record<UserProfile['role'], number> = {
     student: 0,
@@ -87,9 +88,24 @@ export default function AdminUsersPage() {
   const { data: users, isLoading } = useCollection<UserProfile>(usersQuery);
 
   const handleUpdateUser = (userId: string, data: Partial<UserProfile>) => {
-    if (!firestore) return;
+    if (!firestore || !adminProfile) return;
     const userRef = doc(firestore, 'users', userId);
     updateDocumentNonBlocking(userRef, data);
+    
+    const targetUser = users?.find(u => u.id === userId);
+    const action = data.role ? 'user.role.change' : 'user.status.change';
+    
+    logActivity(firestore, {
+      actorId: adminProfile.id,
+      actorName: adminProfile.name || 'Admin',
+      action: action,
+      entityType: 'user',
+      entityId: userId,
+      details: data,
+      targetUserId: userId,
+      targetUserName: targetUser?.name,
+    });
+    
     toast({
       title: "User Updated",
       description: `User has been updated.`,
@@ -144,8 +160,9 @@ export default function AdminUsersPage() {
   const availableRolesToAssign = () => {
     if (!adminProfile) return [];
     const adminLevel = roleHierarchy[adminProfile.role];
+    // Admins can only assign roles *below* their own level.
     return (Object.keys(roleHierarchy) as Array<UserProfile['role']>).filter(
-      role => adminLevel >= roleHierarchy[role]
+      role => adminLevel > roleHierarchy[role]
     );
   };
 

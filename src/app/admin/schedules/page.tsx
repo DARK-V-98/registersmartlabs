@@ -23,6 +23,8 @@ import { Loader2, AlertTriangle, Trash, Calendar as CalendarIcon, Edit } from 'l
 import { format, eachDayOfInterval, getDay } from 'date-fns';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DateRange } from 'react-day-picker';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { logActivity } from '@/lib/logger';
 
 const TIME_SLOTS = [
   "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
@@ -40,6 +42,7 @@ const WEEKDAYS = [
 export default function SchedulesPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { profile: adminProfile } = useUserProfile();
   const [isLoading, setIsLoading] = useState(false);
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
 
@@ -111,7 +114,7 @@ export default function SchedulesPage() {
   };
 
   const handleSaveSingleDay = async () => {
-    if (!firestore || !selectedCourse || !selectedLecturer || !selectedDate) {
+    if (!firestore || !selectedCourse || !selectedLecturer || !selectedDate || !adminProfile) {
       toast({ title: 'Please select all fields before saving', variant: 'destructive' });
       return;
     }
@@ -130,6 +133,16 @@ export default function SchedulesPage() {
       };
       if (!currentSchedule) newData.bookedSlots = [];
       await setDoc(scheduleRef, newData, { merge: true });
+
+      logActivity(firestore, {
+        actorId: adminProfile.id,
+        actorName: adminProfile.name || 'Admin',
+        action: 'schedule.update.single',
+        entityType: 'schedule',
+        entityId: scheduleId,
+        details: { date: dateString, slotsCount: singleDaySlots.length },
+      });
+
       toast({ title: "Schedule Saved", description: `Availability for ${dateString} has been updated.` });
       setCurrentSchedule(prev => ({ ...prev, ...newData } as Schedule));
     } catch (error) {
@@ -153,7 +166,7 @@ export default function SchedulesPage() {
   };
 
   const handleBulkSave = async () => {
-    if (!firestore || !selectedCourse || !selectedLecturer || !dateRange?.from) {
+    if (!firestore || !selectedCourse || !selectedLecturer || !dateRange?.from || !adminProfile) {
       toast({ title: 'Missing Information', description: 'Please select a course, lecturer, and date range.', variant: 'destructive' });
       return;
     }
@@ -187,6 +200,19 @@ export default function SchedulesPage() {
         }
       }
       await batch.commit();
+
+      logActivity(firestore, {
+        actorId: adminProfile.id,
+        actorName: adminProfile.name || 'Admin',
+        action: 'schedule.update.bulk',
+        entityType: 'schedule',
+        entityId: 'multiple',
+        details: {
+          courseId: selectedCourse,
+          lecturerId: selectedLecturer,
+          range: `${format(from, 'yyyy-MM-dd')} to ${format(finalTo, 'yyyy-MM-dd')}`,
+        },
+      });
 
       toast({ title: 'Bulk Schedule Applied', description: 'Availability has been updated for the selected range.' });
       if (skippedDays.length > 0) {

@@ -1,4 +1,5 @@
 
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -91,4 +92,17 @@ export interface AdminSettings {
   disabledDates?: string[];
   notificationEmails?: string[];
   physicalClassesEnabled?: boolean;
+}
+
+export interface ActivityLog {
+  id: string;
+  actorId: string;
+  actorName: string;
+  action: string; // e.g., 'booking.confirm', 'user.update.role'
+  entityType: string; // e.g., 'booking', 'user', 'schedule'
+  entityId: string;
+  timestamp: any; // Firestore Timestamp
+  details?: Record<string, any>;
+  targetUserId?: string;
+  targetUserName?: string;
 }

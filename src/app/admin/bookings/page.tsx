@@ -34,6 +34,7 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { logActivity } from '@/lib/logger';
 
 const MASTER_TIME_SLOTS = [
   "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
@@ -171,6 +172,7 @@ const exportToCsv = (filename: string, rows: object[]) => {
 export default function AdminBookingsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { profile: adminProfile } = useUserProfile();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -216,7 +218,7 @@ export default function AdminBookingsPage() {
 
 
   const handleUpdateStatus = async (booking: Booking, status: Booking['bookingStatus'], paymentStatus: Booking['paymentStatus']) => {
-    if (!firestore) return;
+    if (!firestore || !adminProfile) return;
     setIsLoading(true);
 
     try {
@@ -226,7 +228,19 @@ export default function AdminBookingsPage() {
         paymentStatus: paymentStatus
       });
 
-      // 2. If rejected or cancelled, un-block the time slots
+      // 2. Log the activity
+      logActivity(firestore, {
+        actorId: adminProfile.id,
+        actorName: adminProfile.name || 'Admin',
+        action: `booking.${status}`,
+        entityType: 'booking',
+        entityId: booking.id,
+        details: { from: booking.bookingStatus, to: status },
+        targetUserId: booking.userId,
+        targetUserName: booking.userName,
+      });
+
+      // 3. If rejected or cancelled, un-block the time slots
       if (status === 'rejected' || status === 'cancelled') {
         const scheduleId = `${booking.courseId}_${booking.lecturerId}_${booking.date}`;
         const scheduleRef = doc(firestore, 'schedules', scheduleId);
@@ -243,7 +257,7 @@ export default function AdminBookingsPage() {
         }
       }
 
-      // 3. Send confirmation email if status is confirmed
+      // 4. Send confirmation email if status is confirmed
       if (status === 'confirmed') {
           if (booking.userEmail) {
              try {

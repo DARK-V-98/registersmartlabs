@@ -19,6 +19,8 @@ import { cn } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { logActivity } from '@/lib/logger';
 
 const MASTER_TIME_SLOTS = [
   "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
@@ -31,6 +33,7 @@ export default function ManualBookingPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
+  const { profile: adminProfile } = useUserProfile();
 
   const [loading, setLoading] = useState(false);
   const [openUserSearch, setOpenUserSearch] = useState(false);
@@ -109,7 +112,7 @@ export default function ManualBookingPage() {
   }, [selectedCourse, classType, duration]);
 
   const handleSubmit = async () => {
-    if (!selectedUser || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !price) {
+    if (!selectedUser || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !price || !adminProfile) {
         toast({ title: 'Missing Fields', description: 'Please fill out all required fields.', variant: 'destructive' });
         return;
     }
@@ -150,8 +153,25 @@ export default function ManualBookingPage() {
         price: parseFloat(price)
       };
 
-      await addDocumentNonBlocking(collection(firestore, 'bookings'), bookingData);
+      const docRef = await addDocumentNonBlocking(collection(firestore, 'bookings'), bookingData);
       
+      if (docRef) {
+        logActivity(firestore, {
+          actorId: adminProfile.id,
+          actorName: adminProfile.name || 'Admin',
+          action: 'booking.create.manual',
+          entityType: 'booking',
+          entityId: docRef.id,
+          details: { 
+            studentName: selectedUser.name, 
+            courseName: selectedCourse.name,
+            date: bookingData.date,
+          },
+          targetUserId: selectedUser.id,
+          targetUserName: selectedUser.name,
+        });
+      }
+
       toast({ title: 'Booking Created Successfully!', description: `${selectedUser.name}'s booking has been confirmed.` });
       router.push(`/admin/bookings`);
 

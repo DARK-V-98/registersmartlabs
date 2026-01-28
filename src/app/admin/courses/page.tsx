@@ -28,10 +28,13 @@ import { Switch } from '@/components/ui/switch';
 import { Course } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Pencil } from 'lucide-react';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { logActivity } from '@/lib/logger';
 
 export default function CoursesPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { profile: adminProfile } = useUserProfile();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,7 +56,7 @@ export default function CoursesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !priceOnline || !pricePhysical || !priceOnlineAddHour || !pricePhysicalAddHour) {
+    if (!name || !priceOnline || !pricePhysical || !priceOnlineAddHour || !pricePhysicalAddHour || !adminProfile) {
         toast({ title: "Please fill all fields", variant: "destructive" });
         return;
     }
@@ -71,9 +74,27 @@ export default function CoursesPage() {
 
       if (editingCourse) {
         await updateDocumentNonBlocking(doc(firestore, 'courses', editingCourse.id), courseData);
+        logActivity(firestore, {
+          actorId: adminProfile.id,
+          actorName: adminProfile.name || 'Admin',
+          action: 'course.update',
+          entityType: 'course',
+          entityId: editingCourse.id,
+          details: { name: courseData.name, status: courseData.status },
+        });
         toast({ title: 'Course updated successfully' });
       } else {
-        await addDocumentNonBlocking(collection(firestore, 'courses'), courseData);
+        const docRef = await addDocumentNonBlocking(collection(firestore, 'courses'), courseData);
+        if (docRef) {
+          logActivity(firestore, {
+            actorId: adminProfile.id,
+            actorName: adminProfile.name || 'Admin',
+            action: 'course.create',
+            entityType: 'course',
+            entityId: docRef.id,
+            details: { name: courseData.name },
+          });
+        }
         toast({ title: 'Course added successfully' });
       }
       setIsDialogOpen(false);

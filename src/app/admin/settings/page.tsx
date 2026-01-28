@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2, ShieldAlert } from 'lucide-react';
 import { useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { doc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import { AdminSettings } from '@/types';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DangerZone } from '@/components/admin/DangerZone';
+import { logActivity } from '@/lib/logger';
 
 const AdminSettingsPage = () => {
   const firestore = useFirestore();
@@ -34,7 +35,6 @@ const AdminSettingsPage = () => {
     if (firestore) {
       const settingsRef = doc(firestore, 'settings', 'admin');
       const getSettings = async () => {
-        const { getDoc } = await import('firebase/firestore');
         const docSnap = await getDoc(settingsRef);
         if (docSnap.exists()) {
           const settings = docSnap.data() as AdminSettings;
@@ -68,7 +68,7 @@ const AdminSettingsPage = () => {
   };
 
   const handleSave = () => {
-    if (!firestore) return;
+    if (!firestore || !profile) return;
     
     const newSettings: AdminSettings = {
       bankDetails,
@@ -80,6 +80,15 @@ const AdminSettingsPage = () => {
     };
 
     setDocumentNonBlocking(doc(firestore, 'settings', 'admin'), newSettings, { merge: true });
+
+    logActivity(firestore, {
+        actorId: profile.id,
+        actorName: profile.name || 'Admin',
+        action: 'settings.update',
+        entityType: 'settings',
+        entityId: 'admin',
+        details: { updatedFields: Object.keys(newSettings) }
+    });
 
     toast({
       title: 'Settings Saved',

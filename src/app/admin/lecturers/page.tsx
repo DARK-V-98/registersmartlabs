@@ -28,10 +28,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Lecturer, Course } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Pencil, Percent } from 'lucide-react';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { logActivity } from '@/lib/logger';
 
 export default function LecturersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { profile: adminProfile } = useUserProfile();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLecturer, setEditingLecturer] = useState<Lecturer | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,7 +60,7 @@ export default function LecturersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name) return;
+    if (!name || !adminProfile) return;
     
     setIsLoading(true);
     try {
@@ -69,13 +72,31 @@ export default function LecturersPage() {
 
       if (editingLecturer) {
         await updateDocumentNonBlocking(doc(firestore, 'lecturers', editingLecturer.id), lecturerData);
+        logActivity(firestore, {
+            actorId: adminProfile.id,
+            actorName: adminProfile.name || 'Admin',
+            action: 'lecturer.update',
+            entityType: 'lecturer',
+            entityId: editingLecturer.id,
+            details: { name: lecturerData.name, courses: lecturerData.courses.length, payoutRate: lecturerData.payoutRate },
+        });
         toast({ title: 'Lecturer updated successfully' });
       } else {
-        await addDocumentNonBlocking(collection(firestore, 'lecturers'), {
+        const docRef = await addDocumentNonBlocking(collection(firestore, 'lecturers'), {
             ...lecturerData,
             averageRating: 0,
             reviewCount: 0,
         });
+        if (docRef) {
+          logActivity(firestore, {
+            actorId: adminProfile.id,
+            actorName: adminProfile.name || 'Admin',
+            action: 'lecturer.create',
+            entityType: 'lecturer',
+            entityId: docRef.id,
+            details: { name: lecturerData.name },
+          });
+        }
         toast({ title: 'Lecturer added successfully' });
       }
       setIsDialogOpen(false);
