@@ -20,6 +20,7 @@ import { Course, Lecturer, Schedule, AdminSettings } from '@/types';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const STEPS = [
   { id: 1, title: 'Select Course' },
@@ -394,9 +395,10 @@ export default function BookingPage() {
                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={(e) => handleToggleFavorite(lecturer.id, e)}>
                          <Star className={cn("w-5 h-5 text-gray-300", profile?.favoriteLecturers?.includes(lecturer.id) && "fill-yellow-400 text-yellow-400")} />
                        </Button>
-                      <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
-                        <User className="h-6 w-6" />
-                      </div>
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={lecturer.imageUrl} alt={lecturer.name} />
+                        <AvatarFallback>{lecturer.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
                       <div>
                         <h3 className="font-bold">{lecturer.name}</h3>
                       </div>

@@ -25,6 +25,7 @@ export interface Course {
 export interface Lecturer {
   id: string;
   name: string;
+  imageUrl?: string;
   courses: string[]; // Array of courseIds
   availability?: {
     [date: string]: string[]; // date string (YYYY-MM-DD) -> array of time slots

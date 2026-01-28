@@ -77,6 +77,7 @@
         "properties": {
             "id": { "type": "string" },
             "name": { "type": "string" },
+            "imageUrl": { "type": "string", "description": "URL of the lecturer's profile image." },
             "courses": { "type": "array", "items": { "type": "string" } },
             "averageRating": { "type": "number" },
             "reviewCount": { "type": "number" },

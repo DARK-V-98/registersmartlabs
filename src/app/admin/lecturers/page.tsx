@@ -2,8 +2,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useFirestore, useCollection, addDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, updateDocumentNonBlocking, useMemoFirebase, useStorage, setDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,12 +28,14 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Lecturer, Course } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Pencil, Percent } from 'lucide-react';
+import { Loader2, Plus, Pencil, Percent, User as UserIcon } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { logActivity } from '@/lib/logger';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function LecturersPage() {
   const firestore = useFirestore();
+  const storage = useStorage();
   const { toast } = useToast();
   const { profile: adminProfile } = useUserProfile();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -43,6 +46,8 @@ export default function LecturersPage() {
   const [name, setName] = useState('');
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
   const [payoutRate, setPayoutRate] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const lecturersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -58,16 +63,37 @@ export default function LecturersPage() {
 
   const { data: courses } = useCollection<Course>(coursesQuery);
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !adminProfile) return;
+    if (!name || !adminProfile || !firestore || !storage) {
+        toast({ title: "Please fill all fields", variant: "destructive" });
+        return;
+    }
     
     setIsLoading(true);
     try {
+      const lecturerId = editingLecturer ? editingLecturer.id : doc(collection(firestore, 'lecturers')).id;
+      let imageUrl = editingLecturer?.imageUrl || '';
+
+      if (imageFile) {
+        const imageRef = ref(storage, `lecturers/${lecturerId}`);
+        await uploadBytes(imageRef, imageFile);
+        imageUrl = await getDownloadURL(imageRef);
+      }
+
       const lecturerData = {
         name,
         courses: selectedCourses,
         payoutRate: parseFloat(payoutRate) || 0,
+        imageUrl: imageUrl,
       };
 
       if (editingLecturer) {
@@ -82,26 +108,26 @@ export default function LecturersPage() {
         });
         toast({ title: 'Lecturer updated successfully' });
       } else {
-        const docRef = await addDocumentNonBlocking(collection(firestore, 'lecturers'), {
+        await setDocumentNonBlocking(doc(firestore, 'lecturers', lecturerId), {
             ...lecturerData,
+            id: lecturerId,
             averageRating: 0,
             reviewCount: 0,
+        }, { merge: true });
+        logActivity(firestore, {
+          actorId: adminProfile.id,
+          actorName: adminProfile.name || 'Admin',
+          action: 'lecturer.create',
+          entityType: 'lecturer',
+          entityId: lecturerId,
+          details: { name: lecturerData.name },
         });
-        if (docRef) {
-          logActivity(firestore, {
-            actorId: adminProfile.id,
-            actorName: adminProfile.name || 'Admin',
-            action: 'lecturer.create',
-            entityType: 'lecturer',
-            entityId: docRef.id,
-            details: { name: lecturerData.name },
-          });
-        }
         toast({ title: 'Lecturer added successfully' });
       }
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
+      console.error(error);
       toast({ title: 'Error saving lecturer', variant: 'destructive' });
     } finally {
       setIsLoading(false);
@@ -113,6 +139,7 @@ export default function LecturersPage() {
     setName(lecturer.name);
     setSelectedCourses(lecturer.courses || []);
     setPayoutRate(lecturer.payoutRate?.toString() || '0');
+    setPreviewUrl(lecturer.imageUrl || null);
     setIsDialogOpen(true);
   };
 
@@ -121,6 +148,8 @@ export default function LecturersPage() {
     setName('');
     setSelectedCourses([]);
     setPayoutRate('');
+    setImageFile(null);
+    setPreviewUrl(null);
   };
 
   const toggleCourse = (courseId: string) => {
@@ -142,11 +171,19 @@ export default function LecturersPage() {
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" /> Add Lecturer</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>{editingLecturer ? 'Edit Lecturer' : 'Add New Lecturer'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="flex flex-col items-center gap-4">
+                <Avatar className="w-24 h-24">
+                  <AvatarImage src={previewUrl || ''} alt={name} />
+                  <AvatarFallback className="text-4xl"><UserIcon /></AvatarFallback>
+                </Avatar>
+                <Input id="image" type="file" onChange={handleImageChange} accept="image/*" />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2 col-span-2 sm:col-span-1">
                     <Label htmlFor="name">Lecturer Name</Label>
@@ -208,7 +245,13 @@ export default function LecturersPage() {
               <TableBody>
                 {lecturers?.map((lecturer) => (
                   <TableRow key={lecturer.id}>
-                    <TableCell className="font-medium">{lecturer.name}</TableCell>
+                    <TableCell className="font-medium flex items-center gap-3">
+                        <Avatar>
+                            <AvatarImage src={lecturer.imageUrl} />
+                            <AvatarFallback>{lecturer.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        {lecturer.name}
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1 max-w-xs">
                         {lecturer.courses?.map(courseId => {
