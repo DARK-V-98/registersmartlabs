@@ -1,4 +1,5 @@
 
+
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { initializeApp, getApps, getApp } from 'firebase/app';
@@ -103,18 +104,19 @@ export async function POST(req: Request) {
         doc.text(userEmail, leftMargin, 85);
         if(userPhoneNumber) doc.text(userPhoneNumber, leftMargin, 90);
 
-        const detailsX = pageWidth * 0.6;
+        const detailsLabelX = pageWidth * 0.55;
+        const detailsValueX = rightX;
         doc.setFont('helvetica', 'bold');
-        doc.text('INVOICE #', detailsX, 75);
-        doc.text('DATE', detailsX, 82);
-        doc.text('STATUS', detailsX, 89);
+        doc.text('INVOICE #:', detailsLabelX, 75);
+        doc.text('DATE:', detailsLabelX, 82);
+        doc.text('STATUS:', detailsLabelX, 89);
         
         doc.setFont('helvetica', 'normal');
-        doc.text(bookingId, detailsX + 30, 75);
-        doc.text(new Date().toLocaleDateString(), detailsX + 30, 82);
+        doc.text(bookingId, detailsValueX, 75, { align: 'right' });
+        doc.text(new Date().toLocaleDateString(), detailsValueX, 82, { align: 'right' });
         doc.setFont('helvetica', 'bold');
         doc.setTextColor('#27ae60');
-        doc.text('PAID', detailsX + 30, 89);
+        doc.text('PAID', detailsValueX, 89, { align: 'right' });
 
         doc.setTextColor('#000000');
         doc.line(leftMargin, 98, rightX, 98);
@@ -151,10 +153,11 @@ export async function POST(req: Request) {
         const finalY = doc.lastAutoTable.finalY || 150;
 
         // --- Totals ---
+        const totalY = finalY + 15;
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        doc.text('TOTAL', rightX - 50, finalY + 15);
-        doc.text(`LKR ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightX, finalY + 15, { align: 'right' });
+        doc.text('TOTAL', detailsLabelX, totalY);
+        doc.text(`LKR ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightX, totalY, { align: 'right' });
 
 
         // --- Footer ---
