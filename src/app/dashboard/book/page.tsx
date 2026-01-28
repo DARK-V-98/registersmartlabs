@@ -415,6 +415,12 @@ export default function BookingPage() {
                             <Switch id="duration-switch" checked={duration === 2} onCheckedChange={(checked) => setDuration(checked ? 2 : 1)} />
                         </div>
                     </div>
+                    <Alert className="mb-4 bg-green-50 border-green-200 text-green-800">
+                        <Clock className="h-4 w-4 text-green-800" />
+                        <AlertDescription>
+                            Classes are 1 hour by default. For a 2-hour session, use the switch above. The system will book two consecutive hours from your selected start time.
+                        </AlertDescription>
+                    </Alert>
                     <Alert className="mb-4 bg-blue-50 border-blue-200">
                         <Info className="h-4 w-4 text-blue-700" />
                         <AlertDescription className="text-blue-700">
