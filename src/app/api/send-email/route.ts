@@ -6,10 +6,12 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { logoBase64 } from '@/lib/logo-base64';
 
 // Define a type for the autoTable method since it's not in the default jsPDF types
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
+  lastAutoTable: { finalY: number };
 }
 
 export async function POST(req: Request) {
@@ -63,44 +65,103 @@ export async function POST(req: Request) {
         // --- PDF INVOICE GENERATION ---
         const doc = new jsPDF() as jsPDFWithAutoTable;
         
-        // Header
-        doc.setFontSize(22);
+        const primaryColor = '#0984e3'; // From globals.css --primary: 210 85% 55%; approx
+        const mutedColor = '#747d8c';
+
+        // --- Header ---
+        if (logoBase64) {
+            doc.addImage(logoBase64, 'PNG', 14, 15, 25, 25);
+        }
         doc.setFont('helvetica', 'bold');
-        doc.text('Invoice', 14, 22);
+        doc.setFontSize(24);
+        doc.setTextColor(primaryColor);
+        doc.text('INVOICE', 205, 30, { align: 'right' });
 
-        // Sub-header Info
-        doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Booking ID: ${bookingId}`, 14, 30);
-        doc.text(`Invoice Date: ${new Date().toLocaleDateString()}`, 14, 35);
-        
-        doc.text('Bill To:', 140, 30);
-        doc.text(userName, 140, 35);
-        doc.text(userEmail, 140, 40);
+        doc.setFontSize(10);
+        doc.setTextColor(mutedColor);
+        doc.text('SmartLabs', 14, 45);
+        doc.text('3rd Floor, No. 326, Jana Jaya Building', 14, 50);
+        doc.text('Rajagiriya, Sri Lanka', 14, 55);
 
-        // Invoice Table
-        const tableColumn = ["Item", "Details", "Amount (LKR)"];
+        // --- Bill To & Invoice Details ---
+        doc.setLineWidth(0.1);
+        doc.line(14, 65, 205, 65);
+
+        doc.setFontSize(10);
+        doc.setTextColor('#000000');
+        doc.setFont('helvetica', 'bold');
+        doc.text('BILL TO', 14, 75);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.text(userName, 14, 80);
+        doc.text(userEmail, 14, 85);
+        if(userPhoneNumber) doc.text(userPhoneNumber, 14, 90);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('INVOICE #', 140, 75);
+        doc.text('DATE', 140, 82);
+        doc.text('STATUS', 140, 89);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.text(bookingId, 170, 75);
+        doc.text(new Date().toLocaleDateString(), 170, 82);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#27ae60');
+        doc.text('PAID', 170, 89);
+
+        doc.setTextColor('#000000');
+        doc.line(14, 98, 205, 98);
+
+        // --- Invoice Table ---
+        const tableColumn = ["DESCRIPTION", "LECTURER", "DATE & TIME", "AMOUNT (LKR)"];
         const tableRows = [
-            ["Course", courseName, price.toLocaleString()],
-            ["Lecturer", lecturerName, ""],
-            ["Date & Time", `${date} @ ${time} (LKT)`, ""],
-            ["Duration", `${duration} Hour(s)`, ""],
-            ["Class Type", classType, ""],
-            [{ content: 'Total', styles: { fontStyle: 'bold' } }, "", { content: price.toLocaleString(), styles: { fontStyle: 'bold' } }]
+            [
+              `${courseName} (${duration} Hour(s), ${classType})`,
+              lecturerName,
+              `${date} @ ${time}`,
+              price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            ]
         ];
 
         doc.autoTable({
             head: [tableColumn],
             body: tableRows,
-            startY: 50,
+            startY: 105,
             theme: 'striped',
-            headStyles: { fillColor: [3, 169, 244] }, // A blue color
+            styles: {
+                font: 'helvetica',
+                fontSize: 10,
+            },
+            headStyles: { 
+                fillColor: [9, 132, 227], // primaryColor
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+            },
+            alternateRowStyles: { fillColor: [245, 245, 245] },
+            margin: { left: 14, right: 14 }
         });
 
-        const finalY = (doc.lastAutoTable as any).finalY || 100;
+        const finalY = doc.lastAutoTable.finalY || 150;
+
+        // --- Totals ---
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('TOTAL', 140, finalY + 15);
+        doc.text(`LKR ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 205, finalY + 15, { align: 'right' });
+
+
+        // --- Footer ---
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setLineWidth(0.1);
+        doc.line(14, pageHeight - 35, 205, pageHeight - 35);
+        
         doc.setFontSize(10);
-        doc.text('Payment Confirmed. Thank you for choosing SmartLabs!', 14, finalY + 15);
-        doc.text('This is a computer-generated invoice and does not require a signature.', 14, finalY + 20);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(mutedColor);
+        doc.text('Thank you for choosing SmartLabs!', 14, pageHeight - 25);
+        doc.text('If you have any questions, please contact info@smartlabs.lk', 14, pageHeight - 20);
+        doc.text('This is a computer-generated invoice and does not require a signature.', doc.internal.pageSize.width / 2, pageHeight - 10, { align: 'center'});
 
         const pdfBuffer = doc.output('arraybuffer');
         // --- END PDF INVOICE GENERATION ---
