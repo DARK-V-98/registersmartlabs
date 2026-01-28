@@ -178,6 +178,8 @@ export default function AdminBookingsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
 
+  const isPrivilegedUser = adminProfile?.role === 'developer' || adminProfile?.role === 'superadmin';
+
   const bookingsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'bookings'), orderBy('createdAt', 'desc'));
@@ -504,12 +506,36 @@ export default function AdminBookingsPage() {
                                 </Tabs>
                             )}
                             <DialogFooter className="gap-2 sm:justify-between pt-6">
-                             {selectedBooking?.bookingStatus === 'cancellation_requested' ? (
+                              {isPrivilegedUser && (selectedBooking?.bookingStatus === 'confirmed' || selectedBooking?.bookingStatus === 'rejected') ? (
+                                <div className="w-full flex justify-between items-center">
+                                    <p className="text-sm text-destructive font-semibold">Privileged Action:</p>
+                                    <div className="flex gap-2">
+                                        {selectedBooking?.bookingStatus !== 'rejected' && (
+                                            <Button 
+                                                variant="destructive" 
+                                                onClick={() => handleUpdateStatus(selectedBooking, 'rejected', 'rejected')} 
+                                                disabled={isLoading}
+                                            >
+                                                <X className="w-4 h-4 mr-2" /> Force Reject
+                                            </Button>
+                                        )}
+                                        {selectedBooking?.bookingStatus !== 'confirmed' && (
+                                            <Button 
+                                                className="bg-green-600 hover:bg-green-700" 
+                                                onClick={() => handleUpdateStatus(selectedBooking, 'confirmed', 'paid')} 
+                                                disabled={isLoading}
+                                            >
+                                                <Check className="w-4 h-4 mr-2" /> Force Confirm
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                              ) : selectedBooking?.bookingStatus === 'cancellation_requested' ? (
                                <div className="w-full flex justify-between">
                                   <Button variant="outline" onClick={() => handleUpdateStatus(selectedBooking, 'confirmed', 'paid')} disabled={isLoading}>Deny Request</Button>
                                   <Button variant="destructive" onClick={() => handleUpdateStatus(selectedBooking, 'cancelled', 'rejected')} disabled={isLoading}><AlertTriangle className="w-4 h-4 mr-2"/>Approve Cancellation</Button>
                                </div>
-                             ) : selectedBooking?.bookingStatus === 'payment_pending' || selectedBooking?.bookingStatus === 're_upload_receipt' ? (
+                              ) : selectedBooking?.bookingStatus === 'payment_pending' || selectedBooking?.bookingStatus === 're_upload_receipt' ? (
                                 <div className="w-full flex justify-between items-center">
                                   <Button 
                                     variant="destructive" 
@@ -534,7 +560,7 @@ export default function AdminBookingsPage() {
                                     <Check className="w-4 h-4 mr-2" /> Confirm Payment
                                   </Button>
                                 </div>
-                             ) : null}
+                              ) : null}
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
