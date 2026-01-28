@@ -134,7 +134,7 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
             await addDocumentNonBlocking(collection(firestore, 'bookings', bookingId, 'messages'), {
                 text: newMessage,
                 senderId: user.uid,
-                senderName: profile.name,
+                senderName: profile.name || user.displayName || user.email?.split('@')[0] || 'Student',
                 createdAt: Timestamp.now(),
             });
             setNewMessage('');
@@ -324,3 +324,5 @@ export default function BookingDetailPage({ params }: { params: { bookingId: str
         </div>
     );
 }
+
+    
