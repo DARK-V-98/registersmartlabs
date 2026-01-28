@@ -86,7 +86,7 @@ function ChatInterface({ bookingId }: { bookingId: string }) {
                     <div key={msg.id} className={cn("flex items-end gap-2", msg.senderName === 'Admin Support' ? 'justify-end' : 'justify-start')}>
                         <div className={cn(
                             "max-w-xs md:max-w-md p-3 rounded-2xl", 
-                            msg.senderName === 'Admin Support' ? 'bg-primary text-primary-foreground rounded-br-none' : 'bg-background border rounded-bl-none'
+                            msg.senderName === 'Admin Support' ? 'bg-destructive text-destructive-foreground rounded-br-none' : 'bg-primary text-primary-foreground rounded-bl-none'
                         )}>
                             <p className="text-sm">{msg.text}</p>
                             <p className="text-xs opacity-70 mt-1">{msg.createdAt?.toDate ? format(msg.createdAt.toDate(), 'p') : ''}</p>
