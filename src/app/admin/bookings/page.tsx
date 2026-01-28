@@ -29,7 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Booking, Message, Schedule } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send, RefreshCw, Plus } from 'lucide-react';
+import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send, RefreshCw, Plus, FileDown } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -128,6 +128,46 @@ const getSlotsToRemoveForBooking = (booking: Booking) => {
     return slots;
 };
 
+const exportToCsv = (filename: string, rows: object[]) => {
+    if (!rows || rows.length === 0) {
+        return;
+    }
+    const separator = ',';
+    const keys = Object.keys(rows[0]);
+    const csvContent =
+        keys.join(separator) +
+        '\n' +
+        rows.map(row => {
+            return keys.map((k: any) => {
+                let cell = (row as any)[k] === null || (row as any)[k] === undefined ? '' : (row as any)[k];
+                cell = cell instanceof Date 
+                    ? cell.toLocaleString() 
+                    : cell.toString().replace(/"/g, '""');
+                if (cell.search(/("|,|\n)/g) >= 0) {
+                    cell = `"${cell}"`;
+                }
+                return cell;
+            }).join(separator);
+        }).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    if (typeof window !== 'undefined' && window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+    } else {
+        const link = document.createElement('a');
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+};
+
+
 export default function AdminBookingsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -151,6 +191,29 @@ export default function AdminBookingsPage() {
     if (activeTab === 'requests') return b.bookingStatus === 'cancellation_requested';
     return true;
   });
+  
+  const handleExport = () => {
+    if (filteredBookings) {
+        const dataToExport = filteredBookings.map(booking => ({
+            id: booking.id,
+            studentName: booking.userName,
+            studentId: booking.userId,
+            studentEmail: booking.userEmail,
+            courseName: booking.courseName,
+            lecturerName: booking.lecturerName,
+            date: booking.date,
+            time: booking.time,
+            duration: booking.duration,
+            classType: booking.classType,
+            price: booking.price,
+            bookingStatus: booking.bookingStatus,
+            paymentStatus: booking.paymentStatus,
+            createdAt: booking.createdAt?.toDate ? format(booking.createdAt.toDate(), 'yyyy-MM-dd HH:mm') : 'N/A',
+        }));
+        exportToCsv(`smartlabs_bookings_${activeTab}_${format(new Date(), 'yyyy-MM-dd')}.csv`, dataToExport);
+    }
+  };
+
 
   const handleUpdateStatus = async (booking: Booking, status: Booking['bookingStatus'], paymentStatus: Booking['paymentStatus']) => {
     if (!firestore) return;
@@ -242,9 +305,14 @@ export default function AdminBookingsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Bookings Management</h2>
-        <Link href="/admin/bookings/new">
-          <Button><Plus className="mr-2 h-4 w-4" /> Manual Booking</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+            <Button onClick={handleExport} variant="outline" disabled={!filteredBookings || filteredBookings.length === 0}>
+                <FileDown className="mr-2 h-4 w-4" /> Export CSV
+            </Button>
+            <Link href="/admin/bookings/new">
+              <Button><Plus className="mr-2 h-4 w-4" /> Manual Booking</Button>
+            </Link>
+        </div>
       </div>
 
       <Tabs defaultValue="all" onValueChange={setActiveTab}>

@@ -23,7 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Loader2, MoreHorizontal } from 'lucide-react';
+import { Loader2, MoreHorizontal, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { UserProfile } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +33,45 @@ const roleHierarchy: Record<UserProfile['role'], number> = {
     admin: 1,
     superadmin: 2,
     developer: 3,
+};
+
+const exportToCsv = (filename: string, rows: object[]) => {
+    if (!rows || rows.length === 0) {
+        return;
+    }
+    const separator = ',';
+    const keys = Object.keys(rows[0]);
+    const csvContent =
+        keys.join(separator) +
+        '\n' +
+        rows.map(row => {
+            return keys.map((k: any) => {
+                let cell = (row as any)[k] === null || (row as any)[k] === undefined ? '' : (row as any)[k];
+                cell = cell instanceof Date 
+                    ? cell.toLocaleString() 
+                    : cell.toString().replace(/"/g, '""');
+                if (cell.search(/("|,|\n)/g) >= 0) {
+                    cell = `"${cell}"`;
+                }
+                return cell;
+            }).join(separator);
+        }).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+     if (typeof window !== 'undefined' && window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+    } else {
+        const link = document.createElement('a');
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
 };
 
 export default function AdminUsersPage() {
@@ -55,6 +94,21 @@ export default function AdminUsersPage() {
       title: "User Updated",
       description: `User has been updated.`,
     });
+  };
+  
+  const handleExport = () => {
+    if (users) {
+        const dataToExport = users.map(user => ({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status || 'active',
+            phoneNumber: user.phoneNumber || '',
+            joinedDate: user.createdAt?.toDate ? format(user.createdAt.toDate(), 'yyyy-MM-dd') : 'N/A',
+        }));
+        exportToCsv(`smartlabs_users_${format(new Date(), 'yyyy-MM-dd')}.csv`, dataToExport);
+    }
   };
 
   const getStatusVariant = (status?: 'active' | 'suspended') => {
@@ -88,15 +142,21 @@ export default function AdminUsersPage() {
   };
 
   const availableRolesToAssign = () => {
-    if (adminProfile?.role === 'developer') return ['developer', 'superadmin', 'admin', 'student'];
-    if (adminProfile?.role === 'superadmin') return ['superadmin', 'admin', 'student'];
-    if (adminProfile?.role === 'admin') return ['admin', 'student'];
-    return [];
+    if (!adminProfile) return [];
+    const adminLevel = roleHierarchy[adminProfile.role];
+    return (Object.keys(roleHierarchy) as Array<UserProfile['role']>).filter(
+      role => adminLevel >= roleHierarchy[role]
+    );
   };
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Users Management</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Users Management</h2>
+        <Button onClick={handleExport} disabled={!users || users.length === 0}>
+            <FileDown className="mr-2 h-4 w-4" /> Export CSV
+        </Button>
+      </div>
 
       <Card>
         <CardHeader>

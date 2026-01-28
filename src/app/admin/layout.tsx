@@ -19,6 +19,7 @@ import {
   PanelLeft,
   Home,
   BarChart,
+  LineChart,
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -30,6 +31,7 @@ const navLinks = [
   { href: '/admin/bookings', label: 'Bookings', icon: Bookmark },
   { href: '/admin/payments', label: 'Verification', icon: CreditCard },
   { href: '/admin/payouts', label: 'Payouts', icon: BarChart, roles: ['developer', 'superadmin'] },
+  { href: '/admin/reports', label: 'Reports', icon: LineChart, roles: ['developer', 'superadmin'] },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
