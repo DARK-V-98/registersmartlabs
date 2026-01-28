@@ -60,6 +60,19 @@ export async function POST(req: Request) {
         // --- PDF INVOICE GENERATION ---
         const doc = new jsPDF();
         
+        // Ensure all data has fallbacks
+        const safeUserName = userName || 'N/A';
+        const safeUserEmail = userEmail || 'N/A';
+        const safeUserPhoneNumber = userPhoneNumber || 'N/A';
+        const safeBookingId = bookingId || 'N/A';
+        const safeCourseName = courseName || 'N/A';
+        const safeLecturerName = lecturerName || 'N/A';
+        const safeDate = date || 'N/A';
+        const safeTime = time || 'N/A';
+        const safeClassType = classType || 'N/A';
+        const safeDuration = duration || 1;
+        const numericPrice = typeof price === 'number' ? price : 0;
+
         const primaryColor = '#0984e3';
         const mutedColor = '#747d8c';
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -77,96 +90,116 @@ export async function POST(req: Request) {
         doc.setTextColor(primaryColor);
         doc.text('INVOICE', rightX, 30, { align: 'right' });
 
+        let currentY = 45; // Start Y position after header
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
         doc.setTextColor(mutedColor);
-        doc.text('SmartLabs', leftMargin, 45);
-        doc.text('3rd Floor, No. 326, Jana Jaya Building', leftMargin, 50);
-        doc.text('Rajagiriya, Sri Lanka', leftMargin, 55);
+        doc.text('SmartLabs', leftMargin, currentY);
+        currentY += 5;
+        doc.text('3rd Floor, No. 326, Jana Jaya Building', leftMargin, currentY);
+        currentY += 5;
+        doc.text('Rajagiriya, Sri Lanka', leftMargin, currentY);
 
         // --- Bill To & Invoice Details ---
+        currentY += 10;
         doc.setLineWidth(0.1);
-        doc.line(leftMargin, 65, rightX, 65);
+        doc.line(leftMargin, currentY, rightX, currentY);
+        currentY += 10;
 
         doc.setFontSize(10);
         doc.setTextColor('#000000');
         doc.setFont('helvetica', 'bold');
-        doc.text('BILL TO', leftMargin, 75);
+        doc.text('BILL TO', leftMargin, currentY);
         
-        doc.setFont('helvetica', 'normal');
-        doc.text(userName || 'N/A', leftMargin, 80);
-        doc.text(userEmail || 'N/A', leftMargin, 85);
-        if(userPhoneNumber) doc.text(userPhoneNumber, leftMargin, 90);
-
         const detailsLabelX = pageWidth * 0.55;
-        doc.setFont('helvetica', 'bold');
-        doc.text('INVOICE #:', detailsLabelX, 75);
-        doc.text('DATE:', detailsLabelX, 82);
-        doc.text('STATUS:', detailsLabelX, 89);
-        
+        doc.text('INVOICE #:', detailsLabelX, currentY);
         doc.setFont('helvetica', 'normal');
-        doc.text(bookingId || 'N/A', rightX, 75, { align: 'right' });
-        doc.text(new Date().toLocaleDateString(), rightX, 82, { align: 'right' });
+        doc.text(safeBookingId, rightX, currentY, { align: 'right' });
+        currentY += 5;
+
+        doc.setFont('helvetica', 'normal');
+        doc.text(safeUserName, leftMargin, currentY);
+        doc.setFont('helvetica', 'bold');
+        doc.text('DATE:', detailsLabelX, currentY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(new Date().toLocaleDateString(), rightX, currentY, { align: 'right' });
+        currentY += 5;
+
+        doc.text(safeUserEmail, leftMargin, currentY);
+        doc.setFont('helvetica', 'bold');
+        doc.text('STATUS:', detailsLabelX, currentY);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor('#27ae60');
-        doc.text('PAID', rightX, 89, { align: 'right' });
-
+        doc.text('PAID', rightX, currentY, { align: 'right' });
+        currentY += 5;
+        
         doc.setTextColor('#000000');
-        doc.line(leftMargin, 98, rightX, 98);
-
-        // --- Invoice Table ---
-        const tableColumn = ["DESCRIPTION", "LECTURER", "DATE & TIME", "AMOUNT (LKR)"];
-        const numericPrice = typeof price === 'number' ? price : 0;
-        const tableRows = [
-            [
-              `${courseName ?? 'N/A'} (${duration ?? 1} Hour(s), ${classType ?? 'N/A'})`,
-              lecturerName ?? 'N/A',
-              `${date ?? 'N/A'} @ ${time ?? 'N/A'}`,
-              numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-            ]
-        ];
-
-        (doc as any).autoTable({
-            head: [tableColumn],
-            body: tableRows,
-            startY: 105,
-            theme: 'striped',
-            styles: {
-                font: 'helvetica',
-                fontSize: 10,
-            },
-            headStyles: { 
-                fillColor: [9, 132, 227], // primaryColor
-                textColor: [255, 255, 255],
-                fontStyle: 'bold',
-            },
-            alternateRowStyles: { fillColor: [245, 245, 245] },
-            margin: { left: leftMargin, right: rightMargin }
-        });
-
-        let finalY = 150; // Default position if autotable fails
-        if ((doc as any).lastAutoTable && typeof (doc as any).lastAutoTable.finalY === 'number') {
-            finalY = (doc as any).lastAutoTable.finalY;
+        if(safeUserPhoneNumber) {
+            doc.setFont('helvetica', 'normal');
+            doc.text(safeUserPhoneNumber, leftMargin, currentY);
         }
+        
+        currentY += 8;
+        doc.line(leftMargin, currentY, rightX, currentY);
+
+        // --- Invoice Table (Manual) ---
+        currentY += 10;
+        const tableHeaderY = currentY;
+        const tableRowHeight = 10;
+        const descriptionX = leftMargin;
+        const lecturerX = pageWidth * 0.40;
+        const dateTimeX = pageWidth * 0.60;
+        const amountX = rightX;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setFillColor(9, 132, 227); // Header background
+        doc.rect(leftMargin, tableHeaderY - 5, rightX - leftMargin, tableRowHeight, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text("DESCRIPTION", descriptionX + 2, tableHeaderY);
+        doc.text("LECTURER", lecturerX, tableHeaderY);
+        doc.text("DATE & TIME", dateTimeX, tableHeaderY);
+        doc.text("AMOUNT (LKR)", amountX - 2, tableHeaderY, { align: 'right' });
+        currentY += tableRowHeight;
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor('#000000');
+        
+        // Table Row Content
+        const rowText = `${safeCourseName} (${safeDuration} Hour(s), ${safeClassType})`;
+        doc.text(rowText, descriptionX + 2, currentY);
+        doc.text(safeLecturerName, lecturerX, currentY);
+        doc.text(`${safeDate} @ ${safeTime}`, dateTimeX, currentY);
+        doc.text(numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), amountX - 2, currentY, { align: 'right' });
+        
+        // Table Borders
+        currentY += 5;
+        const tableBottomY = currentY;
+        doc.setLineWidth(0.1);
+        doc.rect(leftMargin, tableHeaderY - 5, rightX - leftMargin, tableBottomY - (tableHeaderY - 5));
+
 
         // --- Totals ---
-        const totalY = finalY + 15;
+        currentY += 15;
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        doc.text('TOTAL', detailsLabelX, totalY);
-        doc.text(`LKR ${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightX, totalY, { align: 'right' });
+        doc.text('TOTAL', detailsLabelX, currentY);
+        doc.text(`LKR ${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightX, currentY, { align: 'right' });
 
 
         // --- Footer ---
-        doc.setLineWidth(0.1);
-        doc.line(leftMargin, pageHeight - 35, rightX, pageHeight - 35);
+        currentY = pageHeight - 35;
+        doc.line(leftMargin, currentY, rightX, currentY);
         
+        currentY += 10;
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(mutedColor);
-        doc.text('Thank you for choosing SmartLabs!', leftMargin, pageHeight - 25);
-        doc.text('If you have any questions, please contact info@smartlabs.lk', leftMargin, pageHeight - 20);
-        doc.text('This is a computer-generated invoice and does not require a signature.', pageWidth / 2, pageHeight - 10, { align: 'center'});
+        doc.text('Thank you for choosing SmartLabs!', leftMargin, currentY);
+        currentY += 5;
+        doc.text('If you have any questions, please contact info@smartlabs.lk', leftMargin, currentY);
+        currentY += 10;
+        doc.text('This is a computer-generated invoice and does not require a signature.', pageWidth / 2, currentY, { align: 'center'});
 
         const pdfBuffer = doc.output('arraybuffer');
         // --- END PDF INVOICE GENERATION ---
