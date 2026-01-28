@@ -29,10 +29,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Booking, Message, Schedule } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send, RefreshCw } from 'lucide-react';
+import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send, RefreshCw, Plus } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import Link from 'next/link';
 
 const MASTER_TIME_SLOTS = [
   "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
@@ -239,7 +240,12 @@ export default function AdminBookingsPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Bookings Management</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Bookings Management</h2>
+        <Link href="/admin/bookings/new">
+          <Button><Plus className="mr-2 h-4 w-4" /> Manual Booking</Button>
+        </Link>
+      </div>
 
       <Tabs defaultValue="all" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-5">

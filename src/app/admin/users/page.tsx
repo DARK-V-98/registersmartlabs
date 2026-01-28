@@ -28,6 +28,13 @@ import { format } from 'date-fns';
 import { UserProfile } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
+const roleHierarchy: Record<UserProfile['role'], number> = {
+    student: 0,
+    admin: 1,
+    superadmin: 2,
+    developer: 3,
+};
+
 export default function AdminUsersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -68,7 +75,24 @@ export default function AdminUsersPage() {
       case 'admin': return 'secondary';
       default: return 'outline';
     }
-  }
+  };
+  
+  const canManage = (targetUser: UserProfile) => {
+    if (!adminProfile) return false;
+    if (adminProfile.id === targetUser.id) return false; // Can't manage self
+
+    const adminLevel = roleHierarchy[adminProfile.role];
+    const targetLevel = roleHierarchy[targetUser.role];
+
+    return adminLevel > targetLevel;
+  };
+
+  const availableRolesToAssign = () => {
+    if (adminProfile?.role === 'developer') return ['developer', 'superadmin', 'admin', 'student'];
+    if (adminProfile?.role === 'superadmin') return ['superadmin', 'admin', 'student'];
+    if (adminProfile?.role === 'admin') return ['admin', 'student'];
+    return [];
+  };
 
   return (
     <div className="space-y-6">
@@ -114,7 +138,7 @@ export default function AdminUsersPage() {
                     <TableCell className="text-right">
                        <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={user.id === adminProfile?.id}>
+                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={!canManage(user)}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
@@ -122,21 +146,18 @@ export default function AdminUsersPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           
-                          {adminProfile?.role === 'developer' && (
-                             <>
-                               <DropdownMenuSeparator />
-                               <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'developer' })}>Make Developer</DropdownMenuItem>
-                               <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'superadmin' })}>Make Superadmin</DropdownMenuItem>
-                               <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'admin' })}>Make Admin</DropdownMenuItem>
-                               <DropdownMenuItem onClick={() => handleUpdateUser(user.id, { role: 'student' })}>Make Student</DropdownMenuItem>
-                             </>
-                          )}
-
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel className="text-xs font-light">Change Role</DropdownMenuLabel>
+                          {availableRolesToAssign().map(role => (
+                             <DropdownMenuItem key={role} onClick={() => handleUpdateUser(user.id, { role: role as UserProfile['role'] })}>
+                                Make {role.charAt(0).toUpperCase() + role.slice(1)}
+                             </DropdownMenuItem>
+                          ))}
+                          
                           <DropdownMenuSeparator />
                            <DropdownMenuItem
                             className="text-yellow-600 focus:text-yellow-700"
-                            onClick={() => handleUpdateUser(user.id, { status: 'suspended' })}
-                            disabled={user.role === 'developer' || user.role === 'superadmin'}>
+                            onClick={() => handleUpdateUser(user.id, { status: 'suspended' })}>
                             Suspend User
                            </DropdownMenuItem>
                           <DropdownMenuItem

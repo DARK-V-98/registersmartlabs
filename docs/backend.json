@@ -70,6 +70,19 @@
         "description"
       ]
     },
+    "Lecturer": {
+        "title": "Lecturer",
+        "type": "object",
+        "description": "Represents a lecturer who teaches courses.",
+        "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "courses": { "type": "array", "items": { "type": "string" } },
+            "averageRating": { "type": "number" },
+            "reviewCount": { "type": "number" },
+            "payoutRate": { "type": "number", "description": "Percentage of revenue to be paid out to the lecturer." }
+        }
+    },
     "Booking": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Booking",
@@ -119,6 +132,10 @@
         "enrollmentDate": {
           "type": "string",
           "format": "date-time"
+        },
+        "isReviewed": {
+            "type": "boolean",
+            "description": "Indicates if the student has left a review for this booking."
         }
       },
       "required": [
@@ -199,6 +216,19 @@
         }
       },
       "required": ["text", "senderId", "senderName", "createdAt"]
+    },
+    "Review": {
+        "title": "Review",
+        "type": "object",
+        "description": "A student review for a lecturer.",
+        "properties": {
+            "studentId": { "type": "string" },
+            "studentName": { "type": "string" },
+            "rating": { "type": "number", "minimum": 1, "maximum": 5 },
+            "comment": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["studentId", "studentName", "rating", "createdAt"]
     }
   },
   "auth": {
@@ -240,6 +270,22 @@
               "description": "Unique identifier for the course."
             }
           ]
+        }
+      },
+      {
+        "path": "/lecturers/{lecturerId}",
+        "definition": {
+            "entityName": "Lecturer",
+            "schema": { "$ref": "#/backend/entities/Lecturer" },
+            "description": "Stores information about lecturers, including their ratings."
+        }
+      },
+      {
+        "path": "/lecturers/{lecturerId}/reviews/{reviewId}",
+        "definition": {
+            "entityName": "Review",
+            "schema": { "$ref": "#/backend/entities/Review" },
+            "description": "Subcollection for storing all reviews for a specific lecturer."
         }
       },
       {
@@ -306,6 +352,6 @@
         }
       }
     ],
-    "reasoning": "The data structure is revised for administrative functionality. User-specific data remains in `/users/{userId}`. A top-level `/bookings` collection is introduced to allow admins to easily query and manage all enrollments, which is more efficient than nested subcollections. A `messages` subcollection has been added to each booking to support real-time chat. Security rules will grant admins broad access to `/bookings`, while users are restricted to their own documents. A single document at `/settings/admin` stores global configurations like payment details and disabled dates, making them easily accessible to the client-side while restricting write access to admins. A new `/schedules` collection will denormalize booking times to allow users to see availability without exposing other users' private data."
+    "reasoning": "The data structure is revised for administrative functionality. User-specific data remains in `/users/{userId}`. A top-level `/bookings` collection is introduced to allow admins to easily query and manage all enrollments, which is more efficient than nested subcollections. A `messages` subcollection has been added to each booking to support real-time chat. Security rules will grant admins broad access to `/bookings`, while users are restricted to their own documents. A single document at `/settings/admin` stores global configurations like payment details and disabled dates, making them easily accessible to the client-side while restricting write access to admins. A new `/schedules` collection will denormalize booking times to allow users to see availability without exposing other users' private data. Lecturers have been moved to a top-level collection with a `reviews` subcollection to handle ratings and reviews."
   }
 }

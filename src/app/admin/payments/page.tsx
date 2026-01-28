@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, orderBy, doc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, doc, arrayRemove, getDoc } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -14,10 +14,33 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Loader2, CheckCircle, XCircle, Eye, ExternalLink, FileText, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Eye, ExternalLink, FileText, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Booking } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+
+const MASTER_TIME_SLOTS = [
+  "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
+  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
+  "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM"
+];
+
+const getSlotsForBooking = (booking: Booking) => {
+    const slots = [];
+    const startTimeIndex = MASTER_TIME_SLOTS.indexOf(booking.time);
+    if (startTimeIndex === -1) return [];
+    
+    const slotsToBookCount = (booking.duration || 1) === 1 ? 2 : 4; // 1hr = 2 slots, 2hr = 4 slots
+    for (let i = 0; i < slotsToBookCount; i++) {
+        const slotIndex = startTimeIndex + i;
+        if (slotIndex < MASTER_TIME_SLOTS.length) {
+            slots.push(MASTER_TIME_SLOTS[slotIndex]);
+        }
+    }
+    return slots;
+};
+
 
 export default function AdminPaymentsPage() {
   const firestore = useFirestore();
@@ -36,25 +59,40 @@ export default function AdminPaymentsPage() {
 
   const { data: bookings, isLoading } = useCollection<Booking>(paymentsQuery);
 
-  const handleVerify = async (bookingId: string, action: 'approve' | 'reject' | 'request_reupload') => {
+  const handleVerify = async (booking: Booking, action: 'approve' | 'reject' | 'request_reupload') => {
     if (!firestore) return;
-    setProcessingId(bookingId);
+    setProcessingId(booking.id);
     try {
-      const bookingRef = doc(firestore, 'bookings', bookingId);
+      const bookingRef = doc(firestore, 'bookings', booking.id);
       
-      const updateData = action === 'approve' 
-        ? { paymentStatus: 'paid', bookingStatus: 'confirmed' }
-        : action === 'reject' 
-          ? { paymentStatus: 'failed', bookingStatus: 'rejected' }
-          : { paymentStatus: 'pending', bookingStatus: 're_upload_receipt' };
+      let updateData: Partial<Booking> = { updatedAt: new Date() };
 
-      await updateDocumentNonBlocking(bookingRef, { ...updateData, updatedAt: new Date() });
+      if (action === 'approve') {
+        updateData = { ...updateData, paymentStatus: 'paid', bookingStatus: 'confirmed' };
+      } else if (action === 'reject') {
+        updateData = { ...updateData, paymentStatus: 'failed', bookingStatus: 'rejected' };
+         // Un-block time slots
+        const scheduleId = `${booking.courseId}_${booking.lecturerId}_${booking.date}`;
+        const scheduleRef = doc(firestore, 'schedules', scheduleId);
+        const scheduleSnap = await getDoc(scheduleRef);
+        if (scheduleSnap.exists()) {
+          const slotsToRemove = getSlotsForBooking(booking);
+          if (slotsToRemove.length > 0) {
+            updateDocumentNonBlocking(scheduleRef, { bookedSlots: arrayRemove(...slotsToRemove) });
+          }
+        }
+      } else { // request_reupload
+        updateData = { ...updateData, paymentStatus: 'pending', bookingStatus: 're_upload_receipt' };
+      }
+
+      await updateDocumentNonBlocking(bookingRef, updateData);
       
       toast({
         title: action === 'approve' ? 'Payment Approved' : action === 'reject' ? 'Payment Rejected' : 'Re-upload Requested',
         description: `Booking has been updated.`,
       });
     } catch (error) {
+      console.error(error);
       toast({
         title: 'Error updating payment',
         variant: 'destructive',
@@ -190,11 +228,11 @@ export default function AdminPaymentsPage() {
                       </Dialog>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-end gap-2">
                         <Button 
                           size="sm" 
                           className="bg-green-600 hover:bg-green-700"
-                          onClick={() => handleVerify(booking.id, 'approve')}
+                          onClick={() => handleVerify(booking, 'approve')}
                           disabled={!!processingId}
                         >
                           {processingId === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
@@ -204,16 +242,16 @@ export default function AdminPaymentsPage() {
                           size="sm" 
                           variant="outline"
                           className="text-amber-600 border-amber-300 hover:bg-amber-50"
-                          onClick={() => handleVerify(booking.id, 'request_reupload')}
+                          onClick={() => handleVerify(booking, 'request_reupload')}
                           disabled={!!processingId}
                         >
-                          {processingId === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+                          {processingId === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                            <span className="hidden sm:inline ml-2">Re-upload</span>
                         </Button>
                         <Button 
                           size="sm" 
                           variant="destructive"
-                          onClick={() => handleVerify(booking.id, 'reject')}
+                          onClick={() => handleVerify(booking, 'reject')}
                           disabled={!!processingId}
                         >
                           {processingId === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}

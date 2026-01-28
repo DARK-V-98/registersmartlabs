@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -26,7 +27,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Lecturer, Course } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Pencil } from 'lucide-react';
+import { Loader2, Plus, Pencil, Percent } from 'lucide-react';
 
 export default function LecturersPage() {
   const firestore = useFirestore();
@@ -38,6 +39,7 @@ export default function LecturersPage() {
   // Form State
   const [name, setName] = useState('');
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  const [payoutRate, setPayoutRate] = useState('');
 
   const lecturersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -62,13 +64,18 @@ export default function LecturersPage() {
       const lecturerData = {
         name,
         courses: selectedCourses,
+        payoutRate: parseFloat(payoutRate) || 0,
       };
 
       if (editingLecturer) {
         await updateDocumentNonBlocking(doc(firestore, 'lecturers', editingLecturer.id), lecturerData);
         toast({ title: 'Lecturer updated successfully' });
       } else {
-        await addDocumentNonBlocking(collection(firestore, 'lecturers'), lecturerData);
+        await addDocumentNonBlocking(collection(firestore, 'lecturers'), {
+            ...lecturerData,
+            averageRating: 0,
+            reviewCount: 0,
+        });
         toast({ title: 'Lecturer added successfully' });
       }
       setIsDialogOpen(false);
@@ -84,6 +91,7 @@ export default function LecturersPage() {
     setEditingLecturer(lecturer);
     setName(lecturer.name);
     setSelectedCourses(lecturer.courses || []);
+    setPayoutRate(lecturer.payoutRate?.toString() || '0');
     setIsDialogOpen(true);
   };
 
@@ -91,6 +99,7 @@ export default function LecturersPage() {
     setEditingLecturer(null);
     setName('');
     setSelectedCourses([]);
+    setPayoutRate('');
   };
 
   const toggleCourse = (courseId: string) => {
@@ -117,13 +126,22 @@ export default function LecturersPage() {
               <DialogTitle>{editingLecturer ? 'Edit Lecturer' : 'Add New Lecturer'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Lecturer Name</Label>
-                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 col-span-2 sm:col-span-1">
+                    <Label htmlFor="name">Lecturer Name</Label>
+                    <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
+                <div className="space-y-2 col-span-2 sm:col-span-1">
+                    <Label htmlFor="payoutRate">Payout Rate</Label>
+                    <div className="relative">
+                        <Input id="payoutRate" type="number" value={payoutRate} onChange={(e) => setPayoutRate(e.target.value)} placeholder="e.g. 70" required />
+                        <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    </div>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Assigned Courses</Label>
-                <div className="grid grid-cols-2 gap-2 border p-4 rounded-md">
+                <div className="grid grid-cols-2 gap-2 border p-4 rounded-md max-h-48 overflow-y-auto">
                   {courses?.map(course => (
                     <div key={course.id} className="flex items-center space-x-2">
                       <Checkbox 
@@ -162,6 +180,7 @@ export default function LecturersPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Courses</TableHead>
+                  <TableHead>Payout Rate</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -170,7 +189,7 @@ export default function LecturersPage() {
                   <TableRow key={lecturer.id}>
                     <TableCell className="font-medium">{lecturer.name}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1 max-w-xs">
                         {lecturer.courses?.map(courseId => {
                           const course = courses?.find(c => c.id === courseId);
                           return course ? (
@@ -181,6 +200,9 @@ export default function LecturersPage() {
                         })}
                       </div>
                     </TableCell>
+                    <TableCell>
+                      <span className="font-medium">{lecturer.payoutRate || 0}%</span>
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(lecturer)}>
                         <Pencil className="h-4 w-4" />
@@ -190,7 +212,7 @@ export default function LecturersPage() {
                 ))}
                 {lecturers?.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">No lecturers found.</TableCell>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">No lecturers found.</TableCell>
                   </TableRow>
                 )}
               </TableBody>

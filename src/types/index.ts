@@ -28,6 +28,9 @@ export interface Lecturer {
   availability?: {
     [date: string]: string[]; // date string (YYYY-MM-DD) -> array of time slots
   };
+  averageRating?: number;
+  reviewCount?: number;
+  payoutRate?: number;
 }
 
 export interface Schedule {
@@ -55,11 +58,13 @@ export interface Booking {
   price?: number;
   classType?: 'online' | 'physical';
   paymentStatus: 'pending' | 'paid' | 'rejected' | 'failed';
-  bookingStatus: 'payment_pending' | 're_upload_receipt' | 'confirmed' | 'rejected' | 'cancelled' | 'cancellation_requested';
+  bookingStatus: 'payment_pending' | 're_upload_receipt' | 'confirmed' | 'rejected' | 'cancelled' | 'cancellation_requested' | 'completed';
   receiptUrl?: string;
   receiptType?: string;
   createdAt?: any; // Firestore Timestamp
   updatedAt?: any; // Firestore Timestamp
+  completedAt?: any; // Firestore Timestamp
+  isReviewed?: boolean;
 }
 
 export interface Message {
@@ -68,6 +73,15 @@ export interface Message {
     senderId: string;
     senderName: string;
     createdAt: any; // Firestore Timestamp
+}
+
+export interface Review {
+  id: string;
+  studentId: string;
+  studentName: string;
+  rating: number;
+  comment: string;
+  createdAt: any; // Firestore Timestamp
 }
 
 export interface AdminSettings {
