@@ -65,53 +65,59 @@ export async function POST(req: Request) {
         // --- PDF INVOICE GENERATION ---
         const doc = new jsPDF() as jsPDFWithAutoTable;
         
-        const primaryColor = '#0984e3'; // From globals.css --primary: 210 85% 55%; approx
+        const primaryColor = '#0984e3';
         const mutedColor = '#747d8c';
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const leftMargin = 14;
+        const rightMargin = 14;
+        const rightX = pageWidth - rightMargin;
 
         // --- Header ---
         if (logoBase64) {
-            doc.addImage(logoBase64, 'PNG', 14, 15, 25, 25);
+            doc.addImage(logoBase64, 'PNG', leftMargin, 15, 25, 25);
         }
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(24);
         doc.setTextColor(primaryColor);
-        doc.text('INVOICE', 205, 30, { align: 'right' });
+        doc.text('INVOICE', rightX, 30, { align: 'right' });
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(10);
         doc.setTextColor(mutedColor);
-        doc.text('SmartLabs', 14, 45);
-        doc.text('3rd Floor, No. 326, Jana Jaya Building', 14, 50);
-        doc.text('Rajagiriya, Sri Lanka', 14, 55);
+        doc.text('SmartLabs', leftMargin, 45);
+        doc.text('3rd Floor, No. 326, Jana Jaya Building', leftMargin, 50);
+        doc.text('Rajagiriya, Sri Lanka', leftMargin, 55);
 
         // --- Bill To & Invoice Details ---
         doc.setLineWidth(0.1);
-        doc.line(14, 65, 205, 65);
+        doc.line(leftMargin, 65, rightX, 65);
 
         doc.setFontSize(10);
         doc.setTextColor('#000000');
         doc.setFont('helvetica', 'bold');
-        doc.text('BILL TO', 14, 75);
+        doc.text('BILL TO', leftMargin, 75);
         
         doc.setFont('helvetica', 'normal');
-        doc.text(userName, 14, 80);
-        doc.text(userEmail, 14, 85);
-        if(userPhoneNumber) doc.text(userPhoneNumber, 14, 90);
+        doc.text(userName, leftMargin, 80);
+        doc.text(userEmail, leftMargin, 85);
+        if(userPhoneNumber) doc.text(userPhoneNumber, leftMargin, 90);
 
+        const detailsX = pageWidth * 0.6;
         doc.setFont('helvetica', 'bold');
-        doc.text('INVOICE #', 140, 75);
-        doc.text('DATE', 140, 82);
-        doc.text('STATUS', 140, 89);
+        doc.text('INVOICE #', detailsX, 75);
+        doc.text('DATE', detailsX, 82);
+        doc.text('STATUS', detailsX, 89);
         
         doc.setFont('helvetica', 'normal');
-        doc.text(bookingId, 170, 75);
-        doc.text(new Date().toLocaleDateString(), 170, 82);
+        doc.text(bookingId, detailsX + 30, 75);
+        doc.text(new Date().toLocaleDateString(), detailsX + 30, 82);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor('#27ae60');
-        doc.text('PAID', 170, 89);
+        doc.text('PAID', detailsX + 30, 89);
 
         doc.setTextColor('#000000');
-        doc.line(14, 98, 205, 98);
+        doc.line(leftMargin, 98, rightX, 98);
 
         // --- Invoice Table ---
         const tableColumn = ["DESCRIPTION", "LECTURER", "DATE & TIME", "AMOUNT (LKR)"];
@@ -139,7 +145,7 @@ export async function POST(req: Request) {
                 fontStyle: 'bold',
             },
             alternateRowStyles: { fillColor: [245, 245, 245] },
-            margin: { left: 14, right: 14 }
+            margin: { left: leftMargin, right: rightMargin }
         });
 
         const finalY = doc.lastAutoTable.finalY || 150;
@@ -147,21 +153,20 @@ export async function POST(req: Request) {
         // --- Totals ---
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
-        doc.text('TOTAL', 140, finalY + 15);
-        doc.text(`LKR ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 205, finalY + 15, { align: 'right' });
+        doc.text('TOTAL', rightX - 50, finalY + 15);
+        doc.text(`LKR ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightX, finalY + 15, { align: 'right' });
 
 
         // --- Footer ---
-        const pageHeight = doc.internal.pageSize.height;
         doc.setLineWidth(0.1);
-        doc.line(14, pageHeight - 35, 205, pageHeight - 35);
+        doc.line(leftMargin, pageHeight - 35, rightX, pageHeight - 35);
         
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(mutedColor);
-        doc.text('Thank you for choosing SmartLabs!', 14, pageHeight - 25);
-        doc.text('If you have any questions, please contact info@smartlabs.lk', 14, pageHeight - 20);
-        doc.text('This is a computer-generated invoice and does not require a signature.', doc.internal.pageSize.width / 2, pageHeight - 10, { align: 'center'});
+        doc.text('Thank you for choosing SmartLabs!', leftMargin, pageHeight - 25);
+        doc.text('If you have any questions, please contact info@smartlabs.lk', leftMargin, pageHeight - 20);
+        doc.text('This is a computer-generated invoice and does not require a signature.', pageWidth / 2, pageHeight - 10, { align: 'center'});
 
         const pdfBuffer = doc.output('arraybuffer');
         // --- END PDF INVOICE GENERATION ---
