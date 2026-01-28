@@ -9,12 +9,6 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { logoBase64 } from '@/lib/logo-base64';
 
-// Define a type for the autoTable method since it's not in the default jsPDF types
-interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: any) => jsPDF;
-  lastAutoTable: { finalY: number };
-}
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -64,7 +58,7 @@ export async function POST(req: Request) {
 
     if (type === 'confirmation') {
         // --- PDF INVOICE GENERATION ---
-        const doc = new jsPDF() as jsPDFWithAutoTable;
+        const doc = new jsPDF();
         
         const primaryColor = '#0984e3';
         const mutedColor = '#747d8c';
@@ -100,39 +94,39 @@ export async function POST(req: Request) {
         doc.text('BILL TO', leftMargin, 75);
         
         doc.setFont('helvetica', 'normal');
-        doc.text(userName, leftMargin, 80);
-        doc.text(userEmail, leftMargin, 85);
+        doc.text(userName || 'N/A', leftMargin, 80);
+        doc.text(userEmail || 'N/A', leftMargin, 85);
         if(userPhoneNumber) doc.text(userPhoneNumber, leftMargin, 90);
 
         const detailsLabelX = pageWidth * 0.55;
-        const detailsValueX = rightX;
         doc.setFont('helvetica', 'bold');
         doc.text('INVOICE #:', detailsLabelX, 75);
         doc.text('DATE:', detailsLabelX, 82);
         doc.text('STATUS:', detailsLabelX, 89);
         
         doc.setFont('helvetica', 'normal');
-        doc.text(bookingId, detailsValueX, 75, { align: 'right' });
-        doc.text(new Date().toLocaleDateString(), detailsValueX, 82, { align: 'right' });
+        doc.text(bookingId || 'N/A', rightX, 75, { align: 'right' });
+        doc.text(new Date().toLocaleDateString(), rightX, 82, { align: 'right' });
         doc.setFont('helvetica', 'bold');
         doc.setTextColor('#27ae60');
-        doc.text('PAID', detailsValueX, 89, { align: 'right' });
+        doc.text('PAID', rightX, 89, { align: 'right' });
 
         doc.setTextColor('#000000');
         doc.line(leftMargin, 98, rightX, 98);
 
         // --- Invoice Table ---
         const tableColumn = ["DESCRIPTION", "LECTURER", "DATE & TIME", "AMOUNT (LKR)"];
+        const numericPrice = typeof price === 'number' ? price : 0;
         const tableRows = [
             [
-              `${courseName} (${duration} Hour(s), ${classType})`,
-              lecturerName,
-              `${date} @ ${time}`,
-              price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+              `${courseName ?? 'N/A'} (${duration ?? 1} Hour(s), ${classType ?? 'N/A'})`,
+              lecturerName ?? 'N/A',
+              `${date ?? 'N/A'} @ ${time ?? 'N/A'}`,
+              numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
             ]
         ];
 
-        doc.autoTable({
+        (doc as any).autoTable({
             head: [tableColumn],
             body: tableRows,
             startY: 105,
@@ -150,14 +144,17 @@ export async function POST(req: Request) {
             margin: { left: leftMargin, right: rightMargin }
         });
 
-        const finalY = doc.lastAutoTable.finalY || 150;
+        let finalY = 150; // Default position if autotable fails
+        if ((doc as any).lastAutoTable && typeof (doc as any).lastAutoTable.finalY === 'number') {
+            finalY = (doc as any).lastAutoTable.finalY;
+        }
 
         // --- Totals ---
         const totalY = finalY + 15;
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text('TOTAL', detailsLabelX, totalY);
-        doc.text(`LKR ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightX, totalY, { align: 'right' });
+        doc.text(`LKR ${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, rightX, totalY, { align: 'right' });
 
 
         // --- Footer ---
