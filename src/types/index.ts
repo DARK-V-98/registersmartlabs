@@ -41,6 +41,7 @@ export interface Booking {
   userId: string;
   userName?: string;
   userEmail?: string;
+  userPhoneNumber?: string;
   courseId: string;
   courseName?: string;
   lecturerId: string;

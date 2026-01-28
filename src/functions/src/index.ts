@@ -70,6 +70,9 @@ export const sendBookingNotificationToAdmin = functions.firestore
                   <tr><td style="padding: 8px; font-weight: bold;">Student:</td><td>${
                     booking.userName
                   }</td></tr>
+                  <tr><td style="padding: 8px; font-weight: bold;">Student Phone:</td><td>${
+                    booking.userPhoneNumber || "Not Provided"
+                  }</td></tr>
                   <tr><td style="padding: 8px; font-weight: bold;">Course:</td><td>${
                     booking.courseName
                   }</td></tr>

@@ -9,7 +9,7 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, ArrowRight, Eye, EyeOff, User } from "lucide-react";
+import { Mail, Lock, ArrowRight, Eye, EyeOff, User, Phone } from "lucide-react";
 import { useAuth, useFirestore } from "@/firebase";
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
@@ -21,6 +21,7 @@ const Signup = () => {
     name: "",
     email: "",
     password: "",
+    phoneNumber: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -54,6 +55,7 @@ const Signup = () => {
           uid: user.uid,
           name: formData.name,
           email: formData.email,
+          phoneNumber: formData.phoneNumber,
           role: "student", // Default role
           status: "active", // Default status
           createdAt: serverTimestamp(),
@@ -146,6 +148,21 @@ const Signup = () => {
                       className="pl-12 py-6"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">WhatsApp Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      id="phoneNumber"
+                      type="text"
+                      placeholder="Enter your WhatsApp number"
+                      className="pl-12 py-6"
+                      value={formData.phoneNumber}
+                      onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
                       disabled={isLoading}
                     />
                   </div>

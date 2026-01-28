@@ -19,6 +19,10 @@
           "type": "string",
           "description": "Display name of the user."
         },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The user's phone number, preferably WhatsApp."
+        },
         "role": {
           "type": "string",
           "description": "Role of the user (e.g., 'user', 'admin'). Default is 'user'."
@@ -69,6 +73,10 @@
         "userId": {
           "type": "string",
           "description": "Reference to User."
+        },
+        "userPhoneNumber": {
+          "type": "string",
+          "description": "The phone number of the user who made the booking."
         },
         "courseId": {
           "type": "string"

@@ -13,6 +13,7 @@ export async function POST(req: Request) {
       userId,
       userName,
       userEmail,
+      userPhoneNumber,
       courseName,
       classType,
       lecturerName,
@@ -152,6 +153,7 @@ export async function POST(req: Request) {
                 <h3 style="color: #555;">Student Details</h3>
                 <p><strong>Name:</strong> ${userName}</p>
                 <p><strong>Email:</strong> ${userEmail}</p>
+                <p><strong>Phone:</strong> ${userPhoneNumber || 'Not Provided'}</p>
                 <p><strong>User ID:</strong> ${userId}</p>
                 
                 <h3 style="color: #555;">Booking Information</h3>
