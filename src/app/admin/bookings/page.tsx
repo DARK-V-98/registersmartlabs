@@ -276,6 +276,7 @@ export default function AdminBookingsPage() {
                          date: booking.date,
                          time: booking.time,
                          price: booking.price,
+                         duration: booking.duration,
                          paymentMethod: 'Bank Transfer',
                      })
                  });

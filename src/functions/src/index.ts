@@ -110,64 +110,8 @@ export const sendBookingNotificationToAdmin = functions.firestore
 export const sendBookingConfirmationToUser = functions.firestore
   .document("bookings/{bookingId}")
   .onUpdate(async (change) => {
-    const before = change.before.data();
-    const after = change.after.data();
-
-    // Check if the bookingStatus was changed to 'confirmed'
-    if (
-      before.bookingStatus !== "confirmed" &&
-      after.bookingStatus === "confirmed"
-    ) {
-      const userEmail = after.userEmail;
-
-      if (!userEmail) {
-        functions.logger.error(
-          "User email not found on booking, cannot send confirmation.",
-          {bookingId: change.after.id}
-        );
-        return null;
-      }
-
-      const mailOptions = {
-        from: `"smartlabs Bookings" <${gmailEmail}>`,
-        to: userEmail,
-        subject: `Your Booking for ${after.courseName} is Confirmed!`,
-        html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px;">
-          <h2>Booking Confirmed!</h2>
-          <p>Hello ${
-            after.userName
-          }, your booking has been successfully confirmed.</p>
-          <h3>Booking Details:</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-              <tbody>
-                  <tr><td style="padding: 8px; font-weight: bold;">Course:</td><td>${
-                    after.courseName
-                  }</td></tr>
-                  <tr><td style="padding: 8px; font-weight: bold;">Lecturer:</td><td>${
-                    after.lecturerName
-                  }</td></tr>
-                  <tr><td style="padding: 8px; font-weight: bold;">Date & Time:</td><td>${
-                    after.date
-                  } at ${after.time}</td></tr>
-              </tbody>
-          </table>
-          <p>If you have any questions or need your class link, please reply to this email or use the chat feature in your dashboard.</p>
-          <p>Thank you for choosing smartlabs!</p>
-        </div>
-      `,
-      };
-
-      try {
-        await mailTransport.sendMail(mailOptions);
-        functions.logger.log("User confirmation email sent to:", userEmail);
-      } catch (error) {
-        functions.logger.error(
-          "There was an error sending the user confirmation:",
-          error
-        );
-      }
-    }
-
+    // This Cloud Function is intentionally left blank.
+    // The confirmation email with invoice is now handled by the /api/send-email
+    // route, triggered from the admin panel. This prevents duplicate emails.
     return null;
   });

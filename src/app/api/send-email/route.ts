@@ -4,6 +4,13 @@ import nodemailer from 'nodemailer';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+// Define a type for the autoTable method since it's not in the default jsPDF types
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
+}
 
 export async function POST(req: Request) {
   try {
@@ -21,12 +28,12 @@ export async function POST(req: Request) {
       date,
       time,
       price,
+      duration,
       paymentMethod,
       receiptUrl,
     } = body;
 
     // Initialize Firebase (using Client SDK in Node environment) to fetch settings
-    // Note: This relies on open Firestore rules or proper auth if rules are restricted.
     const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     const db = getFirestore(app);
     
@@ -44,16 +51,61 @@ export async function POST(req: Request) {
     let mailOptions;
 
     if (type === 'confirmation') {
+        // --- PDF INVOICE GENERATION ---
+        const doc = new jsPDF() as jsPDFWithAutoTable;
+        
+        // Header
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Invoice', 14, 22);
+
+        // Sub-header Info
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Booking ID: ${bookingId}`, 14, 30);
+        doc.text(`Invoice Date: ${new Date().toLocaleDateString()}`, 14, 35);
+        
+        doc.text('Bill To:', 140, 30);
+        doc.text(userName, 140, 35);
+        doc.text(userEmail, 140, 40);
+
+        // Invoice Table
+        const tableColumn = ["Item", "Details", "Amount (LKR)"];
+        const tableRows = [
+            ["Course", courseName, price.toLocaleString()],
+            ["Lecturer", lecturerName, ""],
+            ["Date & Time", `${date} @ ${time} (LKT)`, ""],
+            ["Duration", `${duration} Hour(s)`, ""],
+            ["Class Type", classType, ""],
+            [{ content: 'Total', styles: { fontStyle: 'bold' } }, "", { content: price.toLocaleString(), styles: { fontStyle: 'bold' } }]
+        ];
+
+        doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 50,
+            theme: 'striped',
+            headStyles: { fillColor: [3, 169, 244] }, // A blue color
+        });
+
+        const finalY = (doc.lastAutoTable as any).finalY || 100;
+        doc.setFontSize(10);
+        doc.text('Payment Confirmed. Thank you for choosing SmartLabs!', 14, finalY + 15);
+        doc.text('This is a computer-generated invoice and does not require a signature.', 14, finalY + 20);
+
+        const pdfBuffer = doc.output('arraybuffer');
+        // --- END PDF INVOICE GENERATION ---
+
         mailOptions = {
             from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
             to: userEmail,
-            subject: `Booking Confirmed: ${courseName}`,
+            subject: `Booking Confirmed & Invoice: ${courseName}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #2e7d32;">Booking Confirmed!</h2>
                 <div style="background-color: #f9fff9; padding: 20px; border-radius: 8px; border: 1px solid #c8e6c9;">
                   <p>Hello <strong>${userName}</strong>,</p>
-                  <p>Your booking for <strong>${courseName}</strong> has been successfully confirmed.</p>
+                  <p>Your booking for <strong>${courseName}</strong> has been successfully confirmed. Your invoice is attached to this email.</p>
                   
                   <hr style="border: 1px solid #eee;" />
                   
@@ -73,6 +125,13 @@ export async function POST(req: Request) {
                 </p>
               </div>
             `,
+            attachments: [
+                {
+                    filename: `invoice-${bookingId}.pdf`,
+                    content: Buffer.from(pdfBuffer),
+                    contentType: 'application/pdf',
+                },
+            ],
         };
     } else if (type === 'reminder') {
         mailOptions = {
