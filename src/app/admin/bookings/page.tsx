@@ -29,7 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Booking, Message, Schedule } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send, RefreshCw, Plus, FileDown } from 'lucide-react';
+import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send, RefreshCw, Plus, FileDown, Mail } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -176,6 +176,7 @@ export default function AdminBookingsPage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResendingEmail, setIsResendingEmail] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
 
   const isPrivilegedUser = adminProfile?.role === 'developer' || adminProfile?.role === 'superadmin';
@@ -309,6 +310,62 @@ export default function AdminBookingsPage() {
       console.error(error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async (booking: Booking) => {
+    if (!booking.userEmail) {
+        toast({
+            variant: "destructive",
+            title: "Cannot Send Email",
+            description: "The user does not have an email address."
+        });
+        return;
+    }
+    setIsResendingEmail(true);
+    try {
+        const emailResponse = await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'confirmation',
+                bookingId: booking.id,
+                userId: booking.userId,
+                userName: booking.userName,
+                userEmail: booking.userEmail,
+                courseName: booking.courseName,
+                classType: booking.classType,
+                lecturerName: booking.lecturerName,
+                date: booking.date,
+                time: booking.time,
+                price: booking.price,
+                duration: booking.duration,
+                paymentMethod: 'Bank Transfer',
+            })
+        });
+        if (emailResponse.ok) {
+            toast({
+                title: "Email Sent",
+                description: `Confirmation has been resent to ${booking.userName}.`
+            });
+        } else {
+            const errorResult = await emailResponse.json();
+            console.error("Failed to resend confirmation email:", errorResult.details || errorResult);
+            toast({
+                variant: "destructive",
+                title: "Email Sending Failed",
+                description: "The confirmation email could not be resent. Please check server logs.",
+            });
+        }
+    } catch (emailError: any) {
+        console.error("Failed to resend confirmation email (network error):", emailError);
+        toast({
+            variant: "destructive",
+            title: "Email Sending Failed",
+            description: `A network error occurred while trying to send the email: ${emailError.message}`,
+        });
+    } finally {
+        setIsResendingEmail(false);
     }
   };
 
@@ -506,10 +563,22 @@ export default function AdminBookingsPage() {
                                 </Tabs>
                             )}
                             <DialogFooter className="gap-2 sm:justify-between pt-6">
-                              {isPrivilegedUser && (selectedBooking?.bookingStatus === 'confirmed' || selectedBooking?.bookingStatus === 'rejected') ? (
-                                <div className="w-full flex justify-between items-center">
-                                    <p className="text-sm text-destructive font-semibold">Privileged Action:</p>
-                                    <div className="flex gap-2">
+                                <div className="flex-1 justify-start">
+                                    {selectedBooking?.bookingStatus === 'confirmed' && (
+                                        <Button
+                                            variant="secondary"
+                                            onClick={() => handleResendConfirmation(selectedBooking)}
+                                            disabled={isResendingEmail || isLoading}
+                                        >
+                                            {isResendingEmail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                                            Resend Confirmation
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                  {isPrivilegedUser && (selectedBooking?.bookingStatus === 'confirmed' || selectedBooking?.bookingStatus === 'rejected') ? (
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm text-destructive font-semibold">Privileged:</p>
                                         {selectedBooking?.bookingStatus !== 'rejected' && (
                                             <Button 
                                                 variant="destructive" 
@@ -529,38 +598,38 @@ export default function AdminBookingsPage() {
                                             </Button>
                                         )}
                                     </div>
+                                  ) : selectedBooking?.bookingStatus === 'cancellation_requested' ? (
+                                   <div className="flex justify-end gap-2 w-full">
+                                      <Button variant="outline" onClick={() => handleUpdateStatus(selectedBooking, 'confirmed', 'paid')} disabled={isLoading}>Deny Request</Button>
+                                      <Button variant="destructive" onClick={() => handleUpdateStatus(selectedBooking, 'cancelled', 'rejected')} disabled={isLoading}><AlertTriangle className="w-4 h-4 mr-2"/>Approve Cancellation</Button>
+                                   </div>
+                                  ) : selectedBooking?.bookingStatus === 'payment_pending' || selectedBooking?.bookingStatus === 're_upload_receipt' ? (
+                                    <div className="flex justify-end gap-2 w-full">
+                                      <Button 
+                                        variant="destructive" 
+                                        onClick={() => handleUpdateStatus(selectedBooking, 'rejected', 'rejected')}
+                                        disabled={isLoading}
+                                      >
+                                        <X className="w-4 h-4 mr-2" /> Reject
+                                      </Button>
+                                      <Button 
+                                        variant="outline"
+                                        className="text-amber-600 border-amber-300 hover:bg-amber-50"
+                                        onClick={() => handleUpdateStatus(selectedBooking, 're_upload_receipt', 'pending')}
+                                        disabled={isLoading}
+                                      >
+                                        <RefreshCw className="w-4 h-4 mr-2" /> Request Re-upload
+                                      </Button>
+                                      <Button 
+                                        className="bg-green-600 hover:bg-green-700" 
+                                        onClick={() => handleUpdateStatus(selectedBooking, 'confirmed', 'paid')}
+                                        disabled={isLoading || selectedBooking.bookingStatus === 'confirmed'}
+                                      >
+                                        <Check className="w-4 h-4 mr-2" /> Confirm Payment
+                                      </Button>
+                                    </div>
+                                  ) : null}
                                 </div>
-                              ) : selectedBooking?.bookingStatus === 'cancellation_requested' ? (
-                               <div className="w-full flex justify-between">
-                                  <Button variant="outline" onClick={() => handleUpdateStatus(selectedBooking, 'confirmed', 'paid')} disabled={isLoading}>Deny Request</Button>
-                                  <Button variant="destructive" onClick={() => handleUpdateStatus(selectedBooking, 'cancelled', 'rejected')} disabled={isLoading}><AlertTriangle className="w-4 h-4 mr-2"/>Approve Cancellation</Button>
-                               </div>
-                              ) : selectedBooking?.bookingStatus === 'payment_pending' || selectedBooking?.bookingStatus === 're_upload_receipt' ? (
-                                <div className="w-full flex justify-between items-center">
-                                  <Button 
-                                    variant="destructive" 
-                                    onClick={() => handleUpdateStatus(selectedBooking, 'rejected', 'rejected')}
-                                    disabled={isLoading}
-                                  >
-                                    <X className="w-4 h-4 mr-2" /> Reject
-                                  </Button>
-                                  <Button 
-                                    variant="outline"
-                                    className="text-amber-600 border-amber-300 hover:bg-amber-50"
-                                    onClick={() => handleUpdateStatus(selectedBooking, 're_upload_receipt', 'pending')}
-                                    disabled={isLoading}
-                                  >
-                                    <RefreshCw className="w-4 h-4 mr-2" /> Request Re-upload
-                                  </Button>
-                                  <Button 
-                                    className="bg-green-600 hover:bg-green-700" 
-                                    onClick={() => handleUpdateStatus(selectedBooking, 'confirmed', 'paid')}
-                                    disabled={isLoading || selectedBooking.bookingStatus === 'confirmed'}
-                                  >
-                                    <Check className="w-4 h-4 mr-2" /> Confirm Payment
-                                  </Button>
-                                </div>
-                              ) : null}
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
