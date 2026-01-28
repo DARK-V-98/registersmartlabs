@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useFirestore, useCollection, addDocumentNonBlocking, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, where, doc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
+import { useState, useMemo, useEffect } from 'react';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,12 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Course, Lecturer } from '@/types';
+import { Course, Lecturer, Schedule } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Trash } from 'lucide-react';
-import { format, eachDayOfInterval, getDay, isSameDay, addDays } from 'date-fns';
-import { DateRange } from 'react-day-picker';
+import { Loader2, AlertTriangle, Trash } from 'lucide-react';
+import { format } from 'date-fns';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
 
 const TIME_SLOTS = [
   "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
@@ -29,30 +29,17 @@ const TIME_SLOTS = [
   "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM"
 ];
 
-const DAYS_OF_WEEK = [
-  { id: 0, label: 'Sun' },
-  { id: 1, label: 'Mon' },
-  { id: 2, label: 'Tue' },
-  { id: 3, label: 'Wed' },
-  { id: 4, label: 'Thu' },
-  { id: 5, label: 'Fri' },
-  { id: 6, label: 'Sat' },
-];
-
 export default function SchedulesPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isScheduleLoading, setIsScheduleLoading] = useState(false);
 
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedLecturer, setSelectedLecturer] = useState<string>('');
-  // const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(),
-    to: addDays(new Date(), 7)
-  });
-  const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>([1, 2, 3, 4, 5]); // Default Mon-Fri
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+  const [currentSchedule, setCurrentSchedule] = useState<Schedule | null>(null);
 
   // Fetch Courses
   const { data: courses } = useCollection<Course>(
@@ -73,251 +60,209 @@ export default function SchedulesPage() {
     return allLecturers.filter(l => l.courses?.includes(selectedCourse));
   }, [selectedCourse, allLecturers]);
 
-  // Fetch Existing Schedule for Selected Date/Lecturer/Course
-  // Actually, schedule should be per Lecturer/Date? Or Course/Lecturer/Date?
-  // The requirement says "Schedules -> scheduleId -> courseId, lecturerId, date, timeSlots[]"
-  // This implies a schedule document per unique combination. 
-  // A simpler way is to key schedules by `${lecturerId}_${date}` if a lecturer can't be in two places.
-  // But let's follow the schema: schedules collection.
+  // Effect to fetch the schedule for the selected context
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      if (!firestore || !selectedCourse || !selectedLecturer || !selectedDate) {
+        setCurrentSchedule(null);
+        setSelectedSlots([]);
+        return;
+      }
+      setIsScheduleLoading(true);
+      const dateString = format(selectedDate, 'yyyy-MM-dd');
+      const scheduleId = `${selectedCourse}_${selectedLecturer}_${dateString}`;
+      const scheduleRef = doc(firestore, 'schedules', scheduleId);
+      
+      try {
+        const docSnap = await getDoc(scheduleRef);
+        if (docSnap.exists()) {
+          const scheduleData = docSnap.data() as Schedule;
+          setCurrentSchedule(scheduleData);
+          setSelectedSlots(scheduleData.timeSlots || []);
+        } else {
+          setCurrentSchedule(null);
+          setSelectedSlots([]);
+        }
+      } catch (error) {
+        console.error("Error fetching schedule:", error);
+        toast({ title: 'Error loading schedule', variant: 'destructive' });
+      } finally {
+        setIsScheduleLoading(false);
+      }
+    };
 
-  // Let's implement adding a schedule.
-  
+    fetchSchedule();
+  }, [selectedCourse, selectedLecturer, selectedDate, firestore, toast]);
+
   const toggleSlot = (time: string) => {
     setSelectedSlots(prev => 
-      prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time]
+      prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time].sort()
     );
   };
-
-  const toggleWeekDay = (dayId: number) => {
-    setSelectedWeekDays(prev => 
-      prev.includes(dayId) ? prev.filter(d => d !== dayId) : [...prev, dayId]
-    );
-  };
-
+  
   const handleSaveSchedule = async () => {
-    if (!selectedCourse || !selectedLecturer || !dateRange?.from || !dateRange?.to || selectedSlots.length === 0) {
-      toast({ title: 'Please select all fields, date range, and at least one time slot', variant: 'destructive' });
+    if (!firestore || !selectedCourse || !selectedLecturer || !selectedDate) {
+      toast({ title: 'Please select all fields before saving', variant: 'destructive' });
+      return;
+    }
+
+    // Safety check: prevent saving if bookings exist
+    if (currentSchedule?.bookedSlots && currentSchedule.bookedSlots.length > 0) {
+      toast({ title: "Update Failed", description: "This schedule has bookings and cannot be changed.", variant: "destructive" });
       return;
     }
 
     setIsLoading(true);
     try {
-      // 1. Generate all dates in range
-      const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
-      
-      // 2. Filter by selected week days
-      const targetDates = days.filter(date => selectedWeekDays.includes(getDay(date)));
+      const dateString = format(selectedDate, 'yyyy-MM-dd');
+      const scheduleId = `${selectedCourse}_${selectedLecturer}_${dateString}`;
+      const scheduleRef = doc(firestore, 'schedules', scheduleId);
 
-      if (targetDates.length === 0) {
-        toast({ title: 'No matching days in the selected range', variant: 'destructive' });
-        setIsLoading(false);
-        return;
+      const newData: Partial<Schedule> & { updatedAt: Date } = {
+        id: scheduleId,
+        courseId: selectedCourse,
+        lecturerId: selectedLecturer,
+        date: dateString,
+        timeSlots: selectedSlots,
+        updatedAt: new Date(),
+      };
+      
+      // If this is a new schedule, initialize bookedSlots
+      if (!currentSchedule) {
+          newData.bookedSlots = [];
       }
 
-      // 3. Batch write (chunk by 500 if needed, but for now assuming reasonable range)
-      // Firestore batch limit is 500 operations.
-      // If targetDates.length > 500, we need multiple batches.
+      await setDoc(scheduleRef, newData, { merge: true });
       
-      const batchSize = 450;
-      const chunks = [];
-      for (let i = 0; i < targetDates.length; i += batchSize) {
-        chunks.push(targetDates.slice(i, i + batchSize));
-      }
+      toast({ title: "Schedule Saved", description: `Availability for ${dateString} has been updated.` });
+      // After saving, update the local `currentSchedule` state to reflect the change
+      setCurrentSchedule(prev => ({
+          ...prev,
+          ...newData,
+          id: scheduleId,
+      } as Schedule));
 
-      let createdCount = 0;
-
-      for (const chunk of chunks) {
-        const batch = writeBatch(firestore);
-        
-        for (const date of chunk) {
-            const dateString = format(date, 'yyyy-MM-dd');
-            const scheduleId = `${selectedCourse}_${selectedLecturer}_${dateString}`;
-            
-            const scheduleData = {
-                id: scheduleId,
-                courseId: selectedCourse,
-                lecturerId: selectedLecturer,
-                date: dateString,
-                timeSlots: selectedSlots,
-                bookedSlots: [], // Reset booked slots? Or merge? 
-                // Ideally we should check existing, but "set" overwrites. 
-                // User requirement implies "setting availability". 
-                // If there are existing bookings, we might lose them if we overwrite `bookedSlots`.
-                // We should probably merge `timeSlots` but keep `bookedSlots`.
-                // But setDoc with merge: true will merge fields.
-                // However, `timeSlots` is an array. Arrays replace in merge.
-                // So this will update available slots.
-                // We must be careful NOT to overwrite `bookedSlots` if they exist.
-                // Best approach: use { merge: true } but don't include bookedSlots in data if we want to preserve them?
-                // No, if the document doesn't exist, we need to initialize bookedSlots.
-                
-                // Let's use setDoc with merge: true. 
-                // If doc exists, bookedSlots won't be touched if we don't include it.
-                // New docs won't have bookedSlots field. That might be an issue.
-                // We can use a default value in our code when reading.
-                
-                createdAt: new Date(),
-            };
-            
-            // Note: If we use merge: true, we can't easily set "default empty array" only if new.
-            // But we can just set it. If it overwrites existing bookings, that's bad.
-            // The safe way is to READ then WRITE, but that's slow for 8 months (240 reads).
-            
-            // Alternative: Just set timeSlots.
-            // When Reading Schedules, if bookedSlots is undefined, treat as [].
-            
-            batch.set(doc(firestore, 'schedules', scheduleId), {
-                courseId: selectedCourse,
-                lecturerId: selectedLecturer,
-                date: dateString,
-                timeSlots: selectedSlots,
-                updatedAt: new Date() 
-                // We omit bookedSlots here to preserve existing data.
-                // But for NEW docs, bookedSlots will be missing.
-            }, { merge: true });
-        }
-        
-        await batch.commit();
-        createdCount += chunk.length;
-      }
-      
-      toast({ title: `Schedule saved for ${createdCount} days successfully` });
-      // Don't reset selection to allow easy tweaks
     } catch (error) {
       console.error(error);
-      toast({ title: 'Error saving schedules', variant: 'destructive' });
+      toast({ title: 'Error saving schedule', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const hasBookings = currentSchedule?.bookedSlots && currentSchedule.bookedSlots.length > 0;
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Schedule Management</h1>
-      </div>
+      <h1 className="text-3xl font-bold tracking-tight">Schedule Management</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>1. Select Context</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Select Course</Label>
-              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select course" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses?.map(course => (
-                    <SelectItem key={course.id} value={course.id}>
-                      {course.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Select Lecturer</Label>
-              <Select value={selectedLecturer} onValueChange={setSelectedLecturer} disabled={!selectedCourse}>
-                <SelectTrigger>
-                  <SelectValue placeholder={selectedCourse ? "Select lecturer" : "Select course first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableLecturers.map(lecturer => (
-                    <SelectItem key={lecturer.id} value={lecturer.id}>{lecturer.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>2. Select Date & Days</CardTitle>
+            <CardTitle>1. Select Context</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label>Select Date Range</Label>
-              <div className="border rounded-md p-4 flex justify-center">
-                <Calendar
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={setDateRange}
-                  disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
-                  initialFocus
-                  numberOfMonths={1}
-                />
+          <CardContent className="grid gap-6">
+              <div className="space-y-2">
+                <Label>Select Course</Label>
+                <Select value={selectedCourse} onValueChange={(val) => {
+                    setSelectedCourse(val);
+                    setSelectedLecturer(''); // Reset lecturer on course change
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select course" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courses?.map(course => (
+                      <SelectItem key={course.id} value={course.id}>
+                        {course.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label>Days of Week</Label>
-              <div className="grid grid-cols-4 gap-2">
-                {DAYS_OF_WEEK.map(day => (
-                  <div key={day.id} className="flex items-center space-x-2">
-                    <Checkbox 
-                        id={`day-${day.id}`} 
-                        checked={selectedWeekDays.includes(day.id)}
-                        onCheckedChange={() => toggleWeekDay(day.id)}
-                    />
-                    <label
-                      htmlFor={`day-${day.id}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {day.label}
-                    </label>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                <Label>Select Lecturer</Label>
+                <Select value={selectedLecturer} onValueChange={setSelectedLecturer} disabled={!selectedCourse}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={selectedCourse ? "Select lecturer" : "Select a course first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableLecturers.map(lecturer => (
+                      <SelectItem key={lecturer.id} value={lecturer.id}>{lecturer.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>3. Select Time Slots</CardTitle>
-          </CardHeader>
-          <CardContent>
-             {!dateRange?.from || !selectedLecturer ? (
-               <div className="text-center text-muted-foreground py-8">
-                 Complete steps 1 and 2 to view time slots.
-               </div>
-             ) : (
-               <div className="space-y-6">
-                 <div className="grid grid-cols-3 gap-3">
-                   {TIME_SLOTS.map(time => (
-                     <Button
-                       key={time}
-                       variant={selectedSlots.includes(time) ? "default" : "outline"}
-                       className="w-full"
-                       onClick={() => toggleSlot(time)}
-                     >
-                       {time}
-                     </Button>
-                   ))}
-                 </div>
-                 
-                 <div className="pt-4 border-t">
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="font-medium">Selected: {selectedSlots.length} slots</span>
-                      <span className="text-sm text-muted-foreground">
-                        {dateRange?.from ? format(dateRange.from, 'MMM d') : ''} 
-                        {dateRange?.to ? ` - ${format(dateRange.to, 'MMM d')}` : ''}
-                      </span>
+        <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>2. Select Date & Availability</CardTitle>
+              {!selectedCourse || !selectedLecturer ? (
+                 <p className="text-sm text-muted-foreground pt-2">Please select a course and lecturer to manage dates.</p>
+              ) : null}
+            </CardHeader>
+            <CardContent className="grid gap-6 md:grid-cols-2">
+              <div className="flex justify-center">
+                 <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    disabled={!selectedCourse || !selectedLecturer || ((date) => date < new Date(new Date().setHours(0,0,0,0)))}
+                    initialFocus
+                    className="rounded-md border shadow-sm"
+                  />
+              </div>
+
+              <div className="space-y-4">
+                {isScheduleLoading ? (
+                  <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin" /></div>
+                ) : hasBookings ? (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      This schedule has active bookings and cannot be modified. To change availability, all existing bookings for this day must first be cancelled.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center">
+                        <Label className="font-semibold">{currentSchedule ? 'Edit Availability' : 'Set Availability'}</Label>
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedSlots([])} disabled={isLoading || hasBookings}>
+                            <Trash className="w-4 h-4 mr-2"/> Clear All
+                        </Button>
                     </div>
-                    <Button className="w-full" onClick={handleSaveSchedule} disabled={isLoading || selectedSlots.length === 0}>
-                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Save Schedule
-                    </Button>
-                 </div>
-               </div>
-             )}
-          </CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto pr-2">
+                        {TIME_SLOTS.map(time => (
+                        <Button
+                            key={time}
+                            variant={selectedSlots.includes(time) ? "default" : "outline"}
+                            className="w-full"
+                            onClick={() => toggleSlot(time)}
+                            disabled={isLoading}
+                        >
+                            {time}
+                        </Button>
+                        ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+             <CardContent>
+                <Button 
+                  className="w-full mt-4" 
+                  onClick={handleSaveSchedule} 
+                  disabled={isLoading || isScheduleLoading || hasBookings || !selectedCourse || !selectedLecturer || !selectedDate}
+                >
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Availability for {selectedDate ? format(selectedDate, 'MMM d') : ''}
+                </Button>
+            </CardContent>
         </Card>
+
       </div>
     </div>
   );
