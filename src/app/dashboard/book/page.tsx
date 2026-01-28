@@ -409,7 +409,7 @@ export default function BookingPage() {
                 </div>
                 <div>
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold">Available Time Slots</h3>
+                        <h3 className="font-semibold">Available Start Times</h3>
                         <div className="flex items-center space-x-2">
                             <Label htmlFor="duration-switch">2-hour class</Label>
                             <Switch id="duration-switch" checked={duration === 2} onCheckedChange={(checked) => setDuration(checked ? 2 : 1)} />

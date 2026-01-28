@@ -272,7 +272,7 @@ export default function SchedulesPage() {
                     </Alert>
                   ) : (
                     <>
-                      <div className="flex justify-between items-center"><Label className="font-semibold">{currentSchedule ? 'Edit Availability' : 'Set Availability'}</Label>
+                      <div className="flex justify-between items-center"><Label className="font-semibold">{currentSchedule ? 'Edit Available Start Times' : 'Set Available Start Times'}</Label>
                         <Button variant="ghost" size="sm" onClick={() => setSingleDaySlots([])} disabled={isLoading || hasBookings}><Trash className="w-4 h-4 mr-2"/> Clear All</Button>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto pr-2">
@@ -327,7 +327,7 @@ export default function SchedulesPage() {
                   {/* Time Slot Picker for Bulk */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                        <Label className="font-semibold">Select Available Time Slots for the Range</Label>
+                        <Label className="font-semibold">Select Available Start Times for the Range</Label>
                         <Button variant="ghost" size="sm" onClick={() => setBulkTimeSlots([])} disabled={isLoading}><Trash className="w-4 h-4 mr-2"/> Clear All</Button>
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-60 overflow-y-auto pr-2 border rounded-md p-4">
