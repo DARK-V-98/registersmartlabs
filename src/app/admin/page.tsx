@@ -25,7 +25,7 @@ const getStatusLabel = (status?: string) => {
   return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
-const getSlotsToRemoveForBooking = (booking: Booking) => {
+const getSlotsForBooking = (booking: Booking) => {
     const slots = [];
     const startTimeIndex = MASTER_TIME_SLOTS.indexOf(booking.time);
     if (startTimeIndex === -1) return [];
@@ -76,7 +76,7 @@ const AdminDashboardPage = () => {
         try {
             const scheduleSnap = await getDoc(scheduleRef);
             if (scheduleSnap.exists()) {
-                const slotsToRemove = getSlotsToRemoveForBooking(booking);
+                const slotsToRemove = getSlotsForBooking(booking);
                 
                 if (slotsToRemove.length > 0) {
                     updateDocumentNonBlocking(scheduleRef, {

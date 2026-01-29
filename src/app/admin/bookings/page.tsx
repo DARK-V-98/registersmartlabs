@@ -114,7 +114,7 @@ function ChatInterface({ bookingId }: { bookingId: string }) {
     );
 }
 
-const getSlotsToRemoveForBooking = (booking: Booking) => {
+const getSlotsForBooking = (booking: Booking) => {
     const slots = [];
     const startTimeIndex = MASTER_TIME_SLOTS.indexOf(booking.time);
     if (startTimeIndex === -1) return [];
@@ -252,7 +252,7 @@ export default function AdminBookingsPage() {
         
         const scheduleSnap = await getDoc(scheduleRef);
         if (scheduleSnap.exists()) {
-          const slotsToRemove = getSlotsToRemoveForBooking(booking);
+          const slotsToRemove = getSlotsForBooking(booking);
           
           if (slotsToRemove.length > 0) {
             updateDocumentNonBlocking(scheduleRef, {
