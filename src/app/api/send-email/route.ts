@@ -26,63 +26,63 @@ const getInvoiceHtml = (bookingData: any) => {
     const numericPrice = typeof price === 'number' ? price : 0;
 
     return `
-    <div style="font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0,0,0,0.05);">
-        <table cellpadding="0" cellspacing="0" style="width: 100%; line-height: inherit; text-align: left;">
-            <tr class="top">
-                <td colspan="2" style="padding: 5px; vertical-align: top;">
-                    <table style="width: 100%; line-height: inherit; text-align: left;">
-                        <tr>
-                            <td class="title" style="padding-bottom: 20px; font-size: 45px; line-height: 45px; color: #333;">
-                                SmartLabs
-                            </td>
-                            <td style="padding-bottom: 20px; text-align: right;">
-                                <strong style="font-size: 20px;">Invoice #${bookingId}</strong><br>
-                                Created: ${new Date().toLocaleDateString()}<br>
-                                Status: <strong style="color: #27ae60;">Paid</strong>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-            <tr class="information">
-                <td colspan="2" style="padding: 5px; vertical-align: top;">
-                    <table style="width: 100%; line-height: inherit; text-align: left; border-top: 1px solid #eee; padding-top: 20px;">
-                        <tr>
-                            <td style="padding-bottom: 40px;">
-                                SmartLabs<br>
-                                3rd Floor, No. 326, Jana Jaya Building<br>
-                                Rajagiriya, Sri Lanka
-                            </td>
-                            <td style="padding-bottom: 40px; text-align: right;">
-                                <strong>Bill To:</strong><br>
-                                ${userName}<br>
-                                ${userEmail}<br>
-                                ${userPhoneNumber}
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-            <tr class="heading" style="background: #eee; border-bottom: 1px solid #ddd; font-weight: bold;">
-                <td style="padding: 10px; vertical-align: top;">Description</td>
-                <td style="padding: 10px; vertical-align: top; text-align: right;">Amount (LKR)</td>
-            </tr>
-            <tr class="item" style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px; vertical-align: top;">
-                    ${courseName} - ${lecturerName}<br>
-                    <small style="color: #555;">Date: ${date} @ ${time} (${duration} Hour(s), ${classType})</small>
-                </td>
-                <td style="padding: 10px; vertical-align: top; text-align: right;">${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            </tr>
-            <tr class="total">
-                <td style="padding: 5px; vertical-align: top;"></td>
-                <td style="padding: 10px 10px 40px; vertical-align: top; text-align: right; border-top: 2px solid #eee; font-weight: bold; font-size: 1.2em;">
-                    Total: LKR ${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-            </tr>
-        </table>
-        <div style="text-align: center; color: #777; font-size: 12px; margin-top: 20px;">
+    <div style="font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; max-width: 800px; margin: 20px auto; padding: 0; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden;">
+        <div style="background-color: hsl(210, 30%, 96%); color: hsl(220, 15%, 25%); padding: 40px;">
+            <table cellpadding="0" cellspacing="0" style="width: 100%;">
+                <tr>
+                    <td>
+                        <h1 style="font-size: 32px; margin: 0; font-weight: bold;">INVOICE</h1>
+                    </td>
+                    <td style="text-align: right;">
+                        <strong style="font-size: 24px;">SmartLabs</strong>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <div style="padding: 30px;">
+            <table cellpadding="0" cellspacing="0" style="width: 100%; line-height: inherit; text-align: left; font-size: 14px;">
+                <tr class="top">
+                    <td colspan="2" style="padding-bottom: 30px; vertical-align: top;">
+                        <table style="width: 100%; line-height: inherit; text-align: left;">
+                            <tr>
+                                <td style="vertical-align: top;">
+                                    <strong style="color: #555;">Bill To:</strong><br>
+                                    ${userName}<br>
+                                    ${userEmail}<br>
+                                    ${userPhoneNumber || ''}
+                                </td>
+                                <td style="text-align: right; vertical-align: top;">
+                                    <strong>Invoice #:</strong> ${bookingId}<br>
+                                    <strong>Date:</strong> ${new Date().toLocaleDateString()}<br>
+                                    <strong>Status:</strong> <span style="color: #27ae60; font-weight: bold;">PAID</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                
+                <tr class="heading" style="background: hsl(210, 30%, 96%); font-weight: bold;">
+                    <td style="padding: 12px; vertical-align: top; border-bottom: 1px solid #ddd;">Description</td>
+                    <td style="padding: 12px; vertical-align: top; text-align: right; border-bottom: 1px solid #ddd;">Amount (LKR)</td>
+                </tr>
+                <tr class="item">
+                    <td style="padding: 12px; vertical-align: top; border-bottom: 1px solid #eee;">
+                        <strong>${courseName}</strong> - ${lecturerName}<br>
+                        <small style="color: #555;">Date: ${date} @ ${time} (${duration} Hour(s), ${classType} class)</small>
+                    </td>
+                    <td style="padding: 12px; vertical-align: top; text-align: right; border-bottom: 1px solid #eee;">${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+                <tr class="total">
+                    <td style="padding: 5px; vertical-align: top;"></td>
+                    <td style="padding: 20px 12px 0; vertical-align: top; text-align: right; border-top: 2px solid #333; font-weight: bold; font-size: 1.3em;">
+                        Total: LKR ${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                </tr>
+            </table>
+        </div>
+         <div style="background-color: #f7f7f7; color: #777; font-size: 12px; text-align: center; padding: 20px; border-top: 1px solid #eee;">
             <p>Thank you for choosing SmartLabs. This is a computer-generated invoice and does not require a signature.</p>
+            <p>If you have any questions, please contact us at info@smartlabs.lk</p>
         </div>
     </div>
     `;
@@ -148,7 +148,7 @@ export async function POST(req: Request) {
           bookingId: bookingId || 'N/A',
           userName: userName || 'N/A',
           userEmail: userEmail || 'N/A',
-          userPhoneNumber: userPhoneNumber || 'N/A',
+          userPhoneNumber: userPhoneNumber || '',
           courseName: courseName || 'N/A',
           lecturerName: lecturerName || 'N/A',
           date: date || 'N/A',
@@ -161,63 +161,97 @@ export async function POST(req: Request) {
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
 
-        doc.setFontSize(26);
-        doc.setFont('helvetica', 'bold');
-        doc.text('INVOICE', pageWidth - 14, 25, { align: 'right' });
+        // --- PDF DESIGN ---
+        const primaryColor = '#3B82F6'; // Blue
+        const headingColor = '#1F2937'; // Dark Gray
+        const textColor = '#4B5563'; // Gray
+        const lightGrayColor = '#F3F4F6';
 
+        // Header Background
+        doc.setFillColor(lightGrayColor);
+        doc.rect(0, 0, pageWidth, 50, 'F');
+        
+        // Titles
+        doc.setFontSize(28);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(headingColor);
+        doc.text('INVOICE', 20, 30);
+        
+        doc.setFontSize(16);
+        doc.text('SmartLabs', pageWidth - 20, 30, { align: 'right' });
+
+
+        // Billing Information Section
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(headingColor);
+        doc.text('Bill To', 20, 60);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(textColor);
+        doc.text(safeData.userName, 20, 66);
+        doc.text(safeData.userEmail, 20, 71);
+        doc.text(safeData.userPhoneNumber, 20, 76);
+
+        // Invoice Details
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(headingColor);
+        doc.text('Invoice #:', pageWidth - 60, 60);
+        doc.text('Date:', pageWidth - 60, 66);
+        doc.text('Status:', pageWidth - 60, 72);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(textColor);
+        doc.text(safeData.bookingId, pageWidth - 20, 60, { align: 'right' });
+        doc.text(new Date().toLocaleDateString(), pageWidth - 20, 66, { align: 'right' });
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#22C55E'); // Green
+        doc.text('PAID', pageWidth - 20, 72, { align: 'right' });
+
+        // Table Header
+        let yPos = 90;
+        doc.setFillColor(lightGrayColor);
+        doc.rect(15, yPos, pageWidth - 30, 10, 'F');
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(headingColor);
+        doc.text('DESCRIPTION', 20, yPos + 7);
+        doc.text('AMOUNT (LKR)', pageWidth - 20, yPos + 7, { align: 'right' });
+        yPos += 10;
+
+        // Table Item
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Invoice #: ${safeData.bookingId}`, pageWidth - 14, 32, { align: 'right' });
-        doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 14, 38, { align: 'right' });
-        doc.text('Status: Paid', pageWidth - 14, 44, { align: 'right' });
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Bill From:', 14, 60);
-        doc.setFont('helvetica', 'normal');
-        doc.text('SmartLabs', 14, 66);
-        doc.text('3rd Floor, No. 326, Jana Jaya Building', 14, 72);
-        doc.text('Rajagiriya, Sri Lanka', 14, 78);
-
-        doc.setFont('helvetica', 'bold');
-        doc.text('Bill To:', pageWidth / 2, 60);
-        doc.setFont('helvetica', 'normal');
-        doc.text(safeData.userName, pageWidth / 2, 66);
-        doc.text(safeData.userEmail, pageWidth / 2, 72);
-        doc.text(safeData.userPhoneNumber, pageWidth / 2, 78);
-
-        doc.setDrawColor(222, 226, 230);
-        doc.setFillColor(248, 249, 250);
-        doc.rect(14, 90, pageWidth - 28, 10, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.text('DESCRIPTION', 20, 96);
-        doc.text('AMOUNT (LKR)', pageWidth - 20, 96, { align: 'right' });
-
-        doc.setFont('helvetica', 'normal');
-        doc.text(`${safeData.courseName} - ${safeData.lecturerName}`, 20, 106);
-        doc.setFontSize(9);
-        doc.setTextColor(108, 117, 125);
-        doc.text(
-            `Date: ${safeData.date} @ ${safeData.time} (${safeData.duration} Hour(s), ${safeData.classType})`,
-            20, 112
+        doc.setTextColor(textColor);
+        const descriptionLines = doc.splitTextToSize(
+            `${safeData.courseName} - ${safeData.lecturerName}\nDate: ${safeData.date} @ ${safeData.time} (${safeData.duration} Hour(s), ${safeData.classType} class)`,
+            pageWidth - 110
         );
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        doc.text(safeData.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), pageWidth - 20, 106, { align: 'right' });
+        doc.text(descriptionLines, 20, yPos + 7);
+        doc.text(safeData.price.toLocaleString('en-LK', { minimumFractionDigits: 2 }), pageWidth - 20, yPos + 7, { align: 'right' });
+        yPos += (descriptionLines.length * 5) + 10;
 
-        let finalY = 120;
-        doc.line(14, finalY, pageWidth - 14, finalY);
-        finalY += 10;
-        
-        doc.setFontSize(12);
+        // Line
+        doc.setDrawColor(textColor);
+        doc.line(15, yPos, pageWidth - 15, yPos);
+        yPos += 10;
+
+        // Total
+        doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
-        doc.text('Total:', pageWidth - 50, finalY);
-        doc.text(`LKR ${safeData.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageWidth - 14, finalY, { align: 'right' });
+        doc.setTextColor(headingColor);
+        doc.text('Total', pageWidth - 60, yPos);
+        doc.text(`LKR ${safeData.price.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`, pageWidth - 20, yPos, { align: 'right' });
         
+        // Footer
+        yPos = pageHeight - 30;
+        doc.setFillColor(lightGrayColor);
+        doc.rect(0, yPos, pageWidth, 30, 'F');
         doc.setFontSize(9);
-        doc.setTextColor(150);
-        doc.text('Thank you for choosing SmartLabs. This is a computer-generated invoice.', pageWidth / 2, pageHeight - 15, { align: 'center' });
-        
+        doc.setTextColor(textColor);
+        doc.text('Thank you for choosing SmartLabs. This is a computer-generated invoice.', pageWidth / 2, yPos + 12, { align: 'center' });
+        doc.text('If you have any questions, please contact us at info@smartlabs.lk', pageWidth / 2, yPos + 18, { align: 'center' });
+
         const pdfBuffer = doc.output('arraybuffer');
         // --- END PDF GENERATION ---
 
