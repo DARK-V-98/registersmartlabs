@@ -84,6 +84,7 @@ const AdminSettingsPage = () => {
     logActivity(firestore, {
         actorId: profile.id,
         actorName: profile.name || 'Admin',
+        actorEmail: profile.email,
         action: 'settings.update',
         entityType: 'settings',
         entityId: 'admin',

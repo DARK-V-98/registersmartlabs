@@ -137,6 +137,7 @@ export default function SchedulesPage() {
       logActivity(firestore, {
         actorId: adminProfile.id,
         actorName: adminProfile.name || 'Admin',
+        actorEmail: adminProfile.email,
         action: 'schedule.update.single',
         entityType: 'schedule',
         entityId: scheduleId,
@@ -204,6 +205,7 @@ export default function SchedulesPage() {
       logActivity(firestore, {
         actorId: adminProfile.id,
         actorName: adminProfile.name || 'Admin',
+        actorEmail: adminProfile.email,
         action: 'schedule.update.bulk',
         entityType: 'schedule',
         entityId: 'multiple',

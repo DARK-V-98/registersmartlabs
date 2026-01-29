@@ -101,6 +101,7 @@ export default function LecturersPage() {
         logActivity(firestore, {
             actorId: adminProfile.id,
             actorName: adminProfile.name || 'Admin',
+            actorEmail: adminProfile.email,
             action: 'lecturer.update',
             entityType: 'lecturer',
             entityId: editingLecturer.id,
@@ -117,6 +118,7 @@ export default function LecturersPage() {
         logActivity(firestore, {
           actorId: adminProfile.id,
           actorName: adminProfile.name || 'Admin',
+          actorEmail: adminProfile.email,
           action: 'lecturer.create',
           entityType: 'lecturer',
           entityId: lecturerId,

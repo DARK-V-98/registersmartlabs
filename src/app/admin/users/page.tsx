@@ -118,6 +118,7 @@ export default function AdminUsersPage() {
     logActivity(firestore, {
       actorId: adminProfile.id,
       actorName: adminProfile.name || 'Admin',
+      actorEmail: adminProfile.email,
       action: action,
       entityType: 'user',
       entityId: userId,

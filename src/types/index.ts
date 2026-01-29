@@ -99,6 +99,7 @@ export interface ActivityLog {
   id: string;
   actorId: string;
   actorName: string;
+  actorEmail?: string;
   action: string; // e.g., 'booking.confirm', 'user.update.role'
   entityType: string; // e.g., 'booking', 'user', 'schedule'
   entityId: string;

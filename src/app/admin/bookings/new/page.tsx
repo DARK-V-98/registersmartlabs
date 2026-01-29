@@ -159,6 +159,7 @@ export default function ManualBookingPage() {
         logActivity(firestore, {
           actorId: adminProfile.id,
           actorName: adminProfile.name || 'Admin',
+          actorEmail: adminProfile.email,
           action: 'booking.create.manual',
           entityType: 'booking',
           entityId: docRef.id,

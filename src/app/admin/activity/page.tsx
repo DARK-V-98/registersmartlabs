@@ -62,6 +62,7 @@ export default function ActivityLogPage() {
 
         const searchMatch = searchTerm === '' ||
             activity.actorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (activity.actorEmail && activity.actorEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
             activity.targetUserName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             activity.entityId.toLowerCase().includes(searchTerm.toLowerCase());
         
@@ -101,7 +102,7 @@ export default function ActivityLogPage() {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         type="search"
-                        placeholder="Search by name or ID..."
+                        placeholder="Search by name, email, or ID..."
                         className="pl-8"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -136,7 +137,7 @@ export default function ActivityLogPage() {
                 <TableRow key={activity.id}>
                   <TableCell>
                       <div className="font-medium">{activity.actorName}</div>
-                      <div className="text-xs text-muted-foreground">{activity.actorId}</div>
+                      {activity.actorEmail && <div className="text-sm text-muted-foreground">{activity.actorEmail}</div>}
                   </TableCell>
                   <TableCell>
                       <Badge variant="secondary" className="mb-1">{getActionCategory(activity.action)}</Badge>

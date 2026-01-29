@@ -77,6 +77,7 @@ export default function CoursesPage() {
         logActivity(firestore, {
           actorId: adminProfile.id,
           actorName: adminProfile.name || 'Admin',
+          actorEmail: adminProfile.email,
           action: 'course.update',
           entityType: 'course',
           entityId: editingCourse.id,
@@ -89,6 +90,7 @@ export default function CoursesPage() {
           logActivity(firestore, {
             actorId: adminProfile.id,
             actorName: adminProfile.name || 'Admin',
+            actorEmail: adminProfile.email,
             action: 'course.create',
             entityType: 'course',
             entityId: docRef.id,

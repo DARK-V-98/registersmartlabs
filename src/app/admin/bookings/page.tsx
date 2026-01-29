@@ -235,6 +235,7 @@ export default function AdminBookingsPage() {
       logActivity(firestore, {
         actorId: adminProfile.id,
         actorName: adminProfile.name || 'Admin',
+        actorEmail: adminProfile.email,
         action: `booking.${status}`,
         entityType: 'booking',
         entityId: booking.id,
@@ -333,6 +334,7 @@ export default function AdminBookingsPage() {
                 userId: booking.userId,
                 userName: booking.userName,
                 userEmail: booking.userEmail,
+                userPhoneNumber: booking.userPhoneNumber,
                 courseName: booking.courseName,
                 classType: booking.classType,
                 lecturerName: booking.lecturerName,
