@@ -6,7 +6,6 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import { logoBase64 } from '@/lib/logo-base64';
 
 
@@ -139,49 +138,98 @@ export async function POST(req: Request) {
     let mailOptions;
 
     if (type === 'confirmation') {
+        // Use a rich HTML template for the email body
         const invoiceHtml = getInvoiceHtml(body);
 
-        // --- PDF INVOICE GENERATION from HTML ---
+        // --- MANUAL PDF INVOICE GENERATION ---
         const doc = new jsPDF();
-        await doc.html(invoiceHtml, {
-            autoPaging: 'text',
-            x: 0,
-            y: 0,
-            width: 210, // A4 width in mm
-            windowWidth: 800 // The width of the HTML element
-        });
+        
+        // Ensure data is safe for PDF generation
+        const safeData = {
+          bookingId: bookingId || 'N/A',
+          userName: userName || 'N/A',
+          userEmail: userEmail || 'N/A',
+          userPhoneNumber: userPhoneNumber || 'N/A',
+          courseName: courseName || 'N/A',
+          lecturerName: lecturerName || 'N/A',
+          date: date || 'N/A',
+          time: time || 'N/A',
+          classType: classType || 'N/A',
+          duration: duration || 1,
+          price: typeof price === 'number' ? price : 0,
+        };
+
+        const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+        const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+
+        doc.addImage(logoBase64, 'PNG', 14, 15, 25, 25);
+
+        doc.setFontSize(26);
+        doc.setFont('helvetica', 'bold');
+        doc.text('INVOICE', pageWidth - 14, 25, { align: 'right' });
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Invoice #: ${safeData.bookingId}`, pageWidth - 14, 32, { align: 'right' });
+        doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 14, 38, { align: 'right' });
+        doc.text('Status: Paid', pageWidth - 14, 44, { align: 'right' });
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Bill From:', 14, 60);
+        doc.setFont('helvetica', 'normal');
+        doc.text('SmartLabs', 14, 66);
+        doc.text('3rd Floor, No. 326, Jana Jaya Building', 14, 72);
+        doc.text('Rajagiriya, Sri Lanka', 14, 78);
+
+        doc.setFont('helvetica', 'bold');
+        doc.text('Bill To:', pageWidth / 2, 60);
+        doc.setFont('helvetica', 'normal');
+        doc.text(safeData.userName, pageWidth / 2, 66);
+        doc.text(safeData.userEmail, pageWidth / 2, 72);
+        doc.text(safeData.userPhoneNumber, pageWidth / 2, 78);
+
+        doc.setDrawColor(222, 226, 230);
+        doc.setFillColor(248, 249, 250);
+        doc.rect(14, 90, pageWidth - 28, 10, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.text('DESCRIPTION', 20, 96);
+        doc.text('AMOUNT (LKR)', pageWidth - 20, 96, { align: 'right' });
+
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${safeData.courseName} - ${safeData.lecturerName}`, 20, 106);
+        doc.setFontSize(9);
+        doc.setTextColor(108, 117, 125);
+        doc.text(
+            `Date: ${safeData.date} @ ${safeData.time} (${safeData.duration} Hour(s), ${safeData.classType})`,
+            20, 112
+        );
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        doc.text(safeData.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), pageWidth - 20, 106, { align: 'right' });
+
+        let finalY = 120;
+        doc.line(14, finalY, pageWidth - 14, finalY);
+        finalY += 10;
+        
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Total:', pageWidth - 50, finalY);
+        doc.text(`LKR ${safeData.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageWidth - 14, finalY, { align: 'right' });
+        
+        doc.setFontSize(9);
+        doc.setTextColor(150);
+        doc.text('Thank you for choosing SmartLabs. This is a computer-generated invoice.', pageWidth / 2, pageHeight - 15, { align: 'center' });
+        
         const pdfBuffer = doc.output('arraybuffer');
-        // --- END PDF INVOICE GENERATION ---
+        // --- END PDF GENERATION ---
+
 
         mailOptions = {
             from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
             to: userEmail,
             subject: `Booking Confirmed & Invoice: ${courseName}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #2e7d32;">Booking Confirmed!</h2>
-                <div style="background-color: #f9fff9; padding: 20px; border-radius: 8px; border: 1px solid #c8e6c9;">
-                  <p>Hello <strong>${userName}</strong>,</p>
-                  <p>Your booking for <strong>${courseName}</strong> has been successfully confirmed. Your invoice is attached to this email.</p>
-                  
-                  <hr style="border: 1px solid #eee;" />
-                  
-                  <h3 style="color: #555;">Class Details</h3>
-                  <p><strong>Lecturer:</strong> ${lecturerName}</p>
-                  <p><strong>Date:</strong> ${date}</p>
-                  <p><strong>Time:</strong> ${time} (Asia/Colombo Time)</p>
-                  <p><strong>Type:</strong> ${classType}</p>
-                  <p><strong>Booking ID:</strong> ${bookingId}</p>
-                  
-                  <div style="margin-top: 20px; padding: 15px; background-color: #e8f5e9; border-radius: 5px;">
-                    <p style="margin: 0; color: #1b5e20;"><strong>Next Steps:</strong> Please join the class on time. If it is an online class, the link will be available in your dashboard.</p>
-                  </div>
-                </div>
-                <p style="color: #888; font-size: 12px; margin-top: 20px;">
-                  Thank you for choosing SmartLabs.
-                </p>
-              </div>
-            `,
+            html: invoiceHtml,
             attachments: [
                 {
                     filename: `invoice-${bookingId}.pdf`,
@@ -276,6 +324,11 @@ export async function POST(req: Request) {
             </div>
           `,
         };
+    }
+
+    if (!mailOptions.to) {
+        console.warn('No recipients for email, skipping send.');
+        return NextResponse.json({ message: 'Email skipped, no recipients.' }, { status: 200 });
     }
 
     await new Promise((resolve, reject) => {
