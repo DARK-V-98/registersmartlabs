@@ -30,7 +30,6 @@ const navLinks = [
   { href: '/admin/lecturers', label: 'Lecturers', icon: Presentation },
   { href: '/admin/schedules', label: 'Schedules', icon: Calendar },
   { href: '/admin/bookings', label: 'Bookings', icon: Bookmark },
-  { href: '/admin/payments', label: 'Verification', icon: CreditCard },
   { href: '/admin/payouts', label: 'Payouts', icon: BarChart, roles: ['developer', 'superadmin'] },
   { href: '/admin/reports', label: 'Reports', icon: LineChart, roles: ['developer', 'superadmin'] },
   { href: '/admin/activity', label: 'Activity Log', icon: History, roles: ['developer', 'superadmin'] },
