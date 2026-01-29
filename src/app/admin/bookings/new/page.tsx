@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, orderBy, Timestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, query, where, orderBy, Timestamp, doc, setDoc, arrayUnion } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -43,7 +43,7 @@ export default function ManualBookingPage() {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [classType, setClassType] = useState<'online' | 'physical'>('online');
   const [selectedLecturer, setSelectedLecturer] = useState<Lecturer | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState(1);
   const [price, setPrice] = useState('');
@@ -116,6 +116,11 @@ export default function ManualBookingPage() {
       const finalPrice = duration === 2 && addHourPrice ? (basePrice || 0) + (addHourPrice || 0) : (basePrice || 0);
       setPrice(finalPrice.toString());
   }, [selectedUser, selectedCourse, selectedLecturer, classType, duration]);
+  
+  // Clear dependent fields when a primary selection changes
+  useEffect(() => {
+      setSelectedTime('');
+  }, [duration, selectedDate]);
 
   const handleSubmit = async () => {
     if (!selectedUser || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !price || !adminProfile) {
@@ -138,7 +143,7 @@ export default function ManualBookingPage() {
       
       const scheduleId = `${selectedLecturer.id}_${format(selectedDate, 'yyyy-MM-dd')}`;
       const scheduleRef = doc(firestore, 'schedules', scheduleId);
-      await updateDoc(scheduleRef, { bookedSlots: arrayUnion(...slotsToBook) });
+      await setDoc(scheduleRef, { bookedSlots: arrayUnion(...slotsToBook) }, { merge: true });
 
       const bookingData = {
         userId: selectedUser.id,
@@ -236,11 +241,16 @@ export default function ManualBookingPage() {
                     {/* Course Select */}
                     <div className="space-y-2">
                         <Label>Select Course</Label>
-                         <Select onValueChange={(courseId) => {
-                             const course = courses?.find(c => c.id === courseId);
-                             setSelectedCourse(course || null);
-                             setSelectedLecturer(null);
-                         }}>
+                         <Select 
+                            value={selectedCourse?.id}
+                            onValueChange={(courseId) => {
+                                const course = courses?.find(c => c.id === courseId);
+                                setSelectedCourse(course || null);
+                                // Reset dependent selections
+                                setSelectedLecturer(null);
+                                setSelectedDate(undefined);
+                                setSelectedTime('');
+                            }}>
                             <SelectTrigger>{selectedCourse ? selectedCourse.name : "Select course"}</SelectTrigger>
                             <SelectContent>
                                 {courses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
@@ -251,10 +261,16 @@ export default function ManualBookingPage() {
                      {/* Lecturer Select */}
                     <div className="space-y-2">
                         <Label>Select Lecturer</Label>
-                         <Select disabled={!selectedCourse} onValueChange={(lecturerId) => {
-                             const lecturer = availableLecturers.find(l => l.id === lecturerId);
-                             setSelectedLecturer(lecturer || null);
-                         }}>
+                         <Select 
+                            value={selectedLecturer?.id}
+                            disabled={!selectedCourse} 
+                            onValueChange={(lecturerId) => {
+                                const lecturer = availableLecturers.find(l => l.id === lecturerId);
+                                setSelectedLecturer(lecturer || null);
+                                // Reset dependent selections
+                                setSelectedDate(undefined);
+                                setSelectedTime('');
+                            }}>
                             <SelectTrigger>{selectedLecturer ? selectedLecturer.name : "Select lecturer"}</SelectTrigger>
                             <SelectContent>
                                 {availableLecturers.map(l => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
@@ -265,7 +281,11 @@ export default function ManualBookingPage() {
                     {/* Time Select */}
                     <div className="space-y-2">
                         <Label>Select Start Time</Label>
-                         <Select disabled={!selectedDate || availableTimeSlots.length === 0} onValueChange={setSelectedTime}>
+                         <Select 
+                            value={selectedTime}
+                            disabled={!selectedDate || availableTimeSlots.length === 0} 
+                            onValueChange={setSelectedTime}
+                          >
                             <SelectTrigger>{selectedTime || "Select a start time"}</SelectTrigger>
                             <SelectContent>
                                 {availableTimeSlots.map(time => <SelectItem key={time} value={time}>{time}</SelectItem>)}
@@ -309,7 +329,13 @@ export default function ManualBookingPage() {
                      {/* Calendar */}
                     <div className="space-y-2">
                         <Label>Select Date</Label>
-                        <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} className="rounded-md border w-full justify-center" />
+                        <Calendar 
+                            mode="single" 
+                            selected={selectedDate} 
+                            onSelect={setSelectedDate} 
+                            disabled={!selectedLecturer}
+                            className="rounded-md border w-full justify-center" 
+                        />
                     </div>
                      <div className="space-y-2">
                         <Label>Price Override ({selectedUser?.currency || 'LKR'})</Label>
@@ -330,5 +356,3 @@ export default function ManualBookingPage() {
     </div>
   );
 }
-
-    

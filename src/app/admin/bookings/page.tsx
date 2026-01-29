@@ -116,6 +116,7 @@ function ChatInterface({ bookingId }: { bookingId: string }) {
 
 const getSlotsForBooking = (booking: Booking) => {
     const slots = [];
+    if (!booking.time || !booking.duration) return [];
     const startTimeIndex = MASTER_TIME_SLOTS.indexOf(booking.time);
     if (startTimeIndex === -1) return [];
     
@@ -246,7 +247,7 @@ export default function AdminBookingsPage() {
       });
 
       // 3. If rejected or cancelled, un-block the time slots
-      if (status === 'rejected' || status === 'cancelled') {
+      if ((status === 'rejected' || status === 'cancelled') && booking.lecturerId) {
         const scheduleId = `${booking.lecturerId}_${booking.date}`;
         const scheduleRef = doc(firestore, 'schedules', scheduleId);
         

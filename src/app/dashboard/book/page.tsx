@@ -2,9 +2,9 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useStorage, updateDocumentNonBlocking, useDoc } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useStorage, setDoc as setDocNonBlocking, useDoc } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, Timestamp, doc, setDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -84,10 +84,21 @@ export default function BookingPage() {
   const { data: schedules } = useCollection<Schedule>(
     useMemoFirebase(() => {
         if (!firestore || !selectedLecturer) return null;
-        // This query fetches all schedules for the lecturer. We'll filter by date client-side.
         return query(collection(firestore, 'schedules'), where('lecturerId', '==', selectedLecturer.id));
     }, [firestore, selectedLecturer])
   );
+  
+  // Clear dependent states when primary selections change
+  useEffect(() => {
+    setSelectedDate(undefined);
+    setSelectedTime('');
+    setSelectedCourse(null);
+  }, [selectedLecturer]);
+
+  useEffect(() => {
+    setSelectedTime('');
+  }, [selectedDate, duration]);
+
 
   const getValidSlotsForDate = (date: Date) => {
     if (!schedules || !date) return { hasAny: false, oneHour: [], twoHour: [] };
@@ -167,9 +178,9 @@ export default function BookingPage() {
     const isFavorite = profile?.favoriteLecturers?.includes(lecturerId);
 
     try {
-        await updateDocumentNonBlocking(userRef, {
+        await setDocNonBlocking(userRef, {
             favoriteLecturers: isFavorite ? arrayRemove(lecturerId) : arrayUnion(lecturerId)
-        });
+        }, { merge: true });
         toast({ title: isFavorite ? 'Lecturer Unfavorited' : 'Lecturer Favorited' });
     } catch (error) {
         toast({ title: 'Error', description: 'Could not update favorites.', variant: 'destructive' });
@@ -177,7 +188,8 @@ export default function BookingPage() {
   };
 
   const currentPrice = useMemo(() => {
-    const userCurrency = profile?.currency || 'LKR';
+    if (isProfileLoading || !profile) return null; // Return null during load
+    const userCurrency = profile.currency || 'LKR';
     if (!selectedLecturer || !selectedCourse || !userCurrency) return 0;
     
     const pricing = selectedLecturer.pricing?.[selectedCourse.id]?.[userCurrency];
@@ -186,7 +198,7 @@ export default function BookingPage() {
     const basePrice = classType === 'online' ? pricing.priceOnline : pricing.pricePhysical;
     const addHourPrice = classType === 'online' ? pricing.priceOnlineAddHour : pricing.pricePhysicalAddHour;
     return duration === 2 && addHourPrice ? (basePrice || 0) + (addHourPrice || 0) : (basePrice || 0);
-  }, [selectedLecturer, selectedCourse, classType, duration, profile]);
+  }, [selectedLecturer, selectedCourse, classType, duration, profile, isProfileLoading]);
 
   const handleSubmit = async () => {
     if (!user || !profile || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !receiptFile) return;
@@ -212,7 +224,7 @@ export default function BookingPage() {
 
       const scheduleId = `${selectedLecturer.id}_${format(selectedDate, 'yyyy-MM-dd')}`;
       const scheduleRef = doc(firestore, 'schedules', scheduleId);
-      await updateDoc(scheduleRef, { bookedSlots: arrayUnion(...slotsToBook) });
+      await setDoc(scheduleRef, { bookedSlots: arrayUnion(...slotsToBook) }, { merge: true });
 
       // Create Booking Document
       const bookingData = {
@@ -248,10 +260,10 @@ export default function BookingPage() {
         await uploadBytes(storageRef, receiptFile);
         downloadUrl = await getDownloadURL(storageRef);
 
-        await updateDoc(doc(firestore, 'bookings', bookingId), {
+        await setDocNonBlocking(doc(firestore, 'bookings', bookingId), {
             receiptUrl: downloadUrl,
             receiptType: receiptFile.type
-        });
+        }, { merge: true });
       }
       
       // Send Email Notification
@@ -355,10 +367,7 @@ export default function BookingPage() {
                   <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={(date) => {
-                       setSelectedDate(date);
-                       setSelectedTime('');
-                    }}
+                    onSelect={setSelectedDate}
                     disabled={(date) => {
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
@@ -502,7 +511,11 @@ export default function BookingPage() {
                     </div>
                     <div className="flex justify-between items-center text-xl font-bold pt-2">
                       <span>Total Amount:</span>
-                      <span className="text-primary">{getCurrencySymbol(profile?.currency)} {currentPrice.toLocaleString()}</span>
+                      {currentPrice !== null ? (
+                        <span className="text-primary">{getCurrencySymbol(profile?.currency)} {currentPrice.toLocaleString()}</span>
+                      ) : (
+                        <Loader2 className="h-5 w-5 animate-spin"/>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -544,7 +557,7 @@ export default function BookingPage() {
                 Continue <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={!receiptFile || loading}>
+              <Button onClick={handleSubmit} disabled={!receiptFile || loading || currentPrice === null}>
                 {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Submit Booking
               </Button>
@@ -556,5 +569,3 @@ export default function BookingPage() {
     </div>
   );
 }
-
-    
