@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useFirestore, useCollection, updateDocumentNonBlocking, addDocumentNonBlocking, useMemoFirebase } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { collection, query, orderBy, doc, where, Timestamp, getDoc, arrayRemove } from 'firebase/firestore';
@@ -25,11 +25,18 @@ import {
   DialogFooter,
   DialogClose
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Booking, Message, Schedule } from '@/types';
+import { Booking, Message, Schedule, Lecturer } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send, RefreshCw, Plus, FileDown, Mail } from 'lucide-react';
+import { Loader2, ExternalLink, FileText, Check, X, AlertTriangle, Send, RefreshCw, Plus, FileDown, Mail, Search } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -177,8 +184,13 @@ export default function AdminBookingsPage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isResendingEmail, setIsResendingEmail] = useState(false);
+  const [isResendingEmail, setIsResendingEmail] = useState(isResendingEmail);
+  
+  // Filtering state
   const [activeTab, setActiveTab] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [lecturerFilter, setLecturerFilter] = useState('all');
+
 
   const isPrivilegedUser = adminProfile?.role === 'developer' || adminProfile?.role === 'superadmin';
 
@@ -186,17 +198,40 @@ export default function AdminBookingsPage() {
     if (!firestore) return null;
     return query(collection(firestore, 'bookings'), orderBy('createdAt', 'desc'));
   }, [firestore]);
+  
+  const lecturersQuery = useMemoFirebase(() => {
+    if(!firestore) return null;
+    return query(collection(firestore, 'lecturers'), orderBy('name'));
+  }, [firestore]);
 
   const { data: bookings, isLoading: isBookingsLoading } = useCollection<Booking>(bookingsQuery);
+  const { data: lecturers, isLoading: isLecturersLoading } = useCollection<Lecturer>(lecturersQuery);
 
-  const filteredBookings = bookings?.filter(b => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'pending') return b.bookingStatus === 'payment_pending' || b.bookingStatus === 're_upload_receipt';
-    if (activeTab === 'confirmed') return b.bookingStatus === 'confirmed';
-    if (activeTab === 'rejected') return b.bookingStatus === 'rejected' || b.bookingStatus === 'cancelled';
-    if (activeTab === 'requests') return b.bookingStatus === 'cancellation_requested';
-    return true;
-  });
+  const filteredBookings = useMemo(() => {
+    if (!bookings) return [];
+    const lowercasedSearchTerm = searchTerm.toLowerCase();
+
+    return bookings.filter(b => {
+        const tabMatch = activeTab === 'all' ||
+            (activeTab === 'pending' && (b.bookingStatus === 'payment_pending' || b.bookingStatus === 're_upload_receipt')) ||
+            (activeTab === 'confirmed' && b.bookingStatus === 'confirmed') ||
+            (activeTab === 'requests' && b.bookingStatus === 'cancellation_requested') ||
+            (activeTab === 'rejected' && (b.bookingStatus === 'rejected' || b.bookingStatus === 'cancelled'));
+
+        if (!tabMatch) return false;
+
+        const lecturerMatch = lecturerFilter === 'all' || b.lecturerId === lecturerFilter;
+
+        const searchMatch = lowercasedSearchTerm === '' ||
+            (b.userName && b.userName.toLowerCase().includes(lowercasedSearchTerm)) ||
+            (b.userEmail && b.userEmail.toLowerCase().includes(lowercasedSearchTerm)) ||
+            b.id.toLowerCase().includes(lowercasedSearchTerm) ||
+            (b.courseName && b.courseName.toLowerCase().includes(lowercasedSearchTerm));
+        
+        return lecturerMatch && searchMatch;
+    });
+  }, [bookings, activeTab, lecturerFilter, searchTerm]);
+
   
   const handleExport = () => {
     if (filteredBookings) {
@@ -409,6 +444,31 @@ export default function AdminBookingsPage() {
         </div>
       </div>
 
+       <Card>
+        <CardContent className="p-4 flex flex-col sm:flex-row gap-4">
+          <div className="relative w-full sm:w-1/2 lg:w-1/3">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                  placeholder="Search by student, email, course, ID..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+              />
+          </div>
+          <Select value={lecturerFilter} onValueChange={setLecturerFilter}>
+              <SelectTrigger className="w-full sm:w-auto">
+                  <SelectValue placeholder="Filter by lecturer" />
+              </SelectTrigger>
+              <SelectContent>
+                  <SelectItem value="all">All Lecturers</SelectItem>
+                  {lecturers?.map(lecturer => (
+                      <SelectItem key={lecturer.id} value={lecturer.id}>{lecturer.name}</SelectItem>
+                  ))}
+              </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="all" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="all">All Bookings</TabsTrigger>
@@ -420,7 +480,7 @@ export default function AdminBookingsPage() {
 
         <Card className="mt-4">
           <CardContent className="p-0">
-            {isBookingsLoading ? (
+            {(isBookingsLoading || isLecturersLoading) ? (
                <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
             ) : (
               <Table>
@@ -438,7 +498,7 @@ export default function AdminBookingsPage() {
                     <TableRow key={booking.id}>
                       <TableCell>
                          <div className="font-medium">{booking.userName}</div>
-                         <div className="text-xs text-muted-foreground">{booking.userId}</div>
+                         <div className="text-xs text-muted-foreground">{booking.userEmail}</div>
                       </TableCell>
                       <TableCell>
                         <div>{booking.courseName}</div>
@@ -644,7 +704,7 @@ export default function AdminBookingsPage() {
                   ))}
                   {filteredBookings?.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8">No bookings found for this tab.</TableCell>
+                      <TableCell colSpan={5} className="text-center py-8">No bookings found for the current filters.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -656,3 +716,5 @@ export default function AdminBookingsPage() {
     </div>
   );
 }
+
+    
