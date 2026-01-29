@@ -39,12 +39,12 @@ const getInvoiceHtml = (bookingData: any) => {
             </table>
         </div>
         <div style="padding: 30px;">
-            <table cellpadding="0" cellspacing="0" style="width: 100%; line-height: inherit; text-align: left; font-size: 14px;">
+            <table cellpadding="0" cellspacing="0" style="width: 100%; line-height: 1.6; text-align: left; font-size: 14px;">
                 <tr class="top">
                     <td colspan="2" style="padding-bottom: 30px; vertical-align: top;">
                         <table style="width: 100%; line-height: inherit; text-align: left;">
                             <tr>
-                                <td style="vertical-align: top;">
+                                <td style="vertical-align: top; padding-right: 20px;">
                                     <strong style="color: #555;">Bill To:</strong><br>
                                     ${safeData.userName}<br>
                                     ${safeData.userEmail}<br>
@@ -136,81 +136,78 @@ export async function POST(req: Request) {
     let mailOptions;
 
     if (type === 'confirmation') {
-        // Use a rich HTML template for the email body
         const invoiceHtml = getInvoiceHtml(body);
 
-        // --- MANUAL PDF INVOICE GENERATION ---
         const doc = new jsPDF();
         
-        // Ensure data is safe for PDF generation
         const safeData = {
-          bookingId: bookingId || 'N/A',
-          userName: userName || 'N/A',
-          userEmail: userEmail || 'N/A',
-          userPhoneNumber: userPhoneNumber || '',
-          courseName: courseName || 'N/A',
-          lecturerName: lecturerName || 'N/A',
-          date: date || 'N/A',
-          time: time || 'N/A',
-          classType: classType || 'N/A',
-          duration: duration || 1,
-          price: typeof price === 'number' ? price : 0,
+            bookingId: bookingId || 'N/A',
+            userName: userName || 'N/A',
+            userEmail: userEmail || 'N/A',
+            userPhoneNumber: userPhoneNumber || '',
+            courseName: courseName || 'N/A',
+            lecturerName: lecturerName || 'N/A',
+            date: date || 'N/A',
+            time: time || 'N/A',
+            classType: classType || 'N/A',
+            duration: duration || 1,
+            price: typeof price === 'number' ? price : 0,
         };
 
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
 
-        // --- PDF DESIGN ---
-        const headingColor = '#1F2937'; // Dark Gray
-        const textColor = '#4B5563'; // Gray
+        const headingColor = '#1F2937';
+        const textColor = '#4B5563';
         const lightGrayColor = '#F3F4F6';
 
-        // Header Background
+        // Header Background & Titles
         doc.setFillColor(lightGrayColor);
         doc.rect(0, 0, pageWidth, 50, 'F');
-        
-        // Titles
         doc.setFontSize(28);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(headingColor);
         doc.text('INVOICE', 20, 30);
-        
         doc.setFontSize(16);
         doc.text('SmartLabs', pageWidth - 20, 30, { align: 'right' });
 
-
-        // Billing Information Section
         let yPos = 70;
+
+        // Billing Information (Left Column)
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(headingColor);
         doc.text('Bill To', 20, yPos);
-        
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(textColor);
-        doc.text(safeData.userName, 20, yPos + 6);
-        doc.text(safeData.userEmail, 20, yPos + 11);
-        if (safeData.userPhoneNumber) {
-          doc.text(safeData.userPhoneNumber, 20, yPos + 16);
-        }
+        
+        // Use maxWidth to prevent overflow
+        const userDetails = `${safeData.userName}\n${safeData.userEmail}\n${safeData.userPhoneNumber}`;
+        doc.text(userDetails, 20, yPos + 6, { maxWidth: pageWidth / 2 - 30 });
+        const leftColumnHeight = doc.getTextDimensions(userDetails, { maxWidth: pageWidth / 2 - 30 }).h;
 
-        // Invoice Details
+        // Invoice Details (Right Column)
+        const rightLabelX = pageWidth - 80;
+        const rightValueX = pageWidth - 20;
+
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(headingColor);
-        doc.text('Invoice #:', pageWidth - 60, yPos);
-        doc.text('Date:', pageWidth - 60, yPos + 6);
-        doc.text('Status:', pageWidth - 60, yPos + 12);
+        doc.text('Invoice #:', rightLabelX, yPos);
+        doc.text('Date:', rightLabelX, yPos + 6);
+        doc.text('Status:', rightLabelX, yPos + 12);
 
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(textColor);
-        doc.text(safeData.bookingId, pageWidth - 20, yPos, { align: 'right' });
-        doc.text(new Date().toLocaleDateString(), pageWidth - 20, yPos + 6, { align: 'right' });
+        doc.text(safeData.bookingId, rightValueX, yPos, { align: 'right' });
+        doc.text(new Date().toLocaleDateString(), rightValueX, yPos + 6, { align: 'right' });
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor('#22C55E'); // Green
-        doc.text('PAID', pageWidth - 20, yPos + 12, { align: 'right' });
+        doc.setTextColor('#22C55E');
+        doc.text('PAID', rightValueX, yPos + 12, { align: 'right' });
+
+        // Position the table after the header section
+        yPos += Math.max(leftColumnHeight, 20) + 15;
 
         // Table Header
-        yPos += 30;
         doc.setFillColor(lightGrayColor);
         doc.rect(15, yPos, pageWidth - 30, 10, 'F');
         doc.setFontSize(10);
@@ -219,46 +216,45 @@ export async function POST(req: Request) {
         doc.text('DESCRIPTION', 20, yPos + 7);
         doc.text('AMOUNT (LKR)', pageWidth - 20, yPos + 7, { align: 'right' });
         yPos += 10;
-
-        // Table Item
+        
+        // Table Line Item
         doc.setDrawColor(lightGrayColor);
-        doc.line(15, yPos, pageWidth - 15, yPos); // Line under header
-        yPos += 5;
+        doc.line(15, yPos, pageWidth - 15, yPos);
+        yPos += 8;
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(headingColor);
-        doc.text(`${safeData.courseName} - ${safeData.lecturerName}`, 20, yPos + 5);
-
+        doc.text(`${safeData.courseName} - ${safeData.lecturerName}`, 20, yPos);
+        
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(textColor);
-        doc.setFontSize(8);
-        doc.text(`Date: ${safeData.date} @ ${safeData.time} (${safeData.duration} Hour(s), ${safeData.classType} class)`, 20, yPos + 10);
-        
+        doc.text(`Date: ${safeData.date} @ ${safeData.time} (${safeData.duration} Hour(s), ${safeData.classType} class)`, 20, yPos + 5);
+
         doc.setFontSize(10);
-        doc.text(safeData.price.toLocaleString('en-LK', { minimumFractionDigits: 2 }), pageWidth - 20, yPos + 5, { align: 'right' });
-        yPos += 15;
-        doc.line(15, yPos, pageWidth - 15, yPos); // Line under item
-        yPos += 10;
+        doc.text(safeData.price.toLocaleString('en-LK', { minimumFractionDigits: 2 }), pageWidth - 20, yPos, { align: 'right' });
         
-        // Total
+        yPos += 12;
+        doc.line(15, yPos, pageWidth - 15, yPos);
+        
+        // Total Section
+        yPos += 10;
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(headingColor);
-        doc.text('Total', pageWidth - 60, yPos);
-        doc.text(`LKR ${safeData.price.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`, pageWidth - 20, yPos, { align: 'right' });
+        doc.text('Total', rightLabelX - 20, yPos);
+        doc.text(`LKR ${safeData.price.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`, rightValueX, yPos, { align: 'right' });
         
         // Footer
-        const finalY = pageHeight - 30 > yPos ? pageHeight - 30 : yPos + 30;
+        const finalY = pageHeight - 30;
         doc.setFillColor(lightGrayColor);
         doc.rect(0, finalY, pageWidth, 30, 'F');
         doc.setFontSize(9);
         doc.setTextColor(textColor);
         doc.text('Thank you for choosing SmartLabs. This is a computer-generated invoice.', pageWidth / 2, finalY + 12, { align: 'center' });
         doc.text('If you have any questions, please contact us at info@smartlabs.lk', pageWidth / 2, finalY + 18, { align: 'center' });
-
+        
         const pdfBuffer = doc.output('arraybuffer');
-        // --- END PDF GENERATION ---
-
 
         mailOptions = {
             from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
