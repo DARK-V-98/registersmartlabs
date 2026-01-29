@@ -9,21 +9,20 @@ import jsPDF from 'jspdf';
 
 
 const getInvoiceHtml = (bookingData: any) => {
-    const {
-        bookingId = 'N/A',
-        userName = 'N/A',
-        userEmail = 'N/A',
-        userPhoneNumber = 'N/A',
-        courseName = 'N/A',
-        lecturerName = 'N/A',
-        date = 'N/A',
-        time = 'N/A',
-        classType = 'N/A',
-        duration = 1,
-        price = 0,
-    } = bookingData;
-    
-    const numericPrice = typeof price === 'number' ? price : 0;
+    // Ensure safe data with fallbacks
+    const safeData = {
+        bookingId: bookingData.bookingId || 'N/A',
+        userName: bookingData.userName || 'N/A',
+        userEmail: bookingData.userEmail || 'N/A',
+        userPhoneNumber: bookingData.userPhoneNumber || '',
+        courseName: bookingData.courseName || 'N/A',
+        lecturerName: bookingData.lecturerName || 'N/A',
+        date: bookingData.date || 'N/A',
+        time: bookingData.time || 'N/A',
+        classType: bookingData.classType || 'N/A',
+        duration: bookingData.duration || 1,
+        price: typeof bookingData.price === 'number' ? bookingData.price : 0,
+    };
 
     return `
     <div style="font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; max-width: 800px; margin: 20px auto; padding: 0; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden;">
@@ -47,12 +46,12 @@ const getInvoiceHtml = (bookingData: any) => {
                             <tr>
                                 <td style="vertical-align: top;">
                                     <strong style="color: #555;">Bill To:</strong><br>
-                                    ${userName}<br>
-                                    ${userEmail}<br>
-                                    ${userPhoneNumber || ''}
+                                    ${safeData.userName}<br>
+                                    ${safeData.userEmail}<br>
+                                    ${safeData.userPhoneNumber}
                                 </td>
                                 <td style="text-align: right; vertical-align: top;">
-                                    <strong>Invoice #:</strong> ${bookingId}<br>
+                                    <strong>Invoice #:</strong> ${safeData.bookingId}<br>
                                     <strong>Date:</strong> ${new Date().toLocaleDateString()}<br>
                                     <strong>Status:</strong> <span style="color: #27ae60; font-weight: bold;">PAID</span>
                                 </td>
@@ -67,15 +66,15 @@ const getInvoiceHtml = (bookingData: any) => {
                 </tr>
                 <tr class="item">
                     <td style="padding: 12px; vertical-align: top; border-bottom: 1px solid #eee;">
-                        <strong>${courseName}</strong> - ${lecturerName}<br>
-                        <small style="color: #555;">Date: ${date} @ ${time} (${duration} Hour(s), ${classType} class)</small>
+                        <strong>${safeData.courseName}</strong> - ${safeData.lecturerName}<br>
+                        <small style="color: #555;">Date: ${safeData.date} @ ${safeData.time} (${safeData.duration} Hour(s), ${safeData.classType} class)</small>
                     </td>
-                    <td style="padding: 12px; vertical-align: top; text-align: right; border-bottom: 1px solid #eee;">${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="padding: 12px; vertical-align: top; text-align: right; border-bottom: 1px solid #eee;">${safeData.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
                 <tr class="total">
                     <td style="padding: 5px; vertical-align: top;"></td>
                     <td style="padding: 20px 12px 0; vertical-align: top; text-align: right; border-top: 2px solid #333; font-weight: bold; font-size: 1.3em;">
-                        Total: LKR ${numericPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Total: LKR ${safeData.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                 </tr>
             </table>
@@ -162,7 +161,6 @@ export async function POST(req: Request) {
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
 
         // --- PDF DESIGN ---
-        const primaryColor = '#3B82F6'; // Blue
         const headingColor = '#1F2937'; // Dark Gray
         const textColor = '#4B5563'; // Gray
         const lightGrayColor = '#F3F4F6';
@@ -182,34 +180,37 @@ export async function POST(req: Request) {
 
 
         // Billing Information Section
+        let yPos = 70;
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(headingColor);
-        doc.text('Bill To', 20, 60);
+        doc.text('Bill To', 20, yPos);
         
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(textColor);
-        doc.text(safeData.userName, 20, 66);
-        doc.text(safeData.userEmail, 20, 71);
-        doc.text(safeData.userPhoneNumber, 20, 76);
+        doc.text(safeData.userName, 20, yPos + 6);
+        doc.text(safeData.userEmail, 20, yPos + 11);
+        if (safeData.userPhoneNumber) {
+          doc.text(safeData.userPhoneNumber, 20, yPos + 16);
+        }
 
         // Invoice Details
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(headingColor);
-        doc.text('Invoice #:', pageWidth - 60, 60);
-        doc.text('Date:', pageWidth - 60, 66);
-        doc.text('Status:', pageWidth - 60, 72);
+        doc.text('Invoice #:', pageWidth - 60, yPos);
+        doc.text('Date:', pageWidth - 60, yPos + 6);
+        doc.text('Status:', pageWidth - 60, yPos + 12);
 
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(textColor);
-        doc.text(safeData.bookingId, pageWidth - 20, 60, { align: 'right' });
-        doc.text(new Date().toLocaleDateString(), pageWidth - 20, 66, { align: 'right' });
+        doc.text(safeData.bookingId, pageWidth - 20, yPos, { align: 'right' });
+        doc.text(new Date().toLocaleDateString(), pageWidth - 20, yPos + 6, { align: 'right' });
         doc.setFont('helvetica', 'bold');
         doc.setTextColor('#22C55E'); // Green
-        doc.text('PAID', pageWidth - 20, 72, { align: 'right' });
+        doc.text('PAID', pageWidth - 20, yPos + 12, { align: 'right' });
 
         // Table Header
-        let yPos = 90;
+        yPos += 30;
         doc.setFillColor(lightGrayColor);
         doc.rect(15, yPos, pageWidth - 30, 10, 'F');
         doc.setFontSize(10);
@@ -220,22 +221,25 @@ export async function POST(req: Request) {
         yPos += 10;
 
         // Table Item
+        doc.setDrawColor(lightGrayColor);
+        doc.line(15, yPos, pageWidth - 15, yPos); // Line under header
+        yPos += 5;
         doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(headingColor);
+        doc.text(`${safeData.courseName} - ${safeData.lecturerName}`, 20, yPos + 5);
+
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(textColor);
-        const descriptionLines = doc.splitTextToSize(
-            `${safeData.courseName} - ${safeData.lecturerName}\nDate: ${safeData.date} @ ${safeData.time} (${safeData.duration} Hour(s), ${safeData.classType} class)`,
-            pageWidth - 110
-        );
-        doc.text(descriptionLines, 20, yPos + 7);
-        doc.text(safeData.price.toLocaleString('en-LK', { minimumFractionDigits: 2 }), pageWidth - 20, yPos + 7, { align: 'right' });
-        yPos += (descriptionLines.length * 5) + 10;
-
-        // Line
-        doc.setDrawColor(textColor);
-        doc.line(15, yPos, pageWidth - 15, yPos);
+        doc.setFontSize(8);
+        doc.text(`Date: ${safeData.date} @ ${safeData.time} (${safeData.duration} Hour(s), ${safeData.classType} class)`, 20, yPos + 10);
+        
+        doc.setFontSize(10);
+        doc.text(safeData.price.toLocaleString('en-LK', { minimumFractionDigits: 2 }), pageWidth - 20, yPos + 5, { align: 'right' });
+        yPos += 15;
+        doc.line(15, yPos, pageWidth - 15, yPos); // Line under item
         yPos += 10;
-
+        
         // Total
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
@@ -244,13 +248,13 @@ export async function POST(req: Request) {
         doc.text(`LKR ${safeData.price.toLocaleString('en-LK', { minimumFractionDigits: 2 })}`, pageWidth - 20, yPos, { align: 'right' });
         
         // Footer
-        yPos = pageHeight - 30;
+        const finalY = pageHeight - 30 > yPos ? pageHeight - 30 : yPos + 30;
         doc.setFillColor(lightGrayColor);
-        doc.rect(0, yPos, pageWidth, 30, 'F');
+        doc.rect(0, finalY, pageWidth, 30, 'F');
         doc.setFontSize(9);
         doc.setTextColor(textColor);
-        doc.text('Thank you for choosing SmartLabs. This is a computer-generated invoice.', pageWidth / 2, yPos + 12, { align: 'center' });
-        doc.text('If you have any questions, please contact us at info@smartlabs.lk', pageWidth / 2, yPos + 18, { align: 'center' });
+        doc.text('Thank you for choosing SmartLabs. This is a computer-generated invoice.', pageWidth / 2, finalY + 12, { align: 'center' });
+        doc.text('If you have any questions, please contact us at info@smartlabs.lk', pageWidth / 2, finalY + 18, { align: 'center' });
 
         const pdfBuffer = doc.output('arraybuffer');
         // --- END PDF GENERATION ---
