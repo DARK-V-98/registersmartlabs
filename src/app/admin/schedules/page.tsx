@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Course, Lecturer, Schedule } from '@/types';
+import { Lecturer, Schedule } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, AlertTriangle, Trash, Calendar as CalendarIcon, Edit } from 'lucide-react';
 import { format, eachDayOfInterval, getDay } from 'date-fns';
@@ -47,7 +47,6 @@ export default function SchedulesPage() {
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
 
   // Shared state
-  const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedLecturer, setSelectedLecturer] = useState<string>('');
 
   // Single Day Editor State
@@ -61,31 +60,22 @@ export default function SchedulesPage() {
   const [bulkTimeSlots, setBulkTimeSlots] = useState<string[]>([]);
 
   // --- DATA FETCHING ---
-  const { data: courses } = useCollection<Course>(
-    query(collection(firestore, 'courses'), orderBy('name'))
-  );
-
   const { data: allLecturers } = useCollection<Lecturer>(
-    query(collection(firestore, 'lecturers'), orderBy('name'))
+    useMemoFirebase(() => firestore ? query(collection(firestore, 'lecturers'), orderBy('name')) : null, [firestore])
   );
-
-  const availableLecturers = useMemo(() => {
-    if (!selectedCourse || !allLecturers) return [];
-    return allLecturers.filter(l => l.courses?.includes(selectedCourse));
-  }, [selectedCourse, allLecturers]);
 
 
   // --- SINGLE DAY EDITOR LOGIC ---
   useEffect(() => {
     const fetchSchedule = async () => {
-      if (!firestore || !selectedCourse || !selectedLecturer || !selectedDate) {
+      if (!firestore || !selectedLecturer || !selectedDate) {
         setCurrentSchedule(null);
         setSingleDaySlots([]);
         return;
       }
       setIsScheduleLoading(true);
       const dateString = format(selectedDate, 'yyyy-MM-dd');
-      const scheduleId = `${selectedCourse}_${selectedLecturer}_${dateString}`;
+      const scheduleId = `${selectedLecturer}_${dateString}`;
       const scheduleRef = doc(firestore, 'schedules', scheduleId);
       
       try {
@@ -107,15 +97,15 @@ export default function SchedulesPage() {
     };
 
     fetchSchedule();
-  }, [selectedCourse, selectedLecturer, selectedDate, firestore, toast]);
+  }, [selectedLecturer, selectedDate, firestore, toast]);
 
   const toggleSingleDaySlot = (time: string) => {
     setSingleDaySlots(prev => prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time].sort());
   };
 
   const handleSaveSingleDay = async () => {
-    if (!firestore || !selectedCourse || !selectedLecturer || !selectedDate || !adminProfile) {
-      toast({ title: 'Please select all fields before saving', variant: 'destructive' });
+    if (!firestore || !selectedLecturer || !selectedDate || !adminProfile) {
+      toast({ title: 'Please select a lecturer and date before saving', variant: 'destructive' });
       return;
     }
     if (hasBookings) {
@@ -125,11 +115,14 @@ export default function SchedulesPage() {
     setIsLoading(true);
     try {
       const dateString = format(selectedDate, 'yyyy-MM-dd');
-      const scheduleId = `${selectedCourse}_${selectedLecturer}_${dateString}`;
+      const scheduleId = `${selectedLecturer}_${dateString}`;
       const scheduleRef = doc(firestore, 'schedules', scheduleId);
       const newData: Partial<Schedule> & { updatedAt: Date } = {
-        id: scheduleId, courseId: selectedCourse, lecturerId: selectedLecturer,
-        date: dateString, timeSlots: singleDaySlots, updatedAt: new Date(),
+        id: scheduleId, 
+        lecturerId: selectedLecturer,
+        date: dateString, 
+        timeSlots: singleDaySlots, 
+        updatedAt: new Date(),
       };
       if (!currentSchedule) newData.bookedSlots = [];
       await setDoc(scheduleRef, newData, { merge: true });
@@ -141,7 +134,7 @@ export default function SchedulesPage() {
         action: 'schedule.update.single',
         entityType: 'schedule',
         entityId: scheduleId,
-        details: { date: dateString, slotsCount: singleDaySlots.length },
+        details: { date: dateString, slotsCount: singleDaySlots.length, lecturerId: selectedLecturer },
       });
 
       toast({ title: "Schedule Saved", description: `Availability for ${dateString} has been updated.` });
@@ -167,8 +160,8 @@ export default function SchedulesPage() {
   };
 
   const handleBulkSave = async () => {
-    if (!firestore || !selectedCourse || !selectedLecturer || !dateRange?.from || !adminProfile) {
-      toast({ title: 'Missing Information', description: 'Please select a course, lecturer, and date range.', variant: 'destructive' });
+    if (!firestore || !selectedLecturer || !dateRange?.from || !adminProfile) {
+      toast({ title: 'Missing Information', description: 'Please select a lecturer and date range.', variant: 'destructive' });
       return;
     }
     const { from, to } = dateRange;
@@ -183,7 +176,7 @@ export default function SchedulesPage() {
       for (const day of daysToSchedule) {
         if (selectedWeekdays.includes(getDay(day))) {
           const dateString = format(day, 'yyyy-MM-dd');
-          const scheduleId = `${selectedCourse}_${selectedLecturer}_${dateString}`;
+          const scheduleId = `${selectedLecturer}_${dateString}`;
           const scheduleRef = doc(firestore, 'schedules', scheduleId);
 
           const docSnap = await getDoc(scheduleRef);
@@ -193,8 +186,11 @@ export default function SchedulesPage() {
           }
 
           const newData = {
-            id: scheduleId, courseId: selectedCourse, lecturerId: selectedLecturer, date: dateString,
-            timeSlots: bulkTimeSlots, updatedAt: new Date(),
+            id: scheduleId, 
+            lecturerId: selectedLecturer, 
+            date: dateString,
+            timeSlots: bulkTimeSlots, 
+            updatedAt: new Date(),
             bookedSlots: docSnap.exists() ? (docSnap.data().bookedSlots || []) : [],
           };
           batch.set(scheduleRef, newData, { merge: true });
@@ -210,7 +206,6 @@ export default function SchedulesPage() {
         entityType: 'schedule',
         entityId: 'multiple',
         details: {
-          courseId: selectedCourse,
           lecturerId: selectedLecturer,
           range: `${format(from, 'yyyy-MM-dd')} to ${format(finalTo, 'yyyy-MM-dd')}`,
         },
@@ -241,28 +236,15 @@ export default function SchedulesPage() {
        <Card>
           <CardHeader>
             <CardTitle>1. Select Context</CardTitle>
-            <CardDescription>Choose the course and lecturer you want to manage schedules for.</CardDescription>
+            <CardDescription>Choose the lecturer you want to manage schedules for.</CardDescription>
           </CardHeader>
-          <CardContent className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label>Select Course</Label>
-                <Select value={selectedCourse} onValueChange={(val) => {
-                    setSelectedCourse(val);
-                    setSelectedLecturer(''); // Reset lecturer on course change
-                }}>
-                  <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
-                  <SelectContent>
-                    {courses?.map(course => <SelectItem key={course.id} value={course.id}>{course.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
+          <CardContent>
               <div className="space-y-2">
                 <Label>Select Lecturer</Label>
-                <Select value={selectedLecturer} onValueChange={setSelectedLecturer} disabled={!selectedCourse}>
-                  <SelectTrigger><SelectValue placeholder={selectedCourse ? "Select lecturer" : "Select a course first"} /></SelectTrigger>
+                <Select value={selectedLecturer} onValueChange={setSelectedLecturer}>
+                  <SelectTrigger><SelectValue placeholder="Select lecturer" /></SelectTrigger>
                   <SelectContent>
-                    {availableLecturers.map(lecturer => <SelectItem key={lecturer.id} value={lecturer.id}>{lecturer.name}</SelectItem>)}
+                    {allLecturers?.map(lecturer => <SelectItem key={lecturer.id} value={lecturer.id}>{lecturer.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -280,13 +262,13 @@ export default function SchedulesPage() {
           <Card className="mt-4">
               <CardHeader>
                 <CardTitle>2. Edit Single Day Availability</CardTitle>
-                {!selectedCourse || !selectedLecturer ? <p className="text-sm text-muted-foreground pt-2">Please select a course and lecturer first.</p> : null}
+                {!selectedLecturer ? <p className="text-sm text-muted-foreground pt-2">Please select a lecturer first.</p> : null}
               </CardHeader>
               <CardContent className="grid gap-6 md:grid-cols-2">
                 <div className="flex justify-center">
                   <Calendar
                       mode="single" selected={selectedDate} onSelect={setSelectedDate}
-                      disabled={!selectedCourse || !selectedLecturer || ((date) => date < new Date(new Date().setHours(0,0,0,0)))}
+                      disabled={!selectedLecturer || ((date) => date < new Date(new Date().setHours(0,0,0,0)))}
                       initialFocus className="rounded-md border shadow-sm"
                     />
                 </div>
@@ -315,7 +297,7 @@ export default function SchedulesPage() {
                 </div>
               </CardContent>
               <CardContent>
-                  <Button className="w-full mt-4" onClick={handleSaveSingleDay} disabled={isLoading || isScheduleLoading || hasBookings || !selectedCourse || !selectedLecturer || !selectedDate}>
+                  <Button className="w-full mt-4" onClick={handleSaveSingleDay} disabled={isLoading || isScheduleLoading || hasBookings || !selectedLecturer || !selectedDate}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Availability for {selectedDate ? format(selectedDate, 'MMM d') : ''}
                   </Button>
@@ -328,7 +310,7 @@ export default function SchedulesPage() {
            <Card className="mt-4">
               <CardHeader>
                 <CardTitle>2. Bulk Schedule Availability</CardTitle>
-                 {!selectedCourse || !selectedLecturer ? <p className="text-sm text-muted-foreground pt-2">Please select a course and lecturer first.</p> : null}
+                 {!selectedLecturer ? <p className="text-sm text-muted-foreground pt-2">Please select a lecturer first.</p> : null}
               </CardHeader>
               <CardContent className="grid gap-8">
                   {/* Date Range & Weekday Picker */}
@@ -336,7 +318,7 @@ export default function SchedulesPage() {
                       <div>
                         <Label className="font-semibold mb-2 block text-center">Select Date Range</Label>
                         <div className="flex justify-center">
-                            <Calendar mode="range" selected={dateRange} onSelect={setDateRange} disabled={!selectedCourse || !selectedLecturer} className="rounded-md border shadow-sm" />
+                            <Calendar mode="range" selected={dateRange} onSelect={setDateRange} disabled={!selectedLecturer} className="rounded-md border shadow-sm" />
                         </div>
                       </div>
                       <div>
@@ -366,7 +348,7 @@ export default function SchedulesPage() {
                   </div>
               </CardContent>
                <CardContent>
-                  <Button className="w-full mt-4" onClick={handleBulkSave} disabled={isLoading || !dateRange || !selectedCourse || !selectedLecturer}>
+                  <Button className="w-full mt-4" onClick={handleBulkSave} disabled={isLoading || !dateRange || !selectedLecturer}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Apply Bulk Schedule
                   </Button>
@@ -383,3 +365,5 @@ export default function SchedulesPage() {
     </div>
   );
 }
+
+    

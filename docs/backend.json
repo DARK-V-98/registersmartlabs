@@ -54,14 +54,6 @@
         "description": {
           "type": "string",
           "description": "Description of the course."
-        },
-        "priceOnlineAddHour": {
-            "type": "number",
-            "description": "Price for an additional hour for an online class."
-        },
-        "pricePhysicalAddHour": {
-            "type": "number",
-            "description": "Price for an additional hour for a physical class."
         }
       },
       "required": [
@@ -69,6 +61,18 @@
         "name",
         "description"
       ]
+    },
+    "CoursePrice": {
+      "title": "Course Price",
+      "type": "object",
+      "description": "Defines the pricing for a course.",
+      "properties": {
+        "priceOnline": { "type": "number" },
+        "pricePhysical": { "type": "number" },
+        "priceOnlineAddHour": { "type": "number" },
+        "pricePhysicalAddHour": { "type": "number" }
+      },
+      "required": ["priceOnline", "pricePhysical", "priceOnlineAddHour", "pricePhysicalAddHour"]
     },
     "Lecturer": {
         "title": "Lecturer",
@@ -81,7 +85,17 @@
             "courses": { "type": "array", "items": { "type": "string" } },
             "averageRating": { "type": "number" },
             "reviewCount": { "type": "number" },
-            "payoutRate": { "type": "number", "description": "Percentage of revenue to be paid out to the lecturer." }
+            "payoutRate": { "type": "number", "description": "Percentage of revenue to be paid out to the lecturer." },
+            "pricing": {
+              "type": "object",
+              "description": "Maps course IDs to their specific prices for this lecturer across different currencies.",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/entities/CoursePrice"
+                }
+              }
+            }
         }
     },
     "Booking": {
@@ -182,16 +196,29 @@
     "Schedule": {
       "title": "Schedule",
       "type": "object",
-      "description": "Represents the booked time slots for a specific day.",
+      "description": "Represents the booked time slots for a specific day for a lecturer.",
       "properties": {
+         "lecturerId": {
+          "type": "string",
+          "description": "The ID of the lecturer this schedule belongs to."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "The date for this schedule in YYYY-MM-DD format."
+        },
+        "timeSlots": {
+          "type": "array",
+          "description": "An array of time slots that are available for this day.",
+          "items": { "type": "string" }
+        },
         "bookedSlots": {
           "type": "array",
-          "description": "An array of time slots that are booked for this day.",
-          "items": {
-            "type": "string"
-          }
+          "description": "An array of 30-minute time blocks that are booked for this day.",
+          "items": { "type": "string" }
         }
-      }
+      },
+       "required": ["lecturerId", "date", "timeSlots"]
     },
     "Message": {
       "title": "Message",
@@ -295,7 +322,7 @@
         "definition": {
             "entityName": "Lecturer",
             "schema": { "$ref": "#/backend/entities/Lecturer" },
-            "description": "Stores information about lecturers, including their ratings."
+            "description": "Stores information about lecturers, including their course assignments and specific pricing for each course."
         }
       },
       {
@@ -353,18 +380,18 @@
           "params": []
         }
       },
-      {
-        "path": "/schedules/{date}",
+       {
+        "path": "/schedules/{scheduleId}",
         "definition": {
           "entityName": "Schedule",
           "schema": {
             "$ref": "#/backend/entities/Schedule"
           },
-          "description": "Stores aggregated booking information for each day to show availability. Readable by users, writable only by admins.",
+          "description": "Stores aggregated booking information for each lecturer and day to show availability. ID format is {lecturerId}_{YYYY-MM-DD}.",
           "params": [
             {
-              "name": "date",
-              "description": "The date in YYYY-MM-DD format."
+              "name": "scheduleId",
+              "description": "The composite key for the schedule document."
             }
           ]
         }
@@ -378,6 +405,8 @@
         }
       }
     ],
-    "reasoning": "The data structure is revised for administrative functionality. User-specific data remains in `/users/{userId}`. A top-level `/bookings` collection is introduced to allow admins to easily query and manage all enrollments, which is more efficient than nested subcollections. A `messages` subcollection has been added to each booking to support real-time chat. Security rules will grant admins broad access to `/bookings`, while users are restricted to their own documents. A single document at `/settings/admin` stores global configurations like payment details and disabled dates, making them easily accessible to the client-side while restricting write access to admins. A new `/schedules` collection will denormalize booking times to allow users to see availability without exposing other users' private data. Lecturers have been moved to a top-level collection with a `reviews` subcollection to handle ratings and reviews. An `activityLogs` collection has been added to audit all administrative actions."
+    "reasoning": "The data structure is revised for lecturer-centric pricing and scheduling. Course pricing is moved from the 'Course' entity to a 'pricing' map within the 'Lecturer' entity, allowing each lecturer to have different prices for the same course. The 'Schedule' entity is now independent of courses; its ID is a composite of '{lecturerId}_{YYYY-MM-DD}' to represent a lecturer's general availability for a given day, simplifying the booking logic and making it more robust. This change enables the new booking flow where a user selects a lecturer first, then a time, and finally the course."
   }
 }
+
+    

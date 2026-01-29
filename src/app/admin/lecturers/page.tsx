@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useFirestore, useCollection, updateDocumentNonBlocking, useMemoFirebase, useStorage, setDocumentNonBlocking } from '@/firebase';
+import { useState, useEffect } from 'react';
+import { useFirestore, useCollection, updateDocumentNonBlocking, useMemoFirebase, useStorage, setDocumentNonBlocking, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
@@ -26,12 +26,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Lecturer, Course } from '@/types';
+import { Lecturer, Course, CoursePrice, AdminSettings } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Pencil, Percent, User as UserIcon } from 'lucide-react';
+import { Loader2, Plus, Pencil, Percent, User as UserIcon, Trash2 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { logActivity } from '@/lib/logger';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export default function LecturersPage() {
   const firestore = useFirestore();
@@ -48,20 +49,19 @@ export default function LecturersPage() {
   const [payoutRate, setPayoutRate] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [pricing, setPricing] = useState<{ [courseId: string]: { [currencyCode: string]: Partial<CoursePrice> } }>({});
 
-  const lecturersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'lecturers'), orderBy('name'));
-  }, [firestore]);
+  const { data: lecturers, isLoading: isLecturersLoading } = useCollection<Lecturer>(
+    useMemoFirebase(() => firestore ? query(collection(firestore, 'lecturers'), orderBy('name')) : null, [firestore])
+  );
 
-  const { data: lecturers, isLoading: isLecturersLoading } = useCollection<Lecturer>(lecturersQuery);
+  const { data: courses } = useCollection<Course>(
+    useMemoFirebase(() => firestore ? query(collection(firestore, 'courses'), orderBy('name')) : null, [firestore])
+  );
 
-  const coursesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'courses'), orderBy('name'));
-  }, [firestore]);
-
-  const { data: courses } = useCollection<Course>(coursesQuery);
+  const { data: settings } = useDoc<AdminSettings>(
+    useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'admin') : null, [firestore])
+  );
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -69,6 +69,20 @@ export default function LecturersPage() {
       setImageFile(file);
       setPreviewUrl(URL.createObjectURL(file));
     }
+  };
+
+  const handlePriceChange = (courseId: string, currencyCode: string, field: keyof CoursePrice, value: string) => {
+    const numericValue = parseFloat(value) || 0;
+    setPricing(prev => ({
+      ...prev,
+      [courseId]: {
+        ...prev[courseId],
+        [currencyCode]: {
+          ...prev[courseId]?.[currencyCode],
+          [field]: numericValue
+        }
+      }
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,6 +108,7 @@ export default function LecturersPage() {
         courses: selectedCourses,
         payoutRate: parseFloat(payoutRate) || 0,
         imageUrl: imageUrl,
+        pricing: pricing,
       };
 
       if (editingLecturer) {
@@ -142,6 +157,7 @@ export default function LecturersPage() {
     setSelectedCourses(lecturer.courses || []);
     setPayoutRate(lecturer.payoutRate?.toString() || '0');
     setPreviewUrl(lecturer.imageUrl || null);
+    setPricing(lecturer.pricing || {});
     setIsDialogOpen(true);
   };
 
@@ -152,14 +168,22 @@ export default function LecturersPage() {
     setPayoutRate('');
     setImageFile(null);
     setPreviewUrl(null);
+    setPricing({});
   };
 
   const toggleCourse = (courseId: string) => {
-    setSelectedCourses(prev => 
-      prev.includes(courseId) 
-        ? prev.filter(id => id !== courseId)
-        : [...prev, courseId]
-    );
+    const isSelected = selectedCourses.includes(courseId);
+    if (isSelected) {
+      setSelectedCourses(prev => prev.filter(id => id !== courseId));
+      // Optionally clear pricing for unselected course
+      setPricing(prev => {
+        const newPricing = { ...prev };
+        delete newPricing[courseId];
+        return newPricing;
+      });
+    } else {
+      setSelectedCourses(prev => [...prev, courseId]);
+    }
   };
 
   return (
@@ -173,11 +197,11 @@ export default function LecturersPage() {
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" /> Add Lecturer</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-xl">
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>{editingLecturer ? 'Edit Lecturer' : 'Add New Lecturer'}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
               <div className="flex flex-col items-center gap-4">
                 <Avatar className="w-24 h-24">
                   <AvatarImage src={previewUrl || ''} alt={name} />
@@ -199,21 +223,59 @@ export default function LecturersPage() {
                     </div>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Assigned Courses</Label>
-                <div className="grid grid-cols-2 gap-2 border p-4 rounded-md max-h-48 overflow-y-auto">
-                  {courses?.map(course => (
-                    <div key={course.id} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`course-${course.id}`} 
-                        checked={selectedCourses.includes(course.id)}
-                        onCheckedChange={() => toggleCourse(course.id)}
-                      />
-                      <Label htmlFor={`course-${course.id}`} className="text-sm font-normal cursor-pointer">
-                        {course.name}
-                      </Label>
-                    </div>
-                  ))}
+              
+              <div className="space-y-2 border-t pt-4">
+                <Label>Assigned Courses & Pricing</Label>
+                <div className="border p-4 rounded-md max-h-60 overflow-y-auto">
+                  <Accordion type="multiple" className="w-full">
+                    {courses?.map(course => (
+                      <AccordionItem value={course.id} key={course.id}>
+                        <div className="flex items-center gap-4">
+                           <Checkbox 
+                              id={`course-${course.id}`} 
+                              checked={selectedCourses.includes(course.id)}
+                              onCheckedChange={() => toggleCourse(course.id)}
+                            />
+                          <AccordionTrigger className="flex-1">
+                              <Label htmlFor={`course-${course.id}`} className="text-sm font-medium cursor-pointer">
+                                {course.name}
+                              </Label>
+                          </AccordionTrigger>
+                        </div>
+                        <AccordionContent>
+                          {selectedCourses.includes(course.id) ? (
+                            <div className="pl-8 pt-4 space-y-4">
+                              {settings?.currencies?.map(currency => (
+                                <div key={currency.code} className="p-4 border rounded-lg bg-secondary/50">
+                                  <h4 className="font-medium mb-2">{currency.country} ({currency.code})</h4>
+                                  <div className="grid grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <Label htmlFor={`priceOnline-${course.id}-${currency.code}`}>Online (1h)</Label>
+                                        <Input id={`priceOnline-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.priceOnline || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'priceOnline', e.target.value)} required />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label htmlFor={`pricePhysical-${course.id}-${currency.code}`}>Physical (1h)</Label>
+                                        <Input id={`pricePhysical-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.pricePhysical || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'pricePhysical', e.target.value)} required />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label htmlFor={`priceOnlineAddHour-${course.id}-${currency.code}`}>Add. Hour Online</Label>
+                                        <Input id={`priceOnlineAddHour-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.priceOnlineAddHour || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'priceOnlineAddHour', e.target.value)} required />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label htmlFor={`pricePhysicalAddHour-${course.id}-${currency.code}`}>Add. Hour Physical</Label>
+                                        <Input id={`pricePhysicalAddHour-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.pricePhysicalAddHour || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'pricePhysicalAddHour', e.target.value)} required />
+                                      </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                             <p className="pl-8 pt-4 text-sm text-muted-foreground">Select this course to set its price for this lecturer.</p>
+                          )}
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
                 </div>
               </div>
               <DialogFooter>
@@ -289,3 +351,5 @@ export default function LecturersPage() {
     </div>
   );
 }
+
+    

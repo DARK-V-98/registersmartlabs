@@ -1,3 +1,4 @@
+
 'use client';
 
 import { motion } from "framer-motion";
@@ -79,7 +80,7 @@ const CoursesPreview = () => {
                   {/* Content */}
                   <h3 className="font-display text-2xl font-bold mb-3">{course.name}</h3>
                   <p className="text-muted-foreground mb-6 flex-1">
-                    Personalized one-on-one coaching to help you achieve your target score.
+                    {course.description}
                   </p>
 
                   {/* Stats */}
@@ -90,14 +91,14 @@ const CoursesPreview = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Users className="w-4 h-4" />
-                      From LKR {course.priceOnline?.toLocaleString()}
+                      Lecturer-based pricing
                     </div>
                   </div>
 
                   {/* CTA */}
                   <Link href="/dashboard/book">
                     <Button className="w-full group">
-                      Check Availability
+                      View Lecturers & Book
                       <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
@@ -127,3 +128,5 @@ const CoursesPreview = () => {
 };
 
 export default CoursesPreview;
+
+    

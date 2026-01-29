@@ -1,5 +1,6 @@
 
 
+
 export interface CurrencySetting {
   country: string;
   code: string; // e.g. USD
@@ -30,9 +31,7 @@ export interface CoursePrice {
 export interface Course {
   id: string;
   name:string;
-  prices: {
-    [currencyCode: string]: CoursePrice;
-  };
+  description: string;
   status: 'active' | 'inactive';
 }
 
@@ -41,8 +40,10 @@ export interface Lecturer {
   name: string;
   imageUrl?: string;
   courses: string[]; // Array of courseIds
-  availability?: {
-    [date: string]: string[]; // date string (YYYY-MM-DD) -> array of time slots
+  pricing?: {
+    [courseId: string]: {
+      [currencyCode: string]: CoursePrice;
+    };
   };
   averageRating?: number;
   reviewCount?: number;
@@ -51,7 +52,6 @@ export interface Lecturer {
 
 export interface Schedule {
   id: string;
-  courseId: string;
   lecturerId: string;
   date: string; // YYYY-MM-DD
   timeSlots: string[]; // Potential start times set by admin
@@ -125,3 +125,5 @@ export interface ActivityLog {
   targetUserId?: string;
   targetUserName?: string;
 }
+
+    

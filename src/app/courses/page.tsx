@@ -1,3 +1,4 @@
+
 'use client';
 
 import { motion } from "framer-motion";
@@ -7,9 +8,7 @@ import { Button } from "@/components/ui/button";
 import { 
   ArrowRight,
   GraduationCap,
-  Loader2,
-  Monitor,
-  Building
+  Loader2
 } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, query, where, orderBy } from 'firebase/firestore';
@@ -77,23 +76,10 @@ const CoursesPage = () => {
                          <GraduationCap className="w-8 h-8 text-primary" />
                        </div>
                       <CardTitle>{course.name}</CardTitle>
-                      <CardDescription>One-on-one personalized coaching.</CardDescription>
+                      <CardDescription>{course.description}</CardDescription>
                     </CardHeader>
                     <CardContent className="flex-1 space-y-4">
-                       <div className="flex items-baseline gap-3">
-                          <Monitor className="w-5 h-5 text-muted-foreground"/>
-                          <div>
-                            <p className="text-2xl font-bold text-primary">LKR {course.priceOnline?.toLocaleString()}</p>
-                            <p className="text-sm text-muted-foreground">Online Class</p>
-                          </div>
-                       </div>
-                       <div className="flex items-baseline gap-3">
-                          <Building className="w-5 h-5 text-muted-foreground"/>
-                           <div>
-                            <p className="text-2xl font-bold text-primary">LKR {course.pricePhysical?.toLocaleString()}</p>
-                            <p className="text-sm text-muted-foreground">Physical Class</p>
-                          </div>
-                       </div>
+                       <p className="text-sm font-semibold text-primary">Pricing varies by lecturer</p>
                     </CardContent>
                     <CardFooter>
                        <Link href="/dashboard/book" className="w-full">
@@ -118,3 +104,5 @@ const CoursesPage = () => {
 };
 
 export default CoursesPage;
+
+    

@@ -7,14 +7,14 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star, AlertTriangle, Info, Clock } from 'lucide-react';
+import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star, AlertTriangle, Info, Clock, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
 import { Course, Lecturer, Schedule, AdminSettings } from '@/types';
 import { useRouter } from 'next/navigation';
@@ -23,14 +23,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const STEPS = [
-  { id: 1, title: 'Select Course' },
-  { id: 2, title: 'Class Type' },
-  { id: 3, title: 'Select Lecturer' },
-  { id: 4, title: 'Date & Time' },
-  { id: 5, title: 'Payment' },
+  { id: 1, title: 'Select Lecturer' },
+  { id: 2, title: 'Date & Time' },
+  { id: 3, title: 'Course & Type' },
+  { id: 4, title: 'Payment' },
 ];
 
-// This master list is the source of truth for time progression.
 const MASTER_TIME_SLOTS = [
   "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
   "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
@@ -49,29 +47,27 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(false);
 
   // Selection State
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [classType, setClassType] = useState<'online' | 'physical'>('online');
   const [selectedLecturer, setSelectedLecturer] = useState<Lecturer | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [duration, setDuration] = useState(1); // 1 or 2 hours
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [classType, setClassType] = useState<'online' | 'physical'>('online');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [showFavorites, setShowFavorites] = useState(false);
 
   // Data Fetching
-  const { data: courses } = useCollection<Course>(
-    query(collection(firestore, 'courses'), where('status', '==', 'active'))
+  const { data: allCourses } = useCollection<Course>(
+    useMemoFirebase(() => firestore ? query(collection(firestore, 'courses'), where('status', '==', 'active')) : null, [firestore])
   );
 
-  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'admin') : null, [firestore]);
-  const { data: settings } = useDoc<AdminSettings>(settingsRef);
+  const { data: allLecturers } = useCollection<Lecturer>(
+    useMemoFirebase(() => firestore ? query(collection(firestore, 'lecturers'), orderBy('name')) : null, [firestore])
+  );
 
-  const lecturersQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedCourse) return null;
-    return query(collection(firestore, 'lecturers'), orderBy('name'));
-  }, [firestore, selectedCourse]);
-
-  const { data: allLecturers } = useCollection<Lecturer>(lecturersQuery);
+  const { data: settings } = useDoc<AdminSettings>(
+    useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'admin') : null, [firestore])
+  );
   
   useEffect(() => {
       if (settings?.physicalClassesEnabled === false && classType === 'physical') {
@@ -79,28 +75,16 @@ export default function BookingPage() {
       }
   }, [settings, classType]);
 
-  const availableLecturers = useMemo(() => {
-    if (!selectedCourse || !allLecturers) return [];
-    let lecturers = allLecturers.filter(l => l.courses?.includes(selectedCourse.id));
-    if (showFavorites) {
-        lecturers = lecturers.filter(l => profile?.favoriteLecturers?.includes(l.id));
-    }
-    return lecturers;
-  }, [selectedCourse, allLecturers, showFavorites, profile]);
-
-  const schedulesQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedCourse || !selectedLecturer) return null;
-    return query(
-      collection(firestore, 'schedules'),
-      where('courseId', '==', selectedCourse.id),
-      where('lecturerId', '==', selectedLecturer.id)
-    );
-  }, [firestore, selectedCourse, selectedLecturer]);
-
-  const { data: schedules } = useCollection<Schedule>(schedulesQuery);
+  const { data: schedules } = useCollection<Schedule>(
+    useMemoFirebase(() => {
+        if (!firestore || !selectedLecturer) return null;
+        // This query fetches all schedules for the lecturer. We'll filter by date client-side.
+        return query(collection(firestore, 'schedules'), where('lecturerId', '==', selectedLecturer.id));
+    }, [firestore, selectedLecturer])
+  );
 
   const getValidSlotsForDate = (date: Date) => {
-    if (!schedules || !date) return { hasAny: false, oneHour: [], twoHour: []};
+    if (!schedules || !date) return { hasAny: false, oneHour: [], twoHour: [] };
     const dateStr = format(date, 'yyyy-MM-dd');
     const scheduleForDate = schedules.find(s => s.date === dateStr);
 
@@ -115,33 +99,31 @@ export default function BookingPage() {
     const validTwoHourStarts = [];
 
     for (const startTime of MASTER_TIME_SLOTS) {
-        if (!adminStartTimes.has(startTime)) continue;
+      if (!adminStartTimes.has(startTime)) continue;
 
-        const startIndex = MASTER_TIME_SLOTS.indexOf(startTime);
-        if (startIndex === -1) continue;
+      const startIndex = MASTER_TIME_SLOTS.indexOf(startTime);
+      if (startIndex === -1) continue;
 
-        // Check for 1-hour validity (2 consecutive slots)
-        if (startIndex + 1 < MASTER_TIME_SLOTS.length) {
-            const slot1 = MASTER_TIME_SLOTS[startIndex];
-            const slot2 = MASTER_TIME_SLOTS[startIndex + 1];
-            if (!taken30MinSlots.has(slot1) && !taken30MinSlots.has(slot2)) {
-                validOneHourStarts.push(startTime);
-            }
+      if (startIndex + 1 < MASTER_TIME_SLOTS.length) {
+        const slot1 = MASTER_TIME_SLOTS[startIndex];
+        const slot2 = MASTER_TIME_SLOTS[startIndex + 1];
+        if (!taken30MinSlots.has(slot1) && !taken30MinSlots.has(slot2)) {
+          validOneHourStarts.push(startTime);
         }
-        
-        // Check for 2-hour validity (4 consecutive slots)
-        if (startIndex + 3 < MASTER_TIME_SLOTS.length) {
-            const slot1 = MASTER_TIME_SLOTS[startIndex];
-            const slot2 = MASTER_TIME_SLOTS[startIndex + 1];
-            const slot3 = MASTER_TIME_SLOTS[startIndex + 2];
-            const slot4 = MASTER_TIME_SLOTS[startIndex + 3];
-            if (!taken30MinSlots.has(slot1) && !taken30MinSlots.has(slot2) && !taken30MinSlots.has(slot3) && !taken30MinSlots.has(slot4)) {
-                validTwoHourStarts.push(startTime);
-            }
+      }
+      
+      if (startIndex + 3 < MASTER_TIME_SLOTS.length) {
+        const slot1 = MASTER_TIME_SLOTS[startIndex];
+        const slot2 = MASTER_TIME_SLOTS[startIndex + 1];
+        const slot3 = MASTER_TIME_SLOTS[startIndex + 2];
+        const slot4 = MASTER_TIME_SLOTS[startIndex + 3];
+        if (!taken30MinSlots.has(slot1) && !taken30MinSlots.has(slot2) && !taken30MinSlots.has(slot3) && !taken30MinSlots.has(slot4)) {
+          validTwoHourStarts.push(startTime);
         }
+      }
     }
     
-    return { hasAny: validOneHourStarts.length > 0, oneHour: validOneHourStarts, twoHour: validTwoHourStarts };
+    return { hasAny: validOneHourStarts.length > 0 || validTwoHourStarts.length > 0, oneHour: validOneHourStarts, twoHour: validTwoHourStarts };
   };
   
   const isDateFullyBooked = (date: Date) => {
@@ -155,12 +137,10 @@ export default function BookingPage() {
     return duration === 1 ? oneHour : twoHour;
   }, [selectedDate, schedules, duration]);
 
-
   const handleNext = () => {
-    if (step === 1 && !selectedCourse) return;
-    if (step === 2 && !classType) return;
-    if (step === 3 && !selectedLecturer) return;
-    if (step === 4 && (!selectedDate || !selectedTime)) return;
+    if (step === 1 && !selectedLecturer) return;
+    if (step === 2 && (!selectedDate || !selectedTime)) return;
+    if (step === 3 && !selectedCourse) return;
     setStep(prev => prev + 1);
   };
 
@@ -190,15 +170,21 @@ export default function BookingPage() {
     }
   };
 
+  const currentPrice = useMemo(() => {
+    if (!selectedLecturer || !selectedCourse || !profile?.currency) return 0;
+    const pricing = selectedLecturer.pricing?.[selectedCourse.id]?.[profile.currency];
+    if (!pricing) return 0;
+
+    const basePrice = classType === 'online' ? pricing.priceOnline : pricing.pricePhysical;
+    const addHourPrice = classType === 'online' ? pricing.priceOnlineAddHour : pricing.pricePhysicalAddHour;
+    return duration === 2 && addHourPrice ? basePrice + addHourPrice : basePrice;
+  }, [selectedLecturer, selectedCourse, classType, duration, profile]);
+
   const handleSubmit = async () => {
     if (!user || !profile || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !receiptFile) return;
 
     setLoading(true);
     try {
-      const basePrice = classType === 'online' ? selectedCourse.priceOnline : selectedCourse.pricePhysical;
-      const addHourPrice = classType === 'online' ? selectedCourse.priceOnlineAddHour : selectedCourse.pricePhysicalAddHour;
-      const finalPrice = duration === 2 ? basePrice + addHourPrice : basePrice;
-
       // Provisional Booking: Block slots immediately
       const slotsToBook = [];
       const startTimeIndex = MASTER_TIME_SLOTS.indexOf(selectedTime);
@@ -216,7 +202,7 @@ export default function BookingPage() {
         throw new Error("Could not determine all slots to block. The time may have just been booked.");
       }
 
-      const scheduleId = `${selectedCourse.id}_${selectedLecturer.id}_${format(selectedDate, 'yyyy-MM-dd')}`;
+      const scheduleId = `${selectedLecturer.id}_${format(selectedDate, 'yyyy-MM-dd')}`;
       const scheduleRef = doc(firestore, 'schedules', scheduleId);
       await updateDoc(scheduleRef, { bookedSlots: arrayUnion(...slotsToBook) });
 
@@ -237,7 +223,8 @@ export default function BookingPage() {
         paymentStatus: 'pending',
         bookingStatus: 'payment_pending',
         createdAt: Timestamp.now(),
-        price: finalPrice
+        price: currentPrice,
+        currency: profile.currency || 'LKR'
       };
 
       const docRef = await addDocumentNonBlocking(collection(firestore, 'bookings'), bookingData);
@@ -280,13 +267,6 @@ export default function BookingPage() {
     }
   };
 
-  const currentPrice = useMemo(() => {
-    if (!selectedCourse) return 0;
-    const basePrice = classType === 'online' ? selectedCourse.priceOnline : selectedCourse.pricePhysical;
-    const addHourPrice = classType === 'online' ? selectedCourse.priceOnlineAddHour : selectedCourse.pricePhysicalAddHour;
-    return duration === 2 && addHourPrice ? basePrice + addHourPrice : basePrice;
-  }, [selectedCourse, classType, duration]);
-
   return (
     <div className="max-w-4xl mx-auto py-8">
       <div className="mb-8">
@@ -314,76 +294,18 @@ export default function BookingPage() {
           
           {step === 1 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-center">Select Your Course</h2>
-              <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {courses?.map(course => (
-                  <div
-                    key={course.id}
-                    onClick={() => setSelectedCourse(course)}
-                    className={cn(
-                      "cursor-pointer rounded-xl border-2 p-6 transition-all hover:border-primary/50",
-                      selectedCourse?.id === course.id ? "border-primary bg-primary/5" : "border-border"
-                    )}
-                  >
-                    <h3 className="font-bold text-lg mb-2">{course.name}</h3>
-                    <p className="text-muted-foreground">from LKR {course.priceOnline?.toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-center">Select Class Type</h2>
-              <RadioGroup value={classType} onValueChange={(v) => setClassType(v as 'online' | 'physical')} className="grid sm:grid-cols-2 gap-4 max-w-lg mx-auto">
-                <div>
-                  <RadioGroupItem value="online" id="online" className="peer sr-only" />
-                  <Label
-                    htmlFor="online"
-                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                  >
-                    <span className="text-3xl mb-2">💻</span>
-                    <span className="font-semibold">Online Class</span>
-                    <span className="font-bold text-primary">LKR {selectedCourse?.priceOnline.toLocaleString()}</span>
-                  </Label>
-                </div>
-                <div>
-                  <RadioGroupItem value="physical" id="physical" className="peer sr-only" disabled={settings?.physicalClassesEnabled === false} />
-                  <Label
-                    htmlFor="physical"
-                    className={cn(
-                        "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4",
-                        "peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary",
-                        settings?.physicalClassesEnabled === false 
-                            ? "cursor-not-allowed opacity-50" 
-                            : "cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                    )}
-                  >
-                    <span className="text-3xl mb-2">🏫</span>
-                    <span className="font-semibold">Physical Class</span>
-                    <span className="font-bold text-primary">LKR {selectedCourse?.pricePhysical.toLocaleString()}</span>
-                    {settings?.physicalClassesEnabled === false && <span className="text-xs text-destructive mt-1">(Currently unavailable)</span>}
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-center">Select Lecturer</h2>
+                    <h2 className="text-2xl font-bold text-center">Select Your Lecturer</h2>
                     <div className="flex items-center space-x-2">
                         <Label htmlFor="favorites-only">Show Favorites Only</Label>
                         <Switch id="favorites-only" checked={showFavorites} onCheckedChange={setShowFavorites} />
                     </div>
                 </div>
-              {availableLecturers.length === 0 ? (
-                <p className="text-center text-muted-foreground">No lecturers available for this course{showFavorites && ' or filter'}.</p>
+              {(allLecturers || []).length === 0 ? (
+                <p className="text-center text-muted-foreground">No lecturers available at the moment.</p>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-4">
-                  {availableLecturers.map(lecturer => (
+                  {(showFavorites ? (allLecturers || []).filter(l => profile?.favoriteLecturers?.includes(l.id)) : allLecturers)?.map(lecturer => (
                     <div
                       key={lecturer.id}
                       onClick={() => setSelectedLecturer(lecturer)}
@@ -409,7 +331,7 @@ export default function BookingPage() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 2 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-center">Select Date & Available Start Time</h2>
               <div className="grid md:grid-cols-2 gap-8">
@@ -441,7 +363,7 @@ export default function BookingPage() {
                     <Alert className="mb-4 bg-green-50 border-green-200 text-green-800">
                         <Clock className="h-4 w-4 text-green-800" />
                         <AlertDescription>
-                            The default class duration is 1 hour. If you need a 2-hour session, please use the switch above. The system will book two consecutive hours from your selected start time.
+                            The default class duration is 1 hour. If you need a 2-hour session, please use the switch above.
                         </AlertDescription>
                     </Alert>
                     <Alert className="mb-4 bg-blue-50 border-blue-200">
@@ -473,12 +395,68 @@ export default function BookingPage() {
             </div>
           )}
 
-          {step === 5 && (
+          {step === 3 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-center">Select Course & Class Type</h2>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {(selectedLecturer?.courses || []).map(courseId => {
+                  const course = allCourses?.find(c => c.id === courseId);
+                  if (!course) return null;
+                  return (
+                    <Card
+                      key={course.id}
+                      onClick={() => setSelectedCourse(course)}
+                      className={cn(
+                        "cursor-pointer transition-all hover:border-primary/50",
+                        selectedCourse?.id === course.id ? "border-primary bg-primary/5 ring-2 ring-primary" : "border-border"
+                      )}
+                    >
+                      <CardHeader>
+                        <GraduationCap className="w-8 h-8 text-primary mb-2" />
+                        <CardTitle>{course.name}</CardTitle>
+                      </CardHeader>
+                    </Card>
+                  )
+                })}
+              </div>
+
+              {selectedCourse && (
+                <div className="pt-6 border-t">
+                  <h3 className="text-lg font-bold text-center mb-4">Select Class Type</h3>
+                  <RadioGroup value={classType} onValueChange={(v) => setClassType(v as 'online' | 'physical')} className="grid sm:grid-cols-2 gap-4 max-w-lg mx-auto">
+                    <div>
+                      <RadioGroupItem value="online" id="online" className="peer sr-only" />
+                      <Label htmlFor="online" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                        <span className="text-3xl mb-2">💻</span>
+                        <span className="font-semibold">Online Class</span>
+                        <span className="font-bold text-primary">{profile?.currency} {selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.priceOnline?.toLocaleString()}</span>
+                      </Label>
+                    </div>
+                    <div>
+                      <RadioGroupItem value="physical" id="physical" className="peer sr-only" disabled={settings?.physicalClassesEnabled === false} />
+                      <Label htmlFor="physical" className={cn("flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4", "peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary", settings?.physicalClassesEnabled === false ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-accent hover:text-accent-foreground")}>
+                        <span className="text-3xl mb-2">🏫</span>
+                        <span className="font-semibold">Physical Class</span>
+                        <span className="font-bold text-primary">{profile?.currency} {selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.pricePhysical?.toLocaleString()}</span>
+                        {settings?.physicalClassesEnabled === false && <span className="text-xs text-destructive mt-1">(Currently unavailable)</span>}
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 4 && (
              <div className="space-y-6 max-w-lg mx-auto">
                 <h2 className="text-2xl font-bold text-center">Payment Details</h2>
                 
                 <Card className="bg-secondary/10 border-primary/20">
                   <CardContent className="p-6 space-y-4">
+                    <div className="flex justify-between items-center border-b pb-2">
+                      <span className="font-semibold">Lecturer:</span>
+                      <span>{selectedLecturer?.name}</span>
+                    </div>
                     <div className="flex justify-between items-center border-b pb-2">
                       <span className="font-semibold">Course:</span>
                       <span>{selectedCourse?.name}</span>
@@ -486,10 +464,6 @@ export default function BookingPage() {
                     <div className="flex justify-between items-center border-b pb-2">
                       <span className="font-semibold">Class Type:</span>
                       <span className="capitalize">{classType} Class</span>
-                    </div>
-                    <div className="flex justify-between items-center border-b pb-2">
-                      <span className="font-semibold">Lecturer:</span>
-                      <span>{selectedLecturer?.name}</span>
                     </div>
                     <div className="flex justify-between items-center border-b pb-2">
                       <span className="font-semibold">Date & Time:</span>
@@ -501,7 +475,7 @@ export default function BookingPage() {
                     </div>
                     <div className="flex justify-between items-center text-xl font-bold pt-2">
                       <span>Total Amount:</span>
-                      <span className="text-primary">LKR {currentPrice.toLocaleString()}</span>
+                      <span className="text-primary">{profile?.currency} {currentPrice.toLocaleString()}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -534,12 +508,11 @@ export default function BookingPage() {
               <ChevronLeft className="w-4 h-4 mr-2" /> Back
             </Button>
             
-            {step < 5 ? (
+            {step < 4 ? (
               <Button onClick={handleNext} disabled={
-                (step === 1 && !selectedCourse) ||
-                (step === 2 && !classType) ||
-                (step === 3 && !selectedLecturer) ||
-                (step === 4 && (!selectedDate || !selectedTime))
+                (step === 1 && !selectedLecturer) ||
+                (step === 2 && (!selectedDate || !selectedTime)) ||
+                (step === 3 && !selectedCourse)
               }>
                 Continue <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
@@ -556,3 +529,5 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
