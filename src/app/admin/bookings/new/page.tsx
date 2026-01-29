@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, orderBy, Timestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -101,8 +101,11 @@ export default function ManualBookingPage() {
     return duration === 1 ? oneHour : twoHour;
   }, [selectedDate, schedules, duration]);
 
-  useMemo(() => {
-      if (!selectedCourse || !selectedLecturer || !selectedUser?.currency) return;
+  useEffect(() => {
+      if (!selectedCourse || !selectedLecturer || !selectedUser?.currency) {
+          setPrice('');
+          return;
+      }
       const pricing = selectedLecturer.pricing?.[selectedCourse.id]?.[selectedUser.currency];
       if (!pricing) {
         setPrice('0');
@@ -327,3 +330,5 @@ export default function ManualBookingPage() {
     </div>
   );
 }
+
+    

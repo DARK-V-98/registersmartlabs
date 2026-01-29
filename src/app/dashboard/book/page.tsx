@@ -37,7 +37,7 @@ const MASTER_TIME_SLOTS = [
 ];
 
 export default function BookingPage() {
-  const { user, profile } = useUserProfile();
+  const { user, profile, isLoading: isProfileLoading } = useUserProfile();
   const firestore = useFirestore();
   const storage = useStorage();
   const { toast } = useToast();
@@ -177,8 +177,10 @@ export default function BookingPage() {
   };
 
   const currentPrice = useMemo(() => {
-    if (!selectedLecturer || !selectedCourse || !profile?.currency) return 0;
-    const pricing = selectedLecturer.pricing?.[selectedCourse.id]?.[profile.currency];
+    const userCurrency = profile?.currency || 'LKR';
+    if (!selectedLecturer || !selectedCourse || !userCurrency) return 0;
+    
+    const pricing = selectedLecturer.pricing?.[selectedCourse.id]?.[userCurrency];
     if (!pricing) return 0;
 
     const basePrice = classType === 'online' ? pricing.priceOnline : pricing.pricePhysical;
@@ -272,6 +274,14 @@ export default function BookingPage() {
       setLoading(false);
     }
   };
+
+  if (isProfileLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto py-8">
@@ -546,3 +556,5 @@ export default function BookingPage() {
     </div>
   );
 }
+
+    
