@@ -36,9 +36,13 @@ const AdminSettingsPage = () => {
 
   const settingsRef = firestore ? doc(firestore, 'settings', 'admin') : null;
   const { data: settings } = useDoc<AdminSettings>(settingsRef);
+  
+  // This ref ensures we only load from the database once.
   const isInitialized = useRef(false);
 
   useEffect(() => {
+    // Only populate state from the DB if settings have loaded and we haven't initialized yet.
+    // This prevents overwriting user's unsaved changes on subsequent re-renders.
     if (settings && !isInitialized.current) {
       setBankDetails(settings.bankDetails || '');
       setWhatsappNumber(settings.whatsappNumber || '');
@@ -52,6 +56,7 @@ const AdminSettingsPage = () => {
       const finalCurrencyList = hasLKR ? existingCurrencies : [{ country: 'Sri Lanka', code: 'LKR', symbol: 'LKR' }, ...existingCurrencies];
       
       setCurrencies(finalCurrencyList);
+      // Mark as initialized so this effect doesn't run again and overwrite state.
       isInitialized.current = true;
     }
   }, [settings]);
@@ -292,3 +297,5 @@ const AdminSettingsPage = () => {
 };
 
 export default AdminSettingsPage;
+
+    
