@@ -211,6 +211,7 @@ export default function AdminBookingsPage() {
             duration: booking.duration,
             classType: booking.classType,
             price: booking.price,
+            currency: booking.currency,
             bookingStatus: booking.bookingStatus,
             paymentStatus: booking.paymentStatus,
             createdAt: booking.createdAt?.toDate ? format(booking.createdAt.toDate(), 'yyyy-MM-dd HH:mm') : 'N/A',
@@ -246,7 +247,7 @@ export default function AdminBookingsPage() {
 
       // 3. If rejected or cancelled, un-block the time slots
       if (status === 'rejected' || status === 'cancelled') {
-        const scheduleId = `${booking.courseId}_${booking.lecturerId}_${booking.date}`;
+        const scheduleId = `${booking.lecturerId}_${booking.date}`;
         const scheduleRef = doc(firestore, 'schedules', scheduleId);
         
         const scheduleSnap = await getDoc(scheduleRef);
@@ -281,6 +282,7 @@ export default function AdminBookingsPage() {
                          time: booking.time,
                          price: booking.price,
                          duration: booking.duration,
+                         currency: booking.currency,
                          paymentMethod: 'Bank Transfer',
                      })
                  });
@@ -342,6 +344,7 @@ export default function AdminBookingsPage() {
                 time: booking.time,
                 price: booking.price,
                 duration: booking.duration,
+                currency: booking.currency,
                 paymentMethod: 'Bank Transfer',
             })
         });
@@ -514,7 +517,7 @@ export default function AdminBookingsPage() {
                                         </div>
                                         <div className="flex justify-between items-center text-xl font-bold pt-2">
                                             <span>Amount:</span>
-                                            <span className="text-primary">LKR {selectedBooking.price}</span>
+                                            <span className="text-primary">{selectedBooking.currency} {selectedBooking.price}</span>
                                         </div>
                                         </CardContent>
                                     </Card>

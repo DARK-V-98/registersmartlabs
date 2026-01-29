@@ -55,13 +55,12 @@ export default function ManualBookingPage() {
 
   const { data: schedules } = useCollection<Schedule>(
     useMemoFirebase(() => {
-        if (!firestore || !selectedCourse || !selectedLecturer) return null;
+        if (!firestore || !selectedLecturer) return null;
         return query(
           collection(firestore, 'schedules'),
-          where('courseId', '==', selectedCourse.id),
           where('lecturerId', '==', selectedLecturer.id)
         );
-      }, [firestore, selectedCourse, selectedLecturer])
+      }, [firestore, selectedLecturer])
   );
   
   const availableLecturers = useMemo(() => {
@@ -70,7 +69,6 @@ export default function ManualBookingPage() {
   }, [selectedCourse, allLecturers]);
   
   const getValidSlotsForDate = (date: Date) => {
-    // ... same logic as student booking page ...
     if (!schedules || !date) return { oneHour: [], twoHour: [] };
     const dateStr = format(date, 'yyyy-MM-dd');
     const scheduleForDate = schedules.find(s => s.date === dateStr);
@@ -104,12 +102,17 @@ export default function ManualBookingPage() {
   }, [selectedDate, schedules, duration]);
 
   useMemo(() => {
-      if (!selectedCourse) return;
-      const basePrice = classType === 'online' ? selectedCourse.priceOnline : selectedCourse.pricePhysical;
-      const addHourPrice = classType === 'online' ? selectedCourse.priceOnlineAddHour : selectedCourse.pricePhysicalAddHour;
-      const finalPrice = duration === 2 ? basePrice + addHourPrice : basePrice;
+      if (!selectedCourse || !selectedLecturer || !selectedUser?.currency) return;
+      const pricing = selectedLecturer.pricing?.[selectedCourse.id]?.[selectedUser.currency];
+      if (!pricing) {
+        setPrice('0');
+        return;
+      }
+      const basePrice = classType === 'online' ? pricing.priceOnline : pricing.pricePhysical;
+      const addHourPrice = classType === 'online' ? pricing.priceOnlineAddHour : pricing.pricePhysicalAddHour;
+      const finalPrice = duration === 2 && addHourPrice ? (basePrice || 0) + (addHourPrice || 0) : (basePrice || 0);
       setPrice(finalPrice.toString());
-  }, [selectedCourse, classType, duration]);
+  }, [selectedUser, selectedCourse, selectedLecturer, classType, duration]);
 
   const handleSubmit = async () => {
     if (!selectedUser || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !price || !adminProfile) {
@@ -130,7 +133,7 @@ export default function ManualBookingPage() {
         }
       }
       
-      const scheduleId = `${selectedCourse.id}_${selectedLecturer.id}_${format(selectedDate, 'yyyy-MM-dd')}`;
+      const scheduleId = `${selectedLecturer.id}_${format(selectedDate, 'yyyy-MM-dd')}`;
       const scheduleRef = doc(firestore, 'schedules', scheduleId);
       await updateDoc(scheduleRef, { bookedSlots: arrayUnion(...slotsToBook) });
 
@@ -150,7 +153,8 @@ export default function ManualBookingPage() {
         paymentStatus: 'paid', // Manually booked assumes paid
         bookingStatus: 'confirmed', // Manually booked is auto-confirmed
         createdAt: Timestamp.now(),
-        price: parseFloat(price)
+        price: parseFloat(price),
+        currency: selectedUser.currency || 'LKR'
       };
 
       const docRef = await addDocumentNonBlocking(collection(firestore, 'bookings'), bookingData);
@@ -305,7 +309,7 @@ export default function ManualBookingPage() {
                         <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} className="rounded-md border w-full justify-center" />
                     </div>
                      <div className="space-y-2">
-                        <Label>Price Override (LKR)</Label>
+                        <Label>Price Override ({selectedUser?.currency || 'LKR'})</Label>
                         <Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Auto-calculated price" />
                      </div>
                 </div>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -72,7 +73,7 @@ export default function AdminPaymentsPage() {
       } else if (action === 'reject') {
         updateData = { ...updateData, paymentStatus: 'failed', bookingStatus: 'rejected' };
          // Un-block time slots
-        const scheduleId = `${booking.courseId}_${booking.lecturerId}_${booking.date}`;
+        const scheduleId = `${booking.lecturerId}_${booking.date}`;
         const scheduleRef = doc(firestore, 'schedules', scheduleId);
         const scheduleSnap = await getDoc(scheduleRef);
         if (scheduleSnap.exists()) {
@@ -135,7 +136,7 @@ export default function AdminPaymentsPage() {
                       {booking.courseName}
                       <div className="text-xs text-muted-foreground">{booking.classType}</div>
                     </TableCell>
-                    <TableCell>Rs. {booking.price}</TableCell>
+                    <TableCell>{booking.currency} {booking.price}</TableCell>
                     <TableCell>
                       <Dialog>
                         <DialogTrigger asChild>
@@ -176,7 +177,7 @@ export default function AdminPaymentsPage() {
                                   </div>
                                   <div className="flex justify-between items-center text-xl font-bold pt-2">
                                     <span>Amount:</span>
-                                    <span className="text-primary">LKR {booking.price}</span>
+                                    <span className="text-primary">{booking.currency} {booking.price}</span>
                                   </div>
                                 </CardContent>
                               </Card>

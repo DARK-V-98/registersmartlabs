@@ -70,7 +70,7 @@ const AdminDashboardPage = () => {
     });
 
     if (newStatus === 'rejected') {
-        const scheduleId = `${booking.courseId}_${booking.lecturerId}_${booking.date}`;
+        const scheduleId = `${booking.lecturerId}_${booking.date}`;
         const scheduleRef = doc(firestore, 'schedules', scheduleId);
         
         try {
@@ -104,18 +104,20 @@ const AdminDashboardPage = () => {
   const stats = useMemo(() => {
     if (!bookings || !users) return { totalRevenue: 0, pendingCount: 0, totalUsers: 0, confirmedCount: 0 };
     
-    const confirmedBookings = bookings.filter(b => b.bookingStatus === 'confirmed');
+    // Note: This revenue calculation is a simplification.
+    // A robust solution would handle multiple currencies, possibly converting to a base currency.
+    const confirmedLKRBookings = bookings.filter(b => b.bookingStatus === 'confirmed' && b.currency === 'LKR');
 
     return {
-      totalRevenue: confirmedBookings.reduce((acc, b) => acc + (b.price || 0), 0),
+      totalRevenue: confirmedLKRBookings.reduce((acc, b) => acc + (b.price || 0), 0),
       pendingCount: bookings.filter(b => b.bookingStatus === 'payment_pending').length,
       totalUsers: users.length,
-      confirmedCount: confirmedBookings.length,
+      confirmedCount: bookings.filter(b => b.bookingStatus === 'confirmed').length,
     };
   }, [bookings, users]);
 
   const statCards = [
-    { title: 'Total Revenue', value: `LKR ${stats.totalRevenue.toLocaleString()}`, icon: IndianRupee },
+    { title: 'Total Revenue (LKR)', value: `LKR ${stats.totalRevenue.toLocaleString()}`, icon: IndianRupee },
     { title: 'Pending Bookings', value: stats.pendingCount, icon: Hourglass },
     { title: 'Total Users', value: stats.totalUsers, icon: Users },
     { title: 'Confirmed Classes', value: stats.confirmedCount, icon: BookCheck },
@@ -182,7 +184,7 @@ const AdminDashboardPage = () => {
                              <Badge variant={booking.bookingStatus === 'payment_pending' ? 'secondary' : 'outline'}>
                                 {getStatusLabel(booking.bookingStatus)}
                             </Badge>
-                             <p className="font-bold text-sm">LKR {booking.price?.toLocaleString()}</p>
+                             <p className="font-bold text-sm">{booking.currency} {booking.price?.toLocaleString()}</p>
                         </div>
                         <div className="flex gap-2 justify-start md:justify-end">
                              {booking.bookingStatus === 'payment_pending' && (
