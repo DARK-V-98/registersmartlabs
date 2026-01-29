@@ -1,6 +1,5 @@
-
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, ShieldAlert } from 'lucide-react';
 import { useFirestore, setDocumentNonBlocking, useDoc } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -36,9 +35,10 @@ const AdminSettingsPage = () => {
 
   const settingsRef = firestore ? doc(firestore, 'settings', 'admin') : null;
   const { data: settings } = useDoc<AdminSettings>(settingsRef);
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    if (settings) {
+    if (settings && !isInitialized.current) {
       setBankDetails(settings.bankDetails || '');
       setWhatsappNumber(settings.whatsappNumber || '');
       setWhatsappContactUrl(settings.whatsappContactUrl || '');
@@ -52,8 +52,8 @@ const AdminSettingsPage = () => {
       } else {
         setCurrencies(existingCurrencies);
       }
-    } else {
-        // If no settings exist, initialize with default LKR
+      isInitialized.current = true;
+    } else if (!settings && !isInitialized.current) {
         setCurrencies([{ country: 'Sri Lanka', code: 'LKR', symbol: 'LKR' }]);
     }
   }, [settings]);
@@ -294,3 +294,5 @@ const AdminSettingsPage = () => {
 };
 
 export default AdminSettingsPage;
+
+    
