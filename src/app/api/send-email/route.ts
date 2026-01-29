@@ -6,7 +6,6 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import jsPDF from 'jspdf';
-import { logoBase64 } from '@/lib/logo-base64';
 
 
 const getInvoiceHtml = (bookingData: any) => {
@@ -34,7 +33,7 @@ const getInvoiceHtml = (bookingData: any) => {
                     <table style="width: 100%; line-height: inherit; text-align: left;">
                         <tr>
                             <td class="title" style="padding-bottom: 20px; font-size: 45px; line-height: 45px; color: #333;">
-                                <img src="${logoBase64}" style="width:100%; max-width:100px;">
+                                SmartLabs
                             </td>
                             <td style="padding-bottom: 20px; text-align: right;">
                                 <strong style="font-size: 20px;">Invoice #${bookingId}</strong><br>
@@ -161,8 +160,6 @@ export async function POST(req: Request) {
 
         const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
         const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
-
-        doc.addImage(logoBase64, 'PNG', 14, 15, 25, 25);
 
         doc.setFontSize(26);
         doc.setFont('helvetica', 'bold');
