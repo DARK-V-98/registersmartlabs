@@ -21,6 +21,7 @@ import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { collection, query, where } from 'firebase/firestore';
 import { Booking } from '@/types';
+import { format } from 'date-fns';
 
 const sidebarItems = [
   {
@@ -37,7 +38,6 @@ const sidebarItems = [
     title: 'My Bookings',
     href: '/dashboard/bookings',
     icon: CalendarCheck,
-    notificationKey: 'pending_payment',
   },
   {
     title: 'Profile',
@@ -50,19 +50,34 @@ const useBookingNotifications = () => {
     const { user } = useUser();
     const firestore = useFirestore();
 
-    const pendingBookingsQuery = useMemoFirebase(() => {
+    const actionsRequiredQuery = useMemoFirebase(() => {
         if (!user || !firestore) return null;
         return query(
             collection(firestore, 'bookings'),
             where('userId', '==', user.uid),
-            where('bookingStatus', '==', 'payment_pending')
+            where('bookingStatus', 'in', ['payment_pending', 're_upload_receipt'])
         );
     }, [user, firestore]);
 
-    const { data: pendingBookings } = useCollection<Booking>(pendingBookingsQuery);
+    const { data: actionRequiredBookings } = useCollection<Booking>(actionsRequiredQuery);
+    
+    const upcomingBookingsQuery = useMemoFirebase(() => {
+        if (!user || !firestore) return null;
+        const today = format(new Date(), 'yyyy-MM-dd');
+        return query(
+            collection(firestore, 'bookings'),
+            where('userId', '==', user.uid),
+            where('bookingStatus', '==', 'confirmed'),
+            where('date', '>=', today)
+        );
+    }, [user, firestore]);
+
+    const { data: upcomingBookings } = useCollection<Booking>(upcomingBookingsQuery);
+
+    const notificationCount = (actionRequiredBookings?.length || 0) + (upcomingBookings?.length || 0);
 
     return {
-        pendingPaymentCount: pendingBookings?.length || 0,
+        notificationCount,
     };
 };
 
@@ -71,7 +86,7 @@ export function DashboardSidebar() {
   const auth = useAuth();
   const router = useRouter();
   const { profile } = useUserProfile();
-  const { pendingPaymentCount } = useBookingNotifications();
+  const { notificationCount } = useBookingNotifications();
 
   const handleLogout = async () => {
     if (auth) {
@@ -102,9 +117,9 @@ export function DashboardSidebar() {
                 >
                   <Icon className="mr-2 h-4 w-4" />
                   <span>{item.title}</span>
-                   {item.notificationKey === 'pending_payment' && pendingPaymentCount > 0 && (
+                   {item.href === '/dashboard/bookings' && notificationCount > 0 && (
                       <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full">
-                        {pendingPaymentCount}
+                        {notificationCount}
                       </Badge>
                     )}
                 </span>

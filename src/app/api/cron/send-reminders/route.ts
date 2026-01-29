@@ -5,6 +5,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { addDays, format } from 'date-fns';
+import { Booking } from '@/types';
 
 export const dynamic = 'force-dynamic'; // Prevent caching
 
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
     );
 
     const snapshot = await getDocs(q);
-    const bookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const bookings = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Booking));
     
     const results = [];
     
@@ -44,9 +45,12 @@ export async function GET(req: Request) {
     });
 
     for (const booking of bookings) {
-        if ((booking as any).reminderSent) continue;
+        if (booking.reminderSent) {
+          results.push({ id: booking.id, status: 'skipped_already_sent' });
+          continue;
+        }
         
-        if (!(booking as any).userEmail) {
+        if (!booking.userEmail) {
             results.push({ id: booking.id, status: 'skipped_no_email' });
             continue;
         }
@@ -54,30 +58,34 @@ export async function GET(req: Request) {
         // Send Email
          const mailOptions = {
             from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-            to: (booking as any).userEmail,
-            subject: `Reminder: Class Tomorrow - ${(booking as any).courseName}`,
+            to: booking.userEmail,
+            subject: `Reminder: Your class for ${booking.courseName} is tomorrow!`,
             html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #f57c00;">Upcoming Class Reminder</h2>
-                <div style="background-color: #fff8e1; padding: 20px; border-radius: 8px; border: 1px solid #ffe0b2;">
-                  <p>Hello <strong>${(booking as any).userName}</strong>,</p>
-                  <p>This is a reminder that you have a class scheduled for tomorrow.</p>
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #007bff; color: white; padding: 20px;">
+                  <h2 style="margin: 0;">Upcoming Class Reminder</h2>
+                </div>
+                <div style="padding: 20px 30px;">
+                  <p>Hello <strong>${booking.userName}</strong>,</p>
+                  <p>This is a friendly reminder that you have a class scheduled for tomorrow.</p>
                   
-                  <hr style="border: 1px solid #eee;" />
+                  <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin: 20px 0;">
+                    <h3 style="color: #333; margin-top: 0;">Class Details</h3>
+                    <p><strong>Course:</strong> ${booking.courseName}</p>
+                    <p><strong>Lecturer:</strong> ${booking.lecturerName}</p>
+                    <p><strong>Date:</strong> ${booking.date}</p>
+                    <p><strong>Time:</strong> ${booking.time} <strong style="color: #d9534f;">(Sri Lanka Time, LKT)</strong></p>
+                  </div>
                   
-                  <h3 style="color: #555;">Class Details</h3>
-                  <p><strong>Course:</strong> ${(booking as any).courseName}</p>
-                  <p><strong>Lecturer:</strong> ${(booking as any).lecturerName}</p>
-                  <p><strong>Date:</strong> ${(booking as any).date}</p>
-                  <p><strong>Time:</strong> ${(booking as any).time} (Asia/Colombo Time)</p>
+                  <p>Please be ready a few minutes before your session begins. If you have any questions, you can reply to this email or contact us through your dashboard.</p>
                   
-                  <div style="margin-top: 20px;">
-                    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard" style="background-color: #ff9800; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Dashboard</a>
+                  <div style="margin-top: 30px; text-align: center;">
+                    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/bookings/${booking.id}" style="background-color: #28a745; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">View Booking Details</a>
                   </div>
                 </div>
-                <p style="color: #888; font-size: 12px; margin-top: 20px;">
-                  See you in class!
-                </p>
+                <div style="background-color: #f1f1f1; text-align: center; padding: 15px; font-size: 12px; color: #666;">
+                  <p>Thank you for choosing SmartLabs!</p>
+                </div>
               </div>
             `,
         };
@@ -105,7 +113,7 @@ export async function GET(req: Request) {
     });
 
   } catch (error: any) {
-    console.error('Cron Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Cron Job Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

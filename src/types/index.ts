@@ -67,6 +67,7 @@ export interface Booking {
   updatedAt?: any; // Firestore Timestamp
   completedAt?: any; // Firestore Timestamp
   isReviewed?: boolean;
+  reminderSent?: boolean;
 }
 
 export interface Message {
