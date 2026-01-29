@@ -33,6 +33,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { logActivity } from '@/lib/logger';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function LecturersPage() {
   const firestore = useFirestore();
@@ -65,7 +66,6 @@ export default function LecturersPage() {
   const currenciesToDisplay = useMemo((): CurrencySetting[] => {
     const defaultCurrency = { code: 'LKR', country: 'Sri Lanka', symbol: 'LKR' };
     if (settings?.currencies && settings.currencies.length > 0) {
-      // Ensure LKR is always first if it exists
       const lkr = settings.currencies.find(c => c.code === 'LKR');
       const others = settings.currencies.filter(c => c.code !== 'LKR');
       return lkr ? [lkr, ...others] : [defaultCurrency, ...others];
@@ -223,7 +223,7 @@ export default function LecturersPage() {
               
               <div className="space-y-2 border-t pt-4">
                 <Label>Assigned Courses & Pricing</Label>
-                <div className="border p-4 rounded-md max-h-60 overflow-y-auto">
+                <div className="border p-4 rounded-md">
                   <Accordion type="multiple" className="w-full">
                     {courses?.map(course => (
                       <AccordionItem value={course.id} key={course.id}>
@@ -241,31 +241,38 @@ export default function LecturersPage() {
                         </div>
                         <AccordionContent>
                           {selectedCourses.includes(course.id) ? (
-                            <div className="pl-8 pt-4 space-y-4">
+                            <Tabs defaultValue={currenciesToDisplay[0].code} className="w-full mt-4 pl-8">
+                              <TabsList>
+                                {currenciesToDisplay.map(currency => (
+                                  <TabsTrigger key={currency.code} value={currency.code}>{currency.code}</TabsTrigger>
+                                ))}
+                              </TabsList>
                               {currenciesToDisplay.map(currency => (
-                                <div key={currency.code} className="p-4 border rounded-lg bg-secondary/50">
-                                  <h4 className="font-medium mb-2">{currency.country} ({currency.code})</h4>
-                                  <div className="grid grid-cols-2 gap-4">
+                                <TabsContent key={currency.code} value={currency.code}>
+                                  <div className="p-4 border rounded-lg bg-secondary/50 mt-2">
+                                    <h4 className="font-medium mb-2">{currency.country} Pricing</h4>
+                                    <div className="grid grid-cols-2 gap-4">
                                       <div className="space-y-2">
                                         <Label htmlFor={`priceOnline-${course.id}-${currency.code}`}>Online (1h)</Label>
-                                        <Input id={`priceOnline-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.priceOnline || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'priceOnline', e.target.value)} required />
+                                        <Input id={`priceOnline-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.priceOnline || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'priceOnline', e.target.value)} placeholder="0.00" required />
                                       </div>
                                       <div className="space-y-2">
                                         <Label htmlFor={`pricePhysical-${course.id}-${currency.code}`}>Physical (1h)</Label>
-                                        <Input id={`pricePhysical-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.pricePhysical || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'pricePhysical', e.target.value)} required />
+                                        <Input id={`pricePhysical-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.pricePhysical || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'pricePhysical', e.target.value)} placeholder="0.00" required />
                                       </div>
                                       <div className="space-y-2">
                                         <Label htmlFor={`priceOnlineAddHour-${course.id}-${currency.code}`}>Add. Hour Online</Label>
-                                        <Input id={`priceOnlineAddHour-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.priceOnlineAddHour || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'priceOnlineAddHour', e.target.value)} required />
+                                        <Input id={`priceOnlineAddHour-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.priceOnlineAddHour || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'priceOnlineAddHour', e.target.value)} placeholder="0.00" required />
                                       </div>
                                       <div className="space-y-2">
                                         <Label htmlFor={`pricePhysicalAddHour-${course.id}-${currency.code}`}>Add. Hour Physical</Label>
-                                        <Input id={`pricePhysicalAddHour-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.pricePhysicalAddHour || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'pricePhysicalAddHour', e.target.value)} required />
+                                        <Input id={`pricePhysicalAddHour-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.pricePhysicalAddHour || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'pricePhysicalAddHour', e.target.value)} placeholder="0.00" required />
                                       </div>
+                                    </div>
                                   </div>
-                                </div>
+                                </TabsContent>
                               ))}
-                            </div>
+                            </Tabs>
                           ) : (
                              <p className="pl-8 pt-4 text-sm text-muted-foreground">Select this course to set its price for this lecturer.</p>
                           )}

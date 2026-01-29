@@ -49,12 +49,9 @@ const AdminSettingsPage = () => {
       
       const existingCurrencies = settings.currencies || [];
       const hasLKR = existingCurrencies.some(c => c.code === 'LKR');
+      const finalCurrencyList = hasLKR ? existingCurrencies : [{ country: 'Sri Lanka', code: 'LKR', symbol: 'LKR' }, ...existingCurrencies];
       
-      if (!hasLKR) {
-        setCurrencies([{ country: 'Sri Lanka', code: 'LKR', symbol: 'LKR' }, ...existingCurrencies]);
-      } else {
-        setCurrencies(existingCurrencies);
-      }
+      setCurrencies(finalCurrencyList);
       isInitialized.current = true;
     }
   }, [settings]);
