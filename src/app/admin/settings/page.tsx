@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, ShieldAlert } from 'lucide-react';
-import { useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useFirestore, setDocumentNonBlocking, useDoc } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { doc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { AdminSettings } from '@/types';
+import { AdminSettings, CurrencySetting } from '@/types';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DangerZone } from '@/components/admin/DangerZone';
@@ -30,25 +30,24 @@ const AdminSettingsPage = () => {
   const [notificationEmails, setNotificationEmails] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState('');
   const [physicalClassesEnabled, setPhysicalClassesEnabled] = useState(true);
+  
+  const [currencies, setCurrencies] = useState<CurrencySetting[]>([]);
+  const [newCurrency, setNewCurrency] = useState({ country: '', code: '', symbol: '' });
+
+  const settingsRef = firestore ? doc(firestore, 'settings', 'admin') : null;
+  const { data: settings } = useDoc<AdminSettings>(settingsRef);
 
   useEffect(() => {
-    if (firestore) {
-      const settingsRef = doc(firestore, 'settings', 'admin');
-      const getSettings = async () => {
-        const docSnap = await getDoc(settingsRef);
-        if (docSnap.exists()) {
-          const settings = docSnap.data() as AdminSettings;
-          setBankDetails(settings.bankDetails || '');
-          setWhatsappNumber(settings.whatsappNumber || '');
-          setWhatsappContactUrl(settings.whatsappContactUrl || '');
-          setDisabledDates((settings.disabledDates || []).map(dateStr => new Date(dateStr)));
-          setNotificationEmails(settings.notificationEmails || []);
-          setPhysicalClassesEnabled(settings.physicalClassesEnabled ?? true);
-        }
-      };
-      getSettings();
+    if (settings) {
+      setBankDetails(settings.bankDetails || '');
+      setWhatsappNumber(settings.whatsappNumber || '');
+      setWhatsappContactUrl(settings.whatsappContactUrl || '');
+      setDisabledDates((settings.disabledDates || []).map(dateStr => new Date(dateStr)));
+      setNotificationEmails(settings.notificationEmails || []);
+      setPhysicalClassesEnabled(settings.physicalClassesEnabled ?? true);
+      setCurrencies(settings.currencies || []);
     }
-  }, [firestore]);
+  }, [settings]);
 
   const handleAddEmail = () => {
     if (!newEmail || !newEmail.includes('@')) {
@@ -66,6 +65,23 @@ const AdminSettingsPage = () => {
   const handleRemoveEmail = (email: string) => {
     setNotificationEmails(notificationEmails.filter(e => e !== email));
   };
+  
+  const handleAddCurrency = () => {
+    if (!newCurrency.country || !newCurrency.code || !newCurrency.symbol) {
+      toast({ title: "Invalid Currency", description: "Please fill all currency fields.", variant: "destructive" });
+      return;
+    }
+    if (currencies.some(c => c.code === newCurrency.code.toUpperCase())) {
+      toast({ title: "Duplicate Currency", description: `Currency code ${newCurrency.code.toUpperCase()} already exists.`, variant: "destructive" });
+      return;
+    }
+    setCurrencies([...currencies, { ...newCurrency, code: newCurrency.code.toUpperCase() }]);
+    setNewCurrency({ country: '', code: '', symbol: '' });
+  };
+
+  const handleRemoveCurrency = (code: string) => {
+    setCurrencies(currencies.filter(c => c.code !== code));
+  };
 
   const handleSave = () => {
     if (!firestore || !profile) return;
@@ -77,6 +93,7 @@ const AdminSettingsPage = () => {
       disabledDates: disabledDates.map(date => format(date, 'yyyy-MM-dd')),
       notificationEmails,
       physicalClassesEnabled,
+      currencies,
     };
 
     setDocumentNonBlocking(doc(firestore, 'settings', 'admin'), newSettings, { merge: true });
@@ -113,6 +130,7 @@ const AdminSettingsPage = () => {
       <Tabs defaultValue="general">
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="currencies">Currencies</TabsTrigger>
           {profile?.role === 'developer' && (
             <TabsTrigger value="danger" className="text-destructive">
               <ShieldAlert className="mr-2 h-4 w-4" />
@@ -211,6 +229,43 @@ const AdminSettingsPage = () => {
             </div>
 
             <div className="flex justify-end">
+                <Button onClick={handleSave}>Save Changes</Button>
+            </div>
+        </TabsContent>
+
+        <TabsContent value="currencies" className="pt-6 space-y-8">
+            <div className="bg-white p-6 rounded-2xl border border-border space-y-6">
+                <h3 className="font-semibold text-lg">Currency Management</h3>
+                <p className="text-sm text-muted-foreground">Add and manage the currencies available for course pricing. LKR is the default and cannot be removed.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 border-t pt-4">
+                    <Input placeholder="Country (e.g. Singapore)" value={newCurrency.country} onChange={(e) => setNewCurrency({...newCurrency, country: e.target.value})} />
+                    <Input placeholder="Code (e.g. SGD)" value={newCurrency.code} onChange={(e) => setNewCurrency({...newCurrency, code: e.target.value})} />
+                    <Input placeholder="Symbol (e.g. $)" value={newCurrency.symbol} onChange={(e) => setNewCurrency({...newCurrency, symbol: e.target.value})} />
+                    <Button onClick={handleAddCurrency}><Plus className="h-4 w-4 mr-2" />Add Currency</Button>
+                </div>
+
+                <div className="space-y-2">
+                    {currencies.map(currency => (
+                        <div key={currency.code} className="grid grid-cols-4 items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border">
+                            <span className="text-sm font-medium col-span-1">{currency.country}</span>
+                            <span className="text-sm col-span-1">{currency.code}</span>
+                            <span className="text-sm col-span-1">{currency.symbol}</span>
+                            <div className="col-span-1 text-right">
+                                { currency.code !== 'LKR' && 
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleRemoveCurrency(currency.code)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                }
+                            </div>
+                        </div>
+                    ))}
+                    {currencies.length === 0 && (
+                        <p className="text-sm text-muted-foreground italic text-center py-4">No currencies added. Only LKR will be available.</p>
+                    )}
+                </div>
+            </div>
+             <div className="flex justify-end">
                 <Button onClick={handleSave}>Save Changes</Button>
             </div>
         </TabsContent>

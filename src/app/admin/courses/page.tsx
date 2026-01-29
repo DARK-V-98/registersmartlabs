@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useFirestore, useCollection, addDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase } from '@/firebase';
+import { useState, useEffect } from 'react';
+import { useFirestore, useCollection, addDocumentNonBlocking, updateDocumentNonBlocking, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
-import { Course } from '@/types';
+import { Course, AdminSettings, CoursePrice } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Pencil } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -41,10 +41,7 @@ export default function CoursesPage() {
 
   // Form State
   const [name, setName] = useState('');
-  const [priceOnline, setPriceOnline] = useState('');
-  const [pricePhysical, setPricePhysical] = useState('');
-  const [priceOnlineAddHour, setPriceOnlineAddHour] = useState('');
-  const [pricePhysicalAddHour, setPricePhysicalAddHour] = useState('');
+  const [prices, setPrices] = useState<{ [key: string]: Partial<CoursePrice> }>({});
   const [isActive, setIsActive] = useState(true);
 
   const coursesQuery = useMemoFirebase(() => {
@@ -54,9 +51,37 @@ export default function CoursesPage() {
 
   const { data: courses, isLoading: isCoursesLoading } = useCollection<Course>(coursesQuery);
 
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'admin') : null, [firestore]);
+  const { data: settings } = useDoc<AdminSettings>(settingsRef);
+  
+  useEffect(() => {
+    // Initialize prices state with all available currencies
+    if (settings?.currencies) {
+        const initialPrices: { [key: string]: Partial<CoursePrice> } = {};
+        settings.currencies.forEach(c => {
+            initialPrices[c.code] = { priceOnline: 0, pricePhysical: 0, priceOnlineAddHour: 0, pricePhysicalAddHour: 0 };
+        });
+        if (!editingCourse) {
+           setPrices(initialPrices);
+        }
+    }
+  }, [settings, isDialogOpen, editingCourse]);
+
+
+  const handlePriceChange = (currencyCode: string, field: keyof CoursePrice, value: string) => {
+    const numericValue = parseFloat(value) || 0;
+    setPrices(prev => ({
+      ...prev,
+      [currencyCode]: {
+        ...prev[currencyCode],
+        [field]: numericValue,
+      },
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !priceOnline || !pricePhysical || !priceOnlineAddHour || !pricePhysicalAddHour || !adminProfile) {
+    if (!name || !adminProfile || !firestore) {
         toast({ title: "Please fill all fields", variant: "destructive" });
         return;
     }
@@ -65,10 +90,7 @@ export default function CoursesPage() {
     try {
       const courseData = {
         name,
-        priceOnline: parseFloat(priceOnline),
-        pricePhysical: parseFloat(pricePhysical),
-        priceOnlineAddHour: parseFloat(priceOnlineAddHour),
-        pricePhysicalAddHour: parseFloat(pricePhysicalAddHour),
+        prices,
         status: isActive ? 'active' : 'inactive',
       };
 
@@ -102,6 +124,7 @@ export default function CoursesPage() {
       setIsDialogOpen(false);
       resetForm();
     } catch (error) {
+      console.error(error);
       toast({ title: 'Error saving course', variant: 'destructive' });
     } finally {
       setIsLoading(false);
@@ -111,10 +134,7 @@ export default function CoursesPage() {
   const handleEdit = (course: Course) => {
     setEditingCourse(course);
     setName(course.name);
-    setPriceOnline(course.priceOnline?.toString() || '0');
-    setPricePhysical(course.pricePhysical?.toString() || '0');
-    setPriceOnlineAddHour(course.priceOnlineAddHour?.toString() || '0');
-    setPricePhysicalAddHour(course.pricePhysicalAddHour?.toString() || '0');
+    setPrices(course.prices || {});
     setIsActive(course.status === 'active');
     setIsDialogOpen(true);
   };
@@ -122,10 +142,7 @@ export default function CoursesPage() {
   const resetForm = () => {
     setEditingCourse(null);
     setName('');
-    setPriceOnline('');
-    setPricePhysical('');
-    setPriceOnlineAddHour('');
-    setPricePhysicalAddHour('');
+    setPrices({});
     setIsActive(true);
   };
 
@@ -140,43 +157,51 @@ export default function CoursesPage() {
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" /> Add Course</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>{editingCourse ? 'Edit Course' : 'Add New Course'}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Course Name</Label>
                 <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="priceOnline">Price Online (LKR) for 1h</Label>
-                  <Input id="priceOnline" type="number" value={priceOnline} onChange={(e) => setPriceOnline(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pricePhysical">Price Physical (LKR) for 1h</Label>
-                  <Input id="pricePhysical" type="number" value={pricePhysical} onChange={(e) => setPricePhysical(e.target.value)} required />
-                </div>
+              
+              <div className="space-y-4 pt-4 border-t">
+                <Label className="font-semibold">Pricing</Label>
+                {settings?.currencies?.map(currency => (
+                  <div key={currency.code} className="p-4 border rounded-lg">
+                    <h4 className="font-medium mb-2">{currency.country} ({currency.code})</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`priceOnline-${currency.code}`}>Online (1h)</Label>
+                        <Input id={`priceOnline-${currency.code}`} type="number" value={prices[currency.code]?.priceOnline || ''} onChange={(e) => handlePriceChange(currency.code, 'priceOnline', e.target.value)} required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`pricePhysical-${currency.code}`}>Physical (1h)</Label>
+                        <Input id={`pricePhysical-${currency.code}`} type="number" value={prices[currency.code]?.pricePhysical || ''} onChange={(e) => handlePriceChange(currency.code, 'pricePhysical', e.target.value)} required />
+                      </div>
+                       <div className="space-y-2">
+                        <Label htmlFor={`priceOnlineAddHour-${currency.code}`}>Add. Hour Online</Label>
+                        <Input id={`priceOnlineAddHour-${currency.code}`} type="number" value={prices[currency.code]?.priceOnlineAddHour || ''} onChange={(e) => handlePriceChange(currency.code, 'priceOnlineAddHour', e.target.value)} required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`pricePhysicalAddHour-${currency.code}`}>Add. Hour Physical</Label>
+                        <Input id={`pricePhysicalAddHour-${currency.code}`} type="number" value={prices[currency.code]?.pricePhysicalAddHour || ''} onChange={(e) => handlePriceChange(currency.code, 'pricePhysicalAddHour', e.target.value)} required />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="priceOnlineAddHour">Add. Hour Online (LKR)</Label>
-                  <Input id="priceOnlineAddHour" type="number" value={priceOnlineAddHour} onChange={(e) => setPriceOnlineAddHour(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pricePhysicalAddHour">Add. Hour Physical (LKR)</Label>
-                  <Input id="pricePhysicalAddHour" type="number" value={pricePhysicalAddHour} onChange={(e) => setPricePhysicalAddHour(e.target.value)} required />
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 pt-2">
+
+              <div className="flex items-center space-x-2 pt-4 border-t">
                 <Switch id="active" checked={isActive} onCheckedChange={setIsActive} />
                 <Label htmlFor="active">Active</Label>
               </div>
-              <DialogFooter>
+              <DialogFooter className="mt-4 sticky bottom-0 bg-background py-4">
                 <Button type="submit" disabled={isLoading}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {editingCourse ? 'Update' : 'Create'}
+                  {editingCourse ? 'Update Course' : 'Create Course'}
                 </Button>
               </DialogFooter>
             </form>
@@ -196,8 +221,8 @@ export default function CoursesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Online (1h / +1h)</TableHead>
-                  <TableHead>Physical (1h / +1h)</TableHead>
+                  <TableHead>Online Price (LKR)</TableHead>
+                  <TableHead>Physical Price (LKR)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -207,12 +232,10 @@ export default function CoursesPage() {
                   <TableRow key={course.id}>
                     <TableCell className="font-medium">{course.name}</TableCell>
                     <TableCell>
-                        <div>LKR {course.priceOnline?.toLocaleString() || 0}</div>
-                        <div className="text-xs text-muted-foreground">+ LKR {course.priceOnlineAddHour?.toLocaleString() || 0}</div>
+                        LKR {course.prices?.LKR?.priceOnline?.toLocaleString() || 0}
                     </TableCell>
                     <TableCell>
-                        <div>LKR {course.pricePhysical?.toLocaleString() || 0}</div>
-                        <div className="text-xs text-muted-foreground">+ LKR {course.pricePhysicalAddHour?.toLocaleString() || 0}</div>
+                        LKR {course.prices?.LKR?.pricePhysical?.toLocaleString() || 0}
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs ${course.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>

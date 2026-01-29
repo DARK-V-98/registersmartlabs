@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -9,11 +10,13 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, ArrowRight, Eye, EyeOff, User, Phone } from "lucide-react";
-import { useAuth, useFirestore } from "@/firebase";
+import { Mail, Lock, ArrowRight, Eye, EyeOff, User, Phone, Globe } from "lucide-react";
+import { useAuth, useFirestore, useDoc } from "@/firebase";
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { AdminSettings } from "@/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -22,12 +25,16 @@ const Signup = () => {
     email: "",
     password: "",
     phoneNumber: "",
+    country: "Sri Lanka",
   });
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
+
+  const settingsRef = firestore ? doc(firestore, 'settings', 'admin') : null;
+  const { data: settings } = useDoc<AdminSettings>(settingsRef);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +58,10 @@ const Signup = () => {
 
       // Create user document
       if (firestore) {
+        const selectedCurrency = formData.country === 'Other' 
+            ? { code: 'USD', symbol: '$' }
+            : settings?.currencies?.find(c => c.country === formData.country) || { code: 'LKR', symbol: 'LKR' };
+
         await setDoc(doc(firestore, "users", user.uid), {
           uid: user.uid,
           name: formData.name,
@@ -59,6 +70,8 @@ const Signup = () => {
           role: "student", // Default role
           status: "active", // Default status
           createdAt: serverTimestamp(),
+          country: formData.country,
+          currency: selectedCurrency.code,
         });
       }
 
@@ -97,6 +110,8 @@ const Signup = () => {
             role: "student",
             status: "active",
             createdAt: serverTimestamp(),
+            currency: 'LKR', // Default for Google Sign-In, can be changed in profile
+            country: 'Sri Lanka'
           });
         }
       }
@@ -210,6 +225,27 @@ const Signup = () => {
                     Must be at least 6 characters
                   </p>
                 </div>
+                
+                 <div className="space-y-2">
+                  <Label htmlFor="country">Country</Label>
+                  <div className="relative">
+                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Select value={formData.country} onValueChange={(value) => setFormData({...formData, country: value})}>
+                      <SelectTrigger className="pl-12 py-6">
+                        <SelectValue placeholder="Select your country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {settings?.currencies?.map(c => (
+                          <SelectItem key={c.code} value={c.country}>
+                            {c.country} ({c.code})
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
 
                 <Button type="submit" size="lg" className="w-full btn-accent group" disabled={isLoading}>
                   {isLoading ? 'Creating Account...' : 'Create Account'}

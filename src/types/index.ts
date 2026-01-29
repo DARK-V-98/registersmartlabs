@@ -1,5 +1,11 @@
 
 
+export interface CurrencySetting {
+  country: string;
+  code: string; // e.g. USD
+  symbol: string; // e.g. $
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -10,15 +16,23 @@ export interface UserProfile {
   favoriteLecturers?: string[];
   phoneNumber?: string;
   timezone?: string;
+  country?: string;
+  currency?: string; // e.g. USD
+}
+
+export interface CoursePrice {
+  priceOnline: number;
+  pricePhysical: number;
+  priceOnlineAddHour: number;
+  pricePhysicalAddHour: number;
 }
 
 export interface Course {
   id: string;
   name:string;
-  priceOnline: number;
-  pricePhysical: number;
-  priceOnlineAddHour: number;
-  pricePhysicalAddHour: number;
+  prices: {
+    [currencyCode: string]: CoursePrice;
+  };
   status: 'active' | 'inactive';
 }
 
@@ -58,6 +72,7 @@ export interface Booking {
   time: string;
   duration: number; // 1 or 2 hours
   price?: number;
+  currency?: string;
   classType?: 'online' | 'physical';
   paymentStatus: 'pending' | 'paid' | 'rejected' | 'failed';
   bookingStatus: 'payment_pending' | 're_upload_receipt' | 'confirmed' | 'rejected' | 'cancelled' | 'cancellation_requested' | 'completed';
@@ -94,6 +109,7 @@ export interface AdminSettings {
   disabledDates?: string[];
   notificationEmails?: string[];
   physicalClassesEnabled?: boolean;
+  currencies?: CurrencySetting[];
 }
 
 export interface ActivityLog {
