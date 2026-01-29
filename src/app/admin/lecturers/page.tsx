@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useFirestore, useCollection, updateDocumentNonBlocking, useMemoFirebase, useStorage, setDocumentNonBlocking, useDoc } from '@/firebase';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -26,9 +26,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Lecturer, Course, CoursePrice, AdminSettings } from '@/types';
+import { Lecturer, Course, CoursePrice, AdminSettings, CurrencySetting } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Pencil, Percent, User as UserIcon, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Pencil, User as UserIcon } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { logActivity } from '@/lib/logger';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -46,7 +46,6 @@ export default function LecturersPage() {
   // Form State
   const [name, setName] = useState('');
   const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
-  const [payoutRate, setPayoutRate] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pricing, setPricing] = useState<{ [courseId: string]: { [currencyCode: string]: Partial<CoursePrice> } }>({});
@@ -62,6 +61,14 @@ export default function LecturersPage() {
   const { data: settings } = useDoc<AdminSettings>(
     useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'admin') : null, [firestore])
   );
+
+  const currenciesToDisplay = useMemo((): CurrencySetting[] => {
+    if (settings?.currencies && settings.currencies.length > 0) {
+      return settings.currencies;
+    }
+    // Fallback to LKR if no currencies are set in settings
+    return [{ code: 'LKR', country: 'Sri Lanka', symbol: 'LKR' }];
+  }, [settings]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -103,10 +110,9 @@ export default function LecturersPage() {
         imageUrl = await getDownloadURL(imageRef);
       }
 
-      const lecturerData = {
+      const lecturerData: Partial<Lecturer> = {
         name,
         courses: selectedCourses,
-        payoutRate: parseFloat(payoutRate) || 0,
         imageUrl: imageUrl,
         pricing: pricing,
       };
@@ -120,7 +126,7 @@ export default function LecturersPage() {
             action: 'lecturer.update',
             entityType: 'lecturer',
             entityId: editingLecturer.id,
-            details: { name: lecturerData.name, courses: lecturerData.courses.length, payoutRate: lecturerData.payoutRate },
+            details: { name: lecturerData.name, courses: lecturerData.courses?.length },
         });
         toast({ title: 'Lecturer updated successfully' });
       } else {
@@ -155,7 +161,6 @@ export default function LecturersPage() {
     setEditingLecturer(lecturer);
     setName(lecturer.name);
     setSelectedCourses(lecturer.courses || []);
-    setPayoutRate(lecturer.payoutRate?.toString() || '0');
     setPreviewUrl(lecturer.imageUrl || null);
     setPricing(lecturer.pricing || {});
     setIsDialogOpen(true);
@@ -165,7 +170,6 @@ export default function LecturersPage() {
     setEditingLecturer(null);
     setName('');
     setSelectedCourses([]);
-    setPayoutRate('');
     setImageFile(null);
     setPreviewUrl(null);
     setPricing({});
@@ -175,7 +179,6 @@ export default function LecturersPage() {
     const isSelected = selectedCourses.includes(courseId);
     if (isSelected) {
       setSelectedCourses(prev => prev.filter(id => id !== courseId));
-      // Optionally clear pricing for unselected course
       setPricing(prev => {
         const newPricing = { ...prev };
         delete newPricing[courseId];
@@ -210,18 +213,9 @@ export default function LecturersPage() {
                 <Input id="image" type="file" onChange={handleImageChange} accept="image/*" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2 col-span-2 sm:col-span-1">
-                    <Label htmlFor="name">Lecturer Name</Label>
-                    <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
-                </div>
-                <div className="space-y-2 col-span-2 sm:col-span-1">
-                    <Label htmlFor="payoutRate">Payout Rate</Label>
-                    <div className="relative">
-                        <Input id="payoutRate" type="number" value={payoutRate} onChange={(e) => setPayoutRate(e.target.value)} placeholder="e.g. 70" required />
-                        <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    </div>
-                </div>
+              <div className="space-y-2">
+                  <Label htmlFor="name">Lecturer Name</Label>
+                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
               
               <div className="space-y-2 border-t pt-4">
@@ -245,7 +239,7 @@ export default function LecturersPage() {
                         <AccordionContent>
                           {selectedCourses.includes(course.id) ? (
                             <div className="pl-8 pt-4 space-y-4">
-                              {settings?.currencies?.map(currency => (
+                              {currenciesToDisplay.map(currency => (
                                 <div key={currency.code} className="p-4 border rounded-lg bg-secondary/50">
                                   <h4 className="font-medium mb-2">{currency.country} ({currency.code})</h4>
                                   <div className="grid grid-cols-2 gap-4">
@@ -302,7 +296,6 @@ export default function LecturersPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Courses</TableHead>
-                  <TableHead>Payout Rate</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -328,9 +321,6 @@ export default function LecturersPage() {
                         })}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <span className="font-medium">{lecturer.payoutRate || 0}%</span>
-                    </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(lecturer)}>
                         <Pencil className="h-4 w-4" />
@@ -340,7 +330,7 @@ export default function LecturersPage() {
                 ))}
                 {lecturers?.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">No lecturers found.</TableCell>
+                    <TableCell colSpan={3} className="text-center text-muted-foreground">No lecturers found.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -351,5 +341,3 @@ export default function LecturersPage() {
     </div>
   );
 }
-
-    

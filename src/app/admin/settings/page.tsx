@@ -1,10 +1,10 @@
 
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, ShieldAlert } from 'lucide-react';
 import { useFirestore, setDocumentNonBlocking, useDoc } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,7 +45,16 @@ const AdminSettingsPage = () => {
       setDisabledDates((settings.disabledDates || []).map(dateStr => new Date(dateStr)));
       setNotificationEmails(settings.notificationEmails || []);
       setPhysicalClassesEnabled(settings.physicalClassesEnabled ?? true);
-      setCurrencies(settings.currencies || []);
+      
+      const existingCurrencies = settings.currencies || [];
+      if (!existingCurrencies.some(c => c.code === 'LKR')) {
+        setCurrencies([{ country: 'Sri Lanka', code: 'LKR', symbol: 'LKR' }, ...existingCurrencies]);
+      } else {
+        setCurrencies(existingCurrencies);
+      }
+    } else {
+        // If no settings exist, initialize with default LKR
+        setCurrencies([{ country: 'Sri Lanka', code: 'LKR', symbol: 'LKR' }]);
     }
   }, [settings]);
 
@@ -80,6 +89,10 @@ const AdminSettingsPage = () => {
   };
 
   const handleRemoveCurrency = (code: string) => {
+    if (code === 'LKR') {
+      toast({ title: "Action Not Allowed", description: "LKR is the default currency and cannot be removed.", variant: "destructive" });
+      return;
+    }
     setCurrencies(currencies.filter(c => c.code !== code));
   };
 
