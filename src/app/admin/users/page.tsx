@@ -1,6 +1,7 @@
 
 'use client';
 
+import * as React from 'react';
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
@@ -22,12 +23,27 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem
 } from "@/components/ui/dropdown-menu";
-import { Loader2, MoreHorizontal, FileDown } from 'lucide-react';
+import { Loader2, MoreHorizontal, FileDown, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { UserProfile } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { logActivity } from '@/lib/logger';
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  getPaginationRowModel,
+  getSortedRowModel,
+  SortingState,
+  getFilteredRowModel,
+  ColumnFiltersState,
+  VisibilityState,
+} from "@tanstack/react-table";
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const roleHierarchy: Record<UserProfile['role'], number> = {
     student: 0,
@@ -80,13 +96,17 @@ export default function AdminUsersPage() {
   const { toast } = useToast();
   const { profile: adminProfile } = useUserProfile();
 
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+
   const usersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'users'), orderBy('createdAt', 'desc'));
   }, [firestore]);
 
   const { data: users, isLoading } = useCollection<UserProfile>(usersQuery);
-
+  
   const handleUpdateUser = (userId: string, data: Partial<UserProfile>) => {
     if (!firestore || !adminProfile) return;
     const userRef = doc(firestore, 'users', userId);
@@ -127,17 +147,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  const getStatusVariant = (status?: 'active' | 'suspended') => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'suspended':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-  
   const getRoleVariant = (role?: UserProfile['role']) => {
     switch(role) {
       case 'developer': return 'destructive';
@@ -160,11 +169,129 @@ export default function AdminUsersPage() {
   const availableRolesToAssign = () => {
     if (!adminProfile) return [];
     const adminLevel = roleHierarchy[adminProfile.role];
-    // Admins can only assign roles *below* their own level.
     return (Object.keys(roleHierarchy) as Array<UserProfile['role']>).filter(
       role => adminLevel > roleHierarchy[role]
     );
   };
+  
+  const columns: ColumnDef<UserProfile>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Name
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        )
+      },
+    },
+    {
+      accessorKey: "email",
+      header: "Email",
+    },
+    {
+      accessorKey: "role",
+      header: "Role",
+      cell: ({ row }) => (
+        <Badge variant={getRoleVariant(row.original.role)}>
+          {row.original.role}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge variant={row.original.status === 'suspended' ? 'destructive' : 'default'} className={row.original.status === 'suspended' ? '' : 'bg-green-100 text-green-800'}>
+          {row.original.status || 'active'}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Joined Date",
+      cell: ({ row }) => (
+         <span>{row.original.createdAt?.toDate ? format(row.original.createdAt.toDate(), 'yyyy-MM-dd') : 'N/A'}</span>
+      )
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const user = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0" disabled={!canManage(user)}>
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs font-light">Change Role</DropdownMenuLabel>
+              {availableRolesToAssign().map(role => (
+                 <DropdownMenuItem key={role} onClick={() => handleUpdateUser(user.id, { role: role as UserProfile['role'] })}>
+                    Make {role.charAt(0).toUpperCase() + role.slice(1)}
+                 </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+               <DropdownMenuItem
+                className="text-yellow-600 focus:text-yellow-700"
+                onClick={() => handleUpdateUser(user.id, { status: 'suspended' })}>
+                Suspend User
+               </DropdownMenuItem>
+              <DropdownMenuItem
+                 className="text-green-600 focus:text-green-700"
+                onClick={() => handleUpdateUser(user.id, { status: 'active' })}>
+                Activate User
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
+  const table = useReactTable({
+    data: users || [],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    onColumnFiltersChange: setColumnFilters,
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+    },
+  });
 
   return (
     <div className="space-y-6">
@@ -183,77 +310,108 @@ export default function AdminUsersPage() {
           {isLoading ? (
             <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Joined Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users?.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleVariant(user.role)}>
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                     <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${getStatusVariant(user.status)}`}>
-                        {user.status || 'active'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {user.createdAt?.toDate ? format(user.createdAt.toDate(), 'yyyy-MM-dd') : 'N/A'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={!canManage(user)}>
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel className="text-xs font-light">Change Role</DropdownMenuLabel>
-                          {availableRolesToAssign().map(role => (
-                             <DropdownMenuItem key={role} onClick={() => handleUpdateUser(user.id, { role: role as UserProfile['role'] })}>
-                                Make {role.charAt(0).toUpperCase() + role.slice(1)}
-                             </DropdownMenuItem>
+            <div>
+              <div className="flex items-center py-4">
+                <Input
+                  placeholder="Filter by name..."
+                  value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+                  onChange={(event) =>
+                    table.getColumn("name")?.setFilterValue(event.target.value)
+                  }
+                  className="max-w-sm"
+                />
+                 <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="ml-auto">
+                      View <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {table
+                      .getAllColumns()
+                      .filter(
+                        (column) => column.getCanHide()
+                      )
+                      .map((column) => {
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={column.id}
+                            className="capitalize"
+                            checked={column.getIsVisible()}
+                            onCheckedChange={(value) =>
+                              column.toggleVisibility(!!value)
+                            }
+                          >
+                            {column.id}
+                          </DropdownMenuCheckboxItem>
+                        )
+                      })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => {
+                          return (
+                            <TableHead key={header.id}>
+                              {header.isPlaceholder
+                                ? null
+                                : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                  )}
+                            </TableHead>
+                          )
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {table.getRowModel().rows?.length ? (
+                      table.getRowModel().rows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          data-state={row.getIsSelected() && "selected"}
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
                           ))}
-                          
-                          <DropdownMenuSeparator />
-                           <DropdownMenuItem
-                            className="text-yellow-600 focus:text-yellow-700"
-                            onClick={() => handleUpdateUser(user.id, { status: 'suspended' })}>
-                            Suspend User
-                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                             className="text-green-600 focus:text-green-700"
-                            onClick={() => handleUpdateUser(user.id, { status: 'active' })}>
-                            Activate User
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {users?.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">No users found.</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center">
+                          No results.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+               <div className="flex items-center justify-end space-x-2 py-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
