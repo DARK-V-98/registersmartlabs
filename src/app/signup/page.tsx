@@ -11,11 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, Lock, ArrowRight, Eye, EyeOff, User, Phone, Globe } from "lucide-react";
-import { useAuth, useFirestore, useDoc } from "@/firebase";
+import { useAuth, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { AdminSettings } from "@/types";
+import { AdminSettings, CurrencySetting } from "@/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Signup = () => {
@@ -33,16 +33,21 @@ const Signup = () => {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const settingsRef = firestore ? doc(firestore, 'settings', 'admin') : null;
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'admin') : null, [firestore]);
   const { data: settings } = useDoc<AdminSettings>(settingsRef);
+  
+  const currenciesToDisplay = [
+      { country: 'Sri Lanka', code: 'LKR', symbol: 'LKR' },
+      ...(settings?.currencies?.filter(c => c.code !== 'LKR') || [])
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.password) {
+    if (!formData.name || !formData.email || !formData.password || !auth) {
       toast({
         variant: "destructive",
         title: "Missing fields",
-        description: "Please fill in all fields.",
+        description: "Please fill in all required fields.",
       });
       return;
     }
@@ -60,10 +65,10 @@ const Signup = () => {
       if (firestore) {
         const selectedCurrency = formData.country === 'Other' 
             ? { code: 'USD', symbol: '$' }
-            : settings?.currencies?.find(c => c.country === formData.country) || { code: 'LKR', symbol: 'LKR' };
+            : currenciesToDisplay.find(c => c.country === formData.country) || { code: 'LKR', symbol: 'LKR' };
 
         await setDoc(doc(firestore, "users", user.uid), {
-          uid: user.uid,
+          id: user.uid,
           name: formData.name,
           email: formData.email,
           phoneNumber: formData.phoneNumber,
@@ -92,6 +97,7 @@ const Signup = () => {
   };
 
   const handleGoogleSignIn = async () => {
+    if(!auth) return;
     setIsLoading(true);
     const provider = new GoogleAuthProvider();
     try {
@@ -104,7 +110,7 @@ const Signup = () => {
 
         if (!userDoc.exists()) {
            await setDoc(userRef, {
-            uid: user.uid,
+            id: user.uid,
             name: user.displayName,
             email: user.email,
             role: "student",
@@ -235,7 +241,7 @@ const Signup = () => {
                         <SelectValue placeholder="Select your country" />
                       </SelectTrigger>
                       <SelectContent>
-                        {settings?.currencies?.map(c => (
+                        {currenciesToDisplay.map(c => (
                           <SelectItem key={c.code} value={c.country}>
                             {c.country} ({c.code})
                           </SelectItem>

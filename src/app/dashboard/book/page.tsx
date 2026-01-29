@@ -16,7 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star, AlertTriangle, Info, Clock, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
-import { Course, Lecturer, Schedule, AdminSettings } from '@/types';
+import { Course, Lecturer, Schedule, AdminSettings, CurrencySetting } from '@/types';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -68,6 +68,12 @@ export default function BookingPage() {
   const { data: settings } = useDoc<AdminSettings>(
     useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'admin') : null, [firestore])
   );
+  
+  const getCurrencySymbol = (currencyCode: string | undefined): string => {
+      if (!currencyCode || !settings?.currencies) return currencyCode || '';
+      const currency = settings.currencies.find(c => c.code === currencyCode);
+      return currency?.symbol || currencyCode;
+  }
   
   useEffect(() => {
       if (settings?.physicalClassesEnabled === false && classType === 'physical') {
@@ -177,7 +183,7 @@ export default function BookingPage() {
 
     const basePrice = classType === 'online' ? pricing.priceOnline : pricing.pricePhysical;
     const addHourPrice = classType === 'online' ? pricing.priceOnlineAddHour : pricing.pricePhysicalAddHour;
-    return duration === 2 && addHourPrice ? basePrice + addHourPrice : basePrice;
+    return duration === 2 && addHourPrice ? (basePrice || 0) + (addHourPrice || 0) : (basePrice || 0);
   }, [selectedLecturer, selectedCourse, classType, duration, profile]);
 
   const handleSubmit = async () => {
@@ -402,12 +408,14 @@ export default function BookingPage() {
                 {(selectedLecturer?.courses || []).map(courseId => {
                   const course = allCourses?.find(c => c.id === courseId);
                   if (!course) return null;
+                  const priceInfo = selectedLecturer?.pricing?.[course.id]?.[profile?.currency || 'LKR'];
+
                   return (
                     <Card
                       key={course.id}
                       onClick={() => setSelectedCourse(course)}
                       className={cn(
-                        "cursor-pointer transition-all hover:border-primary/50",
+                        "cursor-pointer transition-all hover:border-primary/50 flex flex-col",
                         selectedCourse?.id === course.id ? "border-primary bg-primary/5 ring-2 ring-primary" : "border-border"
                       )}
                     >
@@ -415,6 +423,15 @@ export default function BookingPage() {
                         <GraduationCap className="w-8 h-8 text-primary mb-2" />
                         <CardTitle>{course.name}</CardTitle>
                       </CardHeader>
+                      <CardContent className="flex-grow">
+                          {priceInfo?.priceOnline ? (
+                            <p className="text-sm text-muted-foreground">
+                                Starts from <span className="font-bold text-foreground">{getCurrencySymbol(profile?.currency)} {priceInfo.priceOnline.toLocaleString()}</span>
+                            </p>
+                          ) : (
+                             <p className="text-sm text-muted-foreground">Pricing not set</p>
+                          )}
+                      </CardContent>
                     </Card>
                   )
                 })}
@@ -429,7 +446,7 @@ export default function BookingPage() {
                       <Label htmlFor="online" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
                         <span className="text-3xl mb-2">💻</span>
                         <span className="font-semibold">Online Class</span>
-                        <span className="font-bold text-primary">{profile?.currency} {selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.priceOnline?.toLocaleString()}</span>
+                        <span className="font-bold text-primary">{getCurrencySymbol(profile?.currency)} {(selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.priceOnline || 0).toLocaleString()}</span>
                       </Label>
                     </div>
                     <div>
@@ -437,7 +454,7 @@ export default function BookingPage() {
                       <Label htmlFor="physical" className={cn("flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4", "peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary", settings?.physicalClassesEnabled === false ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-accent hover:text-accent-foreground")}>
                         <span className="text-3xl mb-2">🏫</span>
                         <span className="font-semibold">Physical Class</span>
-                        <span className="font-bold text-primary">{profile?.currency} {selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.pricePhysical?.toLocaleString()}</span>
+                        <span className="font-bold text-primary">{getCurrencySymbol(profile?.currency)} {(selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.pricePhysical || 0).toLocaleString()}</span>
                         {settings?.physicalClassesEnabled === false && <span className="text-xs text-destructive mt-1">(Currently unavailable)</span>}
                       </Label>
                     </div>
@@ -475,7 +492,7 @@ export default function BookingPage() {
                     </div>
                     <div className="flex justify-between items-center text-xl font-bold pt-2">
                       <span>Total Amount:</span>
-                      <span className="text-primary">{profile?.currency} {currentPrice.toLocaleString()}</span>
+                      <span className="text-primary">{getCurrencySymbol(profile?.currency)} {currentPrice.toLocaleString()}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -529,5 +546,3 @@ export default function BookingPage() {
     </div>
   );
 }
-
-    

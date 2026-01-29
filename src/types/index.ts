@@ -1,6 +1,4 @@
 
-
-
 export interface CurrencySetting {
   country: string;
   code: string; // e.g. USD
@@ -18,7 +16,7 @@ export interface UserProfile {
   phoneNumber?: string;
   timezone?: string;
   country?: string;
-  currency?: string; // e.g. USD
+  currency?: string; // e.g. LKR, USD
 }
 
 export interface CoursePrice {
@@ -72,7 +70,7 @@ export interface Booking {
   time: string;
   duration: number; // 1 or 2 hours
   price?: number;
-  currency?: string;
+  currency?: string; // e.g. LKR, USD
   classType?: 'online' | 'physical';
   paymentStatus: 'pending' | 'paid' | 'rejected' | 'failed';
   bookingStatus: 'payment_pending' | 're_upload_receipt' | 'confirmed' | 'rejected' | 'cancelled' | 'cancellation_requested' | 'completed';
@@ -125,5 +123,3 @@ export interface ActivityLog {
   targetUserId?: string;
   targetUserName?: string;
 }
-
-    

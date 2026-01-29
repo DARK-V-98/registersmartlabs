@@ -63,11 +63,14 @@ export default function LecturersPage() {
   );
 
   const currenciesToDisplay = useMemo((): CurrencySetting[] => {
+    const defaultCurrency = { code: 'LKR', country: 'Sri Lanka', symbol: 'LKR' };
     if (settings?.currencies && settings.currencies.length > 0) {
-      return settings.currencies;
+      // Ensure LKR is always first if it exists
+      const lkr = settings.currencies.find(c => c.code === 'LKR');
+      const others = settings.currencies.filter(c => c.code !== 'LKR');
+      return lkr ? [lkr, ...others] : [defaultCurrency, ...others];
     }
-    // Fallback to LKR if no currencies are set in settings
-    return [{ code: 'LKR', country: 'Sri Lanka', symbol: 'LKR' }];
+    return [defaultCurrency];
   }, [settings]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {

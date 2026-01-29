@@ -28,6 +28,14 @@
           "type": "string",
           "description": "Role of the user (e.g., 'user', 'admin', 'developer', 'superadmin'). Default is 'user'.",
           "enum": ["student", "admin", "developer", "superadmin"]
+        },
+        "country": {
+          "type": "string",
+          "description": "The user's country of residence."
+        },
+        "currency": {
+          "type": "string",
+          "description": "The user's preferred currency code (e.g., LKR, USD)."
         }
       },
       "required": [
@@ -151,6 +159,10 @@
         "isReviewed": {
             "type": "boolean",
             "description": "Indicates if the student has left a review for this booking."
+        },
+        "currency": {
+            "type": "string",
+            "description": "The currency code for the price of the booking."
         }
       },
       "required": [
@@ -408,5 +420,3 @@
     "reasoning": "The data structure is revised for lecturer-centric pricing and scheduling. Course pricing is moved from the 'Course' entity to a 'pricing' map within the 'Lecturer' entity, allowing each lecturer to have different prices for the same course. The 'Schedule' entity is now independent of courses; its ID is a composite of '{lecturerId}_{YYYY-MM-DD}' to represent a lecturer's general availability for a given day, simplifying the booking logic and making it more robust. This change enables the new booking flow where a user selects a lecturer first, then a time, and finally the course."
   }
 }
-
-    

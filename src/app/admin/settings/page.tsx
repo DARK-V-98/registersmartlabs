@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, ShieldAlert } from 'lucide-react';
@@ -47,14 +48,14 @@ const AdminSettingsPage = () => {
       setPhysicalClassesEnabled(settings.physicalClassesEnabled ?? true);
       
       const existingCurrencies = settings.currencies || [];
-      if (!existingCurrencies.some(c => c.code === 'LKR')) {
+      const hasLKR = existingCurrencies.some(c => c.code === 'LKR');
+      
+      if (!hasLKR) {
         setCurrencies([{ country: 'Sri Lanka', code: 'LKR', symbol: 'LKR' }, ...existingCurrencies]);
       } else {
         setCurrencies(existingCurrencies);
       }
       isInitialized.current = true;
-    } else if (!settings && !isInitialized.current) {
-        setCurrencies([{ country: 'Sri Lanka', code: 'LKR', symbol: 'LKR' }]);
     }
   }, [settings]);
 
@@ -294,5 +295,3 @@ const AdminSettingsPage = () => {
 };
 
 export default AdminSettingsPage;
-
-    
