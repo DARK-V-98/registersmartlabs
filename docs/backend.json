@@ -94,6 +94,8 @@
             "averageRating": { "type": "number" },
             "reviewCount": { "type": "number" },
             "payoutRate": { "type": "number", "description": "Percentage of revenue to be paid out to the lecturer." },
+            "onlineClassEnabled": { "type": "boolean", "description": "Indicates if the lecturer offers online classes." },
+            "physicalClassEnabled": { "type": "boolean", "description": "Indicates if the lecturer offers physical classes." },
             "pricing": {
               "type": "object",
               "description": "Maps course IDs to their specific prices for this lecturer across different currencies.",

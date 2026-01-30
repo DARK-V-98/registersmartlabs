@@ -88,6 +88,20 @@ export default function BookingPage() {
     }, [firestore, selectedLecturer])
   );
   
+    useEffect(() => {
+        if (!selectedLecturer) return;
+        
+        const isOnlineDisabled = selectedLecturer.onlineClassEnabled === false;
+        const isPhysicalDisabled = selectedLecturer.physicalClassEnabled === false || settings?.physicalClassesEnabled === false;
+
+        if (classType === 'online' && isOnlineDisabled && !isPhysicalDisabled) {
+            setClassType('physical');
+        } else if (classType === 'physical' && isPhysicalDisabled && !isOnlineDisabled) {
+            setClassType('online');
+        }
+    }, [selectedLecturer, settings, classType]);
+
+
   // Clear dependent states when primary selections change
   useEffect(() => {
     setSelectedDate(undefined);
@@ -294,6 +308,9 @@ export default function BookingPage() {
       </div>
     );
   }
+  
+  const isOnlineDisabled = selectedLecturer?.onlineClassEnabled === false;
+  const isPhysicalDisabled = selectedLecturer?.physicalClassEnabled === false || settings?.physicalClassesEnabled === false;
 
   return (
     <div className="max-w-4xl mx-auto py-8">
@@ -461,20 +478,32 @@ export default function BookingPage() {
                   <h3 className="text-lg font-bold text-center mb-4">Select Class Type</h3>
                   <RadioGroup value={classType} onValueChange={(v) => setClassType(v as 'online' | 'physical')} className="grid sm:grid-cols-2 gap-4 max-w-lg mx-auto">
                     <div>
-                      <RadioGroupItem value="online" id="online" className="peer sr-only" />
-                      <Label htmlFor="online" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                      <RadioGroupItem value="online" id="online" className="peer sr-only" disabled={isOnlineDisabled} />
+                      <Label htmlFor="online" className={cn(
+                        "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4",
+                        !isOnlineDisabled && "cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                        "peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary",
+                        isOnlineDisabled && "cursor-not-allowed opacity-50"
+                      )}>
                         <span className="text-3xl mb-2">💻</span>
                         <span className="font-semibold">Online Class</span>
                         <span className="font-bold text-primary">{getCurrencySymbol(profile?.currency)} {(selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.priceOnline || 0).toLocaleString()}</span>
+                        {isOnlineDisabled && <span className="text-xs text-destructive mt-1">(Unavailable for this lecturer)</span>}
                       </Label>
                     </div>
                     <div>
-                      <RadioGroupItem value="physical" id="physical" className="peer sr-only" disabled={settings?.physicalClassesEnabled === false} />
-                      <Label htmlFor="physical" className={cn("flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4", "peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary", settings?.physicalClassesEnabled === false ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-accent hover:text-accent-foreground")}>
+                      <RadioGroupItem value="physical" id="physical" className="peer sr-only" disabled={isPhysicalDisabled} />
+                      <Label htmlFor="physical" className={cn(
+                        "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4",
+                        !isPhysicalDisabled && "cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                        "peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary",
+                        isPhysicalDisabled && "cursor-not-allowed opacity-50"
+                      )}>
                         <span className="text-3xl mb-2">🏫</span>
                         <span className="font-semibold">Physical Class</span>
                         <span className="font-bold text-primary">{getCurrencySymbol(profile?.currency)} {(selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.pricePhysical || 0).toLocaleString()}</span>
-                        {settings?.physicalClassesEnabled === false && <span className="text-xs text-destructive mt-1">(Currently unavailable)</span>}
+                        {selectedLecturer?.physicalClassEnabled === false && <span className="text-xs text-destructive mt-1">(Unavailable for this lecturer)</span>}
+                        {settings?.physicalClassesEnabled === false && selectedLecturer?.physicalClassEnabled !== false && <span className="text-xs text-destructive mt-1">(Globally unavailable)</span>}
                       </Label>
                     </div>
                   </RadioGroup>

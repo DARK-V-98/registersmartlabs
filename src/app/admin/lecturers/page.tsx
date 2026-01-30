@@ -34,6 +34,7 @@ import { logActivity } from '@/lib/logger';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 
 export default function LecturersPage() {
   const firestore = useFirestore();
@@ -50,6 +51,8 @@ export default function LecturersPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pricing, setPricing] = useState<{ [courseId: string]: { [currencyCode: string]: Partial<CoursePrice> } }>({});
+  const [onlineEnabled, setOnlineEnabled] = useState(true);
+  const [physicalEnabled, setPhysicalEnabled] = useState(true);
 
   const { data: lecturers, isLoading: isLecturersLoading } = useCollection<Lecturer>(
     useMemoFirebase(() => firestore ? query(collection(firestore, 'lecturers'), orderBy('name')) : null, [firestore])
@@ -118,6 +121,8 @@ export default function LecturersPage() {
         courses: selectedCourses,
         imageUrl: imageUrl,
         pricing: pricing,
+        onlineClassEnabled: onlineEnabled,
+        physicalClassEnabled: physicalEnabled,
       };
 
       if (editingLecturer) {
@@ -166,6 +171,8 @@ export default function LecturersPage() {
     setSelectedCourses(lecturer.courses || []);
     setPreviewUrl(lecturer.imageUrl || null);
     setPricing(lecturer.pricing || {});
+    setOnlineEnabled(lecturer.onlineClassEnabled ?? true);
+    setPhysicalEnabled(lecturer.physicalClassEnabled ?? true);
     setIsDialogOpen(true);
   };
 
@@ -176,6 +183,8 @@ export default function LecturersPage() {
     setImageFile(null);
     setPreviewUrl(null);
     setPricing({});
+    setOnlineEnabled(true);
+    setPhysicalEnabled(true);
   };
 
   const toggleCourse = (courseId: string) => {
@@ -221,6 +230,17 @@ export default function LecturersPage() {
                   <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
               </div>
               
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div className="flex items-center space-x-2">
+                    <Switch id="online-enabled" checked={onlineEnabled} onCheckedChange={setOnlineEnabled} />
+                    <Label htmlFor="online-enabled">Online Classes Enabled</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Switch id="physical-enabled" checked={physicalEnabled} onCheckedChange={setPhysicalEnabled} />
+                    <Label htmlFor="physical-enabled">Physical Classes Enabled</Label>
+                </div>
+              </div>
+
               <div className="space-y-2 border-t pt-4">
                 <Label>Assigned Courses & Pricing</Label>
                 <div className="border p-4 rounded-md">

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useDoc } from '@/firebase';
 import { collection, query, where, orderBy, Timestamp, doc, setDoc, arrayUnion } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, ChevronLeft, User, Search, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-import { Course, Lecturer, Schedule, UserProfile } from '@/types';
+import { Course, Lecturer, Schedule, UserProfile, AdminSettings } from '@/types';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -52,6 +52,9 @@ export default function ManualBookingPage() {
   const { data: courses, isLoading: coursesLoading } = useCollection<Course>(query(collection(firestore, 'courses'), where('status', '==', 'active')));
   const { data: users, isLoading: usersLoading } = useCollection<UserProfile>(query(collection(firestore, 'users')));
   const { data: allLecturers, isLoading: lecturersLoading } = useCollection<Lecturer>(query(collection(firestore, 'lecturers'), orderBy('name')));
+  const { data: settings } = useDoc<AdminSettings>(
+    useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'admin') : null, [firestore])
+  );
 
   const { data: schedules } = useCollection<Schedule>(
     useMemoFirebase(() => {
@@ -117,6 +120,19 @@ export default function ManualBookingPage() {
       setPrice(finalPrice.toString());
   }, [selectedUser, selectedCourse, selectedLecturer, classType, duration]);
   
+    useEffect(() => {
+        if (!selectedLecturer) return;
+        
+        const isOnlineDisabled = selectedLecturer.onlineClassEnabled === false;
+        const isPhysicalDisabled = selectedLecturer.physicalClassEnabled === false || settings?.physicalClassesEnabled === false;
+
+        if (classType === 'online' && isOnlineDisabled && !isPhysicalDisabled) {
+            setClassType('physical');
+        } else if (classType === 'physical' && isPhysicalDisabled && !isOnlineDisabled) {
+            setClassType('online');
+        }
+    }, [selectedLecturer, settings, classType]);
+
   // Clear dependent fields when a primary selection changes
   useEffect(() => {
       setSelectedTime('');
@@ -195,6 +211,8 @@ export default function ManualBookingPage() {
     }
   };
 
+  const isOnlineDisabled = selectedLecturer?.onlineClassEnabled === false;
+  const isPhysicalDisabled = selectedLecturer?.physicalClassEnabled === false || settings?.physicalClassesEnabled === false;
 
   return (
     <div className="space-y-6">
@@ -302,12 +320,12 @@ export default function ManualBookingPage() {
                             <Label>Class Type</Label>
                             <RadioGroup value={classType} onValueChange={(v) => setClassType(v as 'online' | 'physical')} className="flex gap-4">
                                 <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="online" id="online" />
-                                    <Label htmlFor="online">Online</Label>
+                                    <RadioGroupItem value="online" id="online" disabled={isOnlineDisabled} />
+                                    <Label htmlFor="online" className={cn(isOnlineDisabled && "text-muted-foreground opacity-50")}>Online</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="physical" id="physical" />
-                                    <Label htmlFor="physical">Physical</Label>
+                                    <RadioGroupItem value="physical" id="physical" disabled={isPhysicalDisabled} />
+                                    <Label htmlFor="physical" className={cn(isPhysicalDisabled && "text-muted-foreground opacity-50")}>Physical</Label>
                                 </div>
                             </RadioGroup>
                         </div>

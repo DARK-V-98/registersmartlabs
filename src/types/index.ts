@@ -1,4 +1,5 @@
 
+
 export interface CurrencySetting {
   country: string;
   code: string; // e.g. USD
@@ -46,6 +47,8 @@ export interface Lecturer {
   averageRating?: number;
   reviewCount?: number;
   payoutRate?: number;
+  onlineClassEnabled?: boolean;
+  physicalClassEnabled?: boolean;
 }
 
 export interface Schedule {
