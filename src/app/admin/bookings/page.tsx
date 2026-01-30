@@ -42,13 +42,8 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { logActivity } from '@/lib/logger';
+import { getSlotsForBooking } from '@/lib/availability';
 
-const MASTER_TIME_SLOTS = [
-  "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
-  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
-  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
-  "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM"
-];
 
 function ChatInterface({ bookingId }: { bookingId: string }) {
     const firestore = useFirestore();
@@ -120,22 +115,6 @@ function ChatInterface({ bookingId }: { bookingId: string }) {
         </div>
     );
 }
-
-const getSlotsForBooking = (booking: Booking) => {
-    const slots = [];
-    if (!booking.time || !booking.duration) return [];
-    const startTimeIndex = MASTER_TIME_SLOTS.indexOf(booking.time);
-    if (startTimeIndex === -1) return [];
-    
-    const slotsToBookCount = (booking.duration || 1) === 1 ? 2 : 4; // 1hr = 2 slots, 2hr = 4 slots
-    for (let i = 0; i < slotsToBookCount; i++) {
-        const slotIndex = startTimeIndex + i;
-        if (slotIndex < MASTER_TIME_SLOTS.length) {
-            slots.push(MASTER_TIME_SLOTS[slotIndex]);
-        }
-    }
-    return slots;
-};
 
 const exportToCsv = (filename: string, rows: object[]) => {
     if (!rows || rows.length === 0) {

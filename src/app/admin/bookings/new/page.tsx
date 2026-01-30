@@ -21,13 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { logActivity } from '@/lib/logger';
-
-const MASTER_TIME_SLOTS = [
-  "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
-  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
-  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
-  "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM"
-];
+import { getAvailableSlots, getSlotsForBooking } from '@/lib/availability';
 
 export default function ManualBookingPage() {
   const firestore = useFirestore();
@@ -71,36 +65,9 @@ export default function ManualBookingPage() {
     return allLecturers.filter(l => l.courses?.includes(selectedCourse.id));
   }, [selectedCourse, allLecturers]);
   
-  const getValidSlotsForDate = (date: Date) => {
-    if (!schedules || !date) return { oneHour: [], twoHour: [] };
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const scheduleForDate = schedules.find(s => s.date === dateStr);
-    if (!scheduleForDate || !scheduleForDate.timeSlots) return { oneHour: [], twoHour: [] };
-
-    const adminStartTimes = new Set(scheduleForDate.timeSlots);
-    const taken30MinSlots = new Set(scheduleForDate.bookedSlots || []);
-    
-    const validOneHourStarts: string[] = [];
-    const validTwoHourStarts: string[] = [];
-
-    for (const startTime of MASTER_TIME_SLOTS) {
-        if (!adminStartTimes.has(startTime)) continue;
-        const startIndex = MASTER_TIME_SLOTS.indexOf(startTime);
-        if (startIndex === -1) continue;
-
-        if (startIndex + 1 < MASTER_TIME_SLOTS.length && !taken30MinSlots.has(MASTER_TIME_SLOTS[startIndex]) && !taken30MinSlots.has(MASTER_TIME_SLOTS[startIndex + 1])) {
-            validOneHourStarts.push(startTime);
-        }
-        if (startIndex + 3 < MASTER_TIME_SLOTS.length && !taken30MinSlots.has(MASTER_TIME_SLOTS[startIndex]) && !taken30MinSlots.has(MASTER_TIME_SLOTS[startIndex + 1]) && !taken30MinSlots.has(MASTER_TIME_SLOTS[startIndex + 2]) && !taken30MinSlots.has(MASTER_TIME_SLOTS[startIndex + 3])) {
-            validTwoHourStarts.push(startTime);
-        }
-    }
-    return { oneHour: validOneHourStarts, twoHour: validTwoHourStarts };
-  };
-
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDate) return [];
-    const { oneHour, twoHour } = getValidSlotsForDate(selectedDate);
+    if (!selectedDate || !schedules) return [];
+    const { oneHour, twoHour } = getAvailableSlots(selectedDate, schedules);
     return duration === 1 ? oneHour : twoHour;
   }, [selectedDate, schedules, duration]);
 
@@ -137,6 +104,12 @@ export default function ManualBookingPage() {
   useEffect(() => {
       setSelectedTime('');
   }, [duration, selectedDate]);
+  
+  useEffect(() => {
+      setSelectedLecturer(null);
+      setSelectedDate(undefined);
+      setSelectedTime('');
+  }, [selectedCourse]);
 
   const handleSubmit = async () => {
     if (!selectedUser || !selectedCourse || !selectedLecturer || !selectedDate || !selectedTime || !price || !adminProfile) {
@@ -145,16 +118,13 @@ export default function ManualBookingPage() {
     }
     setLoading(true);
     try {
-      const slotsToBook = [];
-      const startTimeIndex = MASTER_TIME_SLOTS.indexOf(selectedTime);
-      const slotsNeeded = duration === 1 ? 2 : 4;
+      const slotsToBook = getSlotsForBooking({
+        time: selectedTime,
+        duration: duration,
+      } as Booking);
 
-      if (startTimeIndex !== -1) {
-        for (let i = 0; i < slotsNeeded; i++) {
-            if (startTimeIndex + i < MASTER_TIME_SLOTS.length) {
-                slotsToBook.push(MASTER_TIME_SLOTS[startTimeIndex + i]);
-            }
-        }
+      if (slotsToBook.length !== (duration === 1 ? 2 : 4)) {
+        throw new Error("Could not determine all slots to block. The time may have just been booked.");
       }
       
       const scheduleId = `${selectedLecturer.id}_${format(selectedDate, 'yyyy-MM-dd')}`;
@@ -264,10 +234,6 @@ export default function ManualBookingPage() {
                             onValueChange={(courseId) => {
                                 const course = courses?.find(c => c.id === courseId);
                                 setSelectedCourse(course || null);
-                                // Reset dependent selections
-                                setSelectedLecturer(null);
-                                setSelectedDate(undefined);
-                                setSelectedTime('');
                             }}>
                             <SelectTrigger>{selectedCourse ? selectedCourse.name : "Select course"}</SelectTrigger>
                             <SelectContent>

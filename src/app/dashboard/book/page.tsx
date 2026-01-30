@@ -16,24 +16,18 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, CreditCard, ChevronLeft, ChevronRight, User, Star, AlertTriangle, Info, Clock, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
-import { Course, Lecturer, Schedule, AdminSettings, CurrencySetting } from '@/types';
+import { Course, Lecturer, Schedule, AdminSettings, Booking } from '@/types';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getAvailableSlots, getSlotsForBooking } from '@/lib/availability';
 
 const STEPS = [
   { id: 1, title: 'Select Lecturer' },
   { id: 2, title: 'Date & Time' },
   { id: 3, title: 'Course & Type' },
   { id: 4, title: 'Payment' },
-];
-
-const MASTER_TIME_SLOTS = [
-  "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
-  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
-  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
-  "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM"
 ];
 
 export default function BookingPage() {
@@ -113,58 +107,14 @@ export default function BookingPage() {
     setSelectedTime('');
   }, [selectedDate, duration]);
 
-
-  const getValidSlotsForDate = (date: Date) => {
-    if (!schedules || !date) return { hasAny: false, oneHour: [], twoHour: [] };
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const scheduleForDate = schedules.find(s => s.date === dateStr);
-
-    if (!scheduleForDate || !scheduleForDate.timeSlots || scheduleForDate.timeSlots.length === 0) {
-      return { hasAny: false, oneHour: [], twoHour: [] };
-    }
-
-    const adminStartTimes = new Set(scheduleForDate.timeSlots);
-    const taken30MinSlots = new Set(scheduleForDate.bookedSlots || []);
-    
-    const validOneHourStarts = [];
-    const validTwoHourStarts = [];
-
-    for (const startTime of MASTER_TIME_SLOTS) {
-      if (!adminStartTimes.has(startTime)) continue;
-
-      const startIndex = MASTER_TIME_SLOTS.indexOf(startTime);
-      if (startIndex === -1) continue;
-
-      if (startIndex + 1 < MASTER_TIME_SLOTS.length) {
-        const slot1 = MASTER_TIME_SLOTS[startIndex];
-        const slot2 = MASTER_TIME_SLOTS[startIndex + 1];
-        if (!taken30MinSlots.has(slot1) && !taken30MinSlots.has(slot2)) {
-          validOneHourStarts.push(startTime);
-        }
-      }
-      
-      if (startIndex + 3 < MASTER_TIME_SLOTS.length) {
-        const slot1 = MASTER_TIME_SLOTS[startIndex];
-        const slot2 = MASTER_TIME_SLOTS[startIndex + 1];
-        const slot3 = MASTER_TIME_SLOTS[startIndex + 2];
-        const slot4 = MASTER_TIME_SLOTS[startIndex + 3];
-        if (!taken30MinSlots.has(slot1) && !taken30MinSlots.has(slot2) && !taken30MinSlots.has(slot3) && !taken30MinSlots.has(slot4)) {
-          validTwoHourStarts.push(startTime);
-        }
-      }
-    }
-    
-    return { hasAny: validOneHourStarts.length > 0 || validTwoHourStarts.length > 0, oneHour: validOneHourStarts, twoHour: validTwoHourStarts };
-  };
-  
   const isDateFullyBooked = (date: Date) => {
-      const { hasAny } = getValidSlotsForDate(date);
+      const { hasAny } = getAvailableSlots(date, schedules);
       return !hasAny;
   }
 
   const availableTimeSlots = useMemo(() => {
-    if (!selectedDate) return [];
-    const { oneHour, twoHour } = getValidSlotsForDate(selectedDate);
+    if (!selectedDate || !schedules) return [];
+    const { oneHour, twoHour } = getAvailableSlots(selectedDate, schedules);
     return duration === 1 ? oneHour : twoHour;
   }, [selectedDate, schedules, duration]);
 
@@ -220,19 +170,12 @@ export default function BookingPage() {
     setLoading(true);
     try {
       // Provisional Booking: Block slots immediately
-      const slotsToBook = [];
-      const startTimeIndex = MASTER_TIME_SLOTS.indexOf(selectedTime);
-      const slotsNeeded = duration === 1 ? 2 : 4;
+      const slotsToBook = getSlotsForBooking({
+        time: selectedTime,
+        duration: duration
+      } as Booking);
 
-      if (startTimeIndex !== -1) {
-        for (let i = 0; i < slotsNeeded; i++) {
-            if (startTimeIndex + i < MASTER_TIME_SLOTS.length) {
-                slotsToBook.push(MASTER_TIME_SLOTS[startTimeIndex + i]);
-            }
-        }
-      }
-
-      if (slotsToBook.length !== slotsNeeded) {
+      if (slotsToBook.length !== (duration === 1 ? 2 : 4)) {
         throw new Error("Could not determine all slots to block. The time may have just been booked.");
       }
 

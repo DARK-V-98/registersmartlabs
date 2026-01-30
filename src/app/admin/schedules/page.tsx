@@ -25,13 +25,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DateRange } from 'react-day-picker';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { logActivity } from '@/lib/logger';
-
-const TIME_SLOTS = [
-  "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
-  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
-  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
-  "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM"
-];
+import { MASTER_TIME_SLOTS } from '@/lib/availability';
 
 const WEEKDAYS = [
   { id: 1, label: 'Mon' }, { id: 2, label: 'Tue' }, { id: 3, label: 'Wed' },
@@ -48,6 +42,7 @@ export default function SchedulesPage() {
 
   // Shared state
   const [selectedLecturer, setSelectedLecturer] = useState<string>('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Single Day Editor State
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -97,7 +92,7 @@ export default function SchedulesPage() {
     };
 
     fetchSchedule();
-  }, [selectedLecturer, selectedDate, firestore, toast]);
+  }, [selectedLecturer, selectedDate, firestore, toast, refreshKey]);
 
   const toggleSingleDaySlot = (time: string) => {
     setSingleDaySlots(prev => prev.includes(time) ? prev.filter(t => t !== time) : [...prev, time].sort());
@@ -220,6 +215,12 @@ export default function SchedulesPage() {
           duration: 9000,
         });
       }
+      
+      // Trigger a refetch of the single-day view if it's within the updated range
+      if (selectedDate && selectedDate >= from && selectedDate <= finalTo) {
+          setRefreshKey(k => k + 1);
+      }
+
     } catch (error) {
       console.error(error);
       toast({ title: 'Error applying bulk schedule', variant: 'destructive' });
@@ -286,7 +287,7 @@ export default function SchedulesPage() {
                         <Button variant="ghost" size="sm" onClick={() => setSingleDaySlots([])} disabled={isLoading || hasBookings}><Trash className="w-4 h-4 mr-2"/> Clear All</Button>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-80 overflow-y-auto pr-2">
-                          {TIME_SLOTS.map(time => (
+                          {MASTER_TIME_SLOTS.map(time => (
                           <Button key={time} variant={singleDaySlots.includes(time) ? "default" : "outline"} className="w-full" onClick={() => toggleSingleDaySlot(time)} disabled={isLoading}>
                               {time}
                           </Button>
@@ -341,7 +342,7 @@ export default function SchedulesPage() {
                         <Button variant="ghost" size="sm" onClick={() => setBulkTimeSlots([])} disabled={isLoading}><Trash className="w-4 h-4 mr-2"/> Clear All</Button>
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-60 overflow-y-auto pr-2 border rounded-md p-4">
-                      {TIME_SLOTS.map(time => (
+                      {MASTER_TIME_SLOTS.map(time => (
                         <Button key={time} variant={bulkTimeSlots.includes(time) ? "default" : "outline"} onClick={() => toggleBulkSlot(time)} disabled={isLoading}>{time}</Button>
                       ))}
                     </div>
@@ -365,5 +366,3 @@ export default function SchedulesPage() {
     </div>
   );
 }
-
-    
