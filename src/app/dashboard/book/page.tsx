@@ -387,7 +387,21 @@ export default function BookingPage() {
                 {(selectedLecturer?.courses || []).map(courseId => {
                   const course = allCourses?.find(c => c.id === courseId);
                   if (!course) return null;
+
                   const priceInfo = selectedLecturer?.pricing?.[course.id]?.[profile?.currency || 'LKR'];
+                  let startingPrice: number | null = null;
+                  if (priceInfo) {
+                      const availablePrices: number[] = [];
+                      if (selectedLecturer.onlineClassEnabled !== false && priceInfo.priceOnline > 0) {
+                          availablePrices.push(priceInfo.priceOnline);
+                      }
+                      if (selectedLecturer.physicalClassEnabled !== false && settings?.physicalClassesEnabled !== false && priceInfo.pricePhysical > 0) {
+                          availablePrices.push(priceInfo.pricePhysical);
+                      }
+                      if (availablePrices.length > 0) {
+                          startingPrice = Math.min(...availablePrices);
+                      }
+                  }
 
                   return (
                     <Card
@@ -403,9 +417,9 @@ export default function BookingPage() {
                         <CardTitle>{course.name}</CardTitle>
                       </CardHeader>
                       <CardContent className="flex-grow">
-                          {priceInfo?.priceOnline ? (
+                         {startingPrice !== null ? (
                             <p className="text-sm text-muted-foreground">
-                                Starts from <span className="font-bold text-foreground">{getCurrencySymbol(profile?.currency)} {priceInfo.priceOnline.toLocaleString()}</span>
+                                Starts from <span className="font-bold text-foreground">{getCurrencySymbol(profile?.currency)} {startingPrice.toLocaleString()}</span>
                             </p>
                           ) : (
                              <p className="text-sm text-muted-foreground">Pricing not set</p>
@@ -430,7 +444,13 @@ export default function BookingPage() {
                       )}>
                         <span className="text-3xl mb-2">💻</span>
                         <span className="font-semibold">Online Class</span>
-                        <span className="font-bold text-primary">{getCurrencySymbol(profile?.currency)} {(selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.priceOnline || 0).toLocaleString()}</span>
+                        
+                        {(selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.priceOnline) ? (
+                            <span className="font-bold text-primary">{getCurrencySymbol(profile?.currency)} {(selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.priceOnline || 0).toLocaleString()}</span>
+                        ) : (
+                            <span className="font-bold text-muted-foreground">Not set</span>
+                        )}
+
                         {isOnlineDisabled && <span className="text-xs text-destructive mt-1">(Unavailable for this lecturer)</span>}
                       </Label>
                     </div>
@@ -444,7 +464,13 @@ export default function BookingPage() {
                       )}>
                         <span className="text-3xl mb-2">🏫</span>
                         <span className="font-semibold">Physical Class</span>
-                        <span className="font-bold text-primary">{getCurrencySymbol(profile?.currency)} {(selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.pricePhysical || 0).toLocaleString()}</span>
+
+                         {(selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.pricePhysical) ? (
+                            <span className="font-bold text-primary">{getCurrencySymbol(profile?.currency)} {(selectedLecturer?.pricing?.[selectedCourse.id]?.[profile?.currency || 'LKR']?.pricePhysical || 0).toLocaleString()}</span>
+                        ) : (
+                            <span className="font-bold text-muted-foreground">Not set</span>
+                        )}
+
                         {selectedLecturer?.physicalClassEnabled === false && <span className="text-xs text-destructive mt-1">(Unavailable for this lecturer)</span>}
                         {settings?.physicalClassesEnabled === false && selectedLecturer?.physicalClassEnabled !== false && <span className="text-xs text-destructive mt-1">(Globally unavailable)</span>}
                       </Label>
