@@ -35,6 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 
 export default function LecturersPage() {
   const firestore = useFirestore();
@@ -272,21 +273,21 @@ export default function LecturersPage() {
                                   <div className="p-4 border rounded-lg bg-secondary/50 mt-2">
                                     <h4 className="font-medium mb-2">{currency.country} Pricing</h4>
                                     <div className="grid grid-cols-2 gap-4">
-                                      <div className="space-y-2">
+                                      <div className={cn("space-y-2 transition-opacity", !onlineEnabled && "opacity-50")}>
                                         <Label htmlFor={`priceOnline-${course.id}-${currency.code}`}>Online (1h)</Label>
-                                        <Input id={`priceOnline-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.priceOnline || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'priceOnline', e.target.value)} placeholder="0.00" required />
+                                        <Input id={`priceOnline-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.priceOnline || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'priceOnline', e.target.value)} placeholder="0.00" required disabled={!onlineEnabled} />
                                       </div>
-                                      <div className="space-y-2">
+                                      <div className={cn("space-y-2 transition-opacity", !physicalEnabled && "opacity-50")}>
                                         <Label htmlFor={`pricePhysical-${course.id}-${currency.code}`}>Physical (1h)</Label>
-                                        <Input id={`pricePhysical-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.pricePhysical || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'pricePhysical', e.target.value)} placeholder="0.00" required />
+                                        <Input id={`pricePhysical-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.pricePhysical || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'pricePhysical', e.target.value)} placeholder="0.00" required disabled={!physicalEnabled}/>
                                       </div>
-                                      <div className="space-y-2">
+                                      <div className={cn("space-y-2 transition-opacity", !onlineEnabled && "opacity-50")}>
                                         <Label htmlFor={`priceOnlineAddHour-${course.id}-${currency.code}`}>Add. Hour Online</Label>
-                                        <Input id={`priceOnlineAddHour-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.priceOnlineAddHour || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'priceOnlineAddHour', e.target.value)} placeholder="0.00" required />
+                                        <Input id={`priceOnlineAddHour-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.priceOnlineAddHour || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'priceOnlineAddHour', e.target.value)} placeholder="0.00" required disabled={!onlineEnabled}/>
                                       </div>
-                                      <div className="space-y-2">
+                                      <div className={cn("space-y-2 transition-opacity", !physicalEnabled && "opacity-50")}>
                                         <Label htmlFor={`pricePhysicalAddHour-${course.id}-${currency.code}`}>Add. Hour Physical</Label>
-                                        <Input id={`pricePhysicalAddHour-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.pricePhysicalAddHour || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'pricePhysicalAddHour', e.target.value)} placeholder="0.00" required />
+                                        <Input id={`pricePhysicalAddHour-${course.id}-${currency.code}`} type="number" value={pricing[course.id]?.[currency.code]?.pricePhysicalAddHour || ''} onChange={(e) => handlePriceChange(course.id, currency.code, 'pricePhysicalAddHour', e.target.value)} placeholder="0.00" required disabled={!physicalEnabled}/>
                                       </div>
                                     </div>
                                   </div>
