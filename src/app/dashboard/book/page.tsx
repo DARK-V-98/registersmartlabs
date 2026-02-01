@@ -114,7 +114,7 @@ export default function BookingPage() {
 
   const availableTimeSlots = useMemo(() => {
     if (!selectedDate || !schedules) return [];
-    const { oneHour, twoHour } = getAvailableSlots(date, schedules);
+    const { oneHour, twoHour } = getAvailableSlots(selectedDate, schedules);
     return duration === 1 ? oneHour : twoHour;
   }, [selectedDate, schedules, duration]);
 
