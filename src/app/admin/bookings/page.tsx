@@ -163,7 +163,7 @@ export default function AdminBookingsPage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isResendingEmail, setIsResendingEmail] = useState(isResendingEmail);
+  const [isResendingEmail, setIsResendingEmail] = useState(false);
   
   // Filtering state
   const [activeTab, setActiveTab] = useState('all');
@@ -695,5 +695,3 @@ export default function AdminBookingsPage() {
     </div>
   );
 }
-
-    
