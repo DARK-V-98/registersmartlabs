@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useStorage, setDoc as setDocNonBlocking, useDoc } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, useStorage, setDocumentNonBlocking, useDoc } from '@/firebase';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { collection, query, where, orderBy, getDocs, Timestamp, doc, setDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -114,7 +114,7 @@ export default function BookingPage() {
 
   const availableTimeSlots = useMemo(() => {
     if (!selectedDate || !schedules) return [];
-    const { oneHour, twoHour } = getAvailableSlots(selectedDate, schedules);
+    const { oneHour, twoHour } = getAvailableSlots(date, schedules);
     return duration === 1 ? oneHour : twoHour;
   }, [selectedDate, schedules, duration]);
 
@@ -142,7 +142,7 @@ export default function BookingPage() {
     const isFavorite = profile?.favoriteLecturers?.includes(lecturerId);
 
     try {
-        await setDocNonBlocking(userRef, {
+        await setDoc(userRef, {
             favoriteLecturers: isFavorite ? arrayRemove(lecturerId) : arrayUnion(lecturerId)
         }, { merge: true });
         toast({ title: isFavorite ? 'Lecturer Unfavorited' : 'Lecturer Favorited' });
@@ -217,7 +217,7 @@ export default function BookingPage() {
         await uploadBytes(storageRef, receiptFile);
         downloadUrl = await getDownloadURL(storageRef);
 
-        await setDocNonBlocking(doc(firestore, 'bookings', bookingId), {
+        setDocumentNonBlocking(doc(firestore, 'bookings', bookingId), {
             receiptUrl: downloadUrl,
             receiptType: receiptFile.type
         }, { merge: true });
